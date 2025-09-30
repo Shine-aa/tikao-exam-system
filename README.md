@@ -1,5 +1,5 @@
 # 钛考在线考试系统
-
+墨刀原型地址（待精细化） https://modao.cc/proto/3zU4Zfvt3brq34yd7uKyT/sharing?view_mode=read_only&screen=rbpUy8w80FzUXrH4k #钛考原型 1-分享
 ## 项目简介
 
 钛考是一个基于Spring Boot + Vue.js的在线考试系统，旨在为高校、企业及认证机构提供安全、智能的在线考试解决方案。
@@ -152,3 +152,4 @@ MIT License
 
 - 项目维护者: 钛考团队
 - 邮箱: taikao@example.com
+
