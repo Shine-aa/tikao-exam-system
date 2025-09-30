@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>验证码登录 - 权限管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .login-container {
+            width: 400px;
+            padding: 40px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .developer-tools {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 10;
+        }
+
+        .api-btn {
+            background: #f4f4f5;
+            border: 1px solid #d3d4d6;
+            color: #606266;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.3s;
+        }
+
+        .api-btn:hover {
+            background: #e9e9eb;
+            border-color: #c0c4cc;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h2 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .login-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 8px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            letter-spacing: 1px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-input {
+            width: 100%;
+            height: 44px;
+            padding: 0 15px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #606266;
+            background: white;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #409eff;
+            box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: #c0c4cc;
+        }
+
+        .captcha-container {
+            display: flex;
+            gap: 12px;
+        }
+
+        .captcha-input {
+            flex: 1;
+        }
+
+        .captcha-image {
+            width: 120px;
+            height: 44px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #f5f7fa;
+            transition: all 0.3s;
+            font-size: 12px;
+            color: #909399;
+        }
+
+        .captcha-image:hover {
+            border-color: #409eff;
+            background: #ecf5ff;
+        }
+
+        .captcha-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .remember-me input[type="checkbox"] {
+            margin-right: 8px;
+            width: 16px;
+            height: 16px;
+        }
+
+        .remember-me label {
+            color: #606266;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .login-btn {
+            width: 100%;
+            height: 44px;
+            background: #409eff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .login-btn:hover {
+            background: #337ecc;
+        }
+
+        .login-btn:active {
+            background: #2b6cb0;
+        }
+
+        .register-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .register-link a {
+            color: #409eff;
+            text-decoration: none;
+        }
+
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+
+        .input-icon {
+            position: relative;
+        }
+
+        .input-icon::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            z-index: 1;
+        }
+
+        .input-icon.user::before {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c0c4cc'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E");
+        }
+
+        .input-icon.lock::before {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c0c4cc'%3E%3Cpath d='M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z'/%3E%3C/svg%3E");
+        }
+
+        .input-icon.key::before {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c0c4cc'%3E%3Cpath d='M12.65 10C11.83 7.67 9.61 6 7 6c-3.31 0-6 2.69-6 6s2.69 6 6 6c2.61 0 4.83-1.67 5.65-4H17v4h4v-4h2v-4H12.65zM7 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z'/%3E%3C/svg%3E");
+        }
+
+        .input-icon .form-input {
+            padding-left: 45px;
+        }
+
+        .input-placeholder {
+            position: absolute;
+            left: 45px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #c0c4cc;
+            font-size: 14px;
+            pointer-events: none;
+            transition: all 0.3s;
+            z-index: 1;
+        }
+
+        .input-placeholder.focused {
+            color: #409eff;
+            font-size: 12px;
+            top: 8px;
+            transform: none;
+        }
+
+        .input-placeholder.hidden {
+            opacity: 0;
+        }
+
+        .login-tabs {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .tab-btn {
+            padding: 8px 16px;
+            border: 1px solid #dcdfe6;
+            background: white;
+            color: #606266;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background: #409eff;
+            color: white;
+            border-color: #409eff;
+        }
+
+        .tab-btn:hover {
+            border-color: #409eff;
+            color: #409eff;
+        }
+
+        .tab-btn.active:hover {
+            background: #337ecc;
+            color: white;
+        }
+
+        .switch-login {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .switch-login a {
+            color: #409eff;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .switch-login a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <!-- API文档按钮 -->
+        <div class="developer-tools">
+            <a href="http://localhost:3000/swagger" target="_blank" class="api-btn">
+                📄 API文档
+            </a>
+        </div>
+        
+        <div class="login-header">
+            <div class="logo">
+                <div class="logo-icon">钛</div>
+                <div class="logo-text">钛考</div>
+            </div>
+            <h2>用户登录</h2>
+            <p>欢迎回来</p>
+            <div class="login-tabs">
+                <button class="tab-btn active" onclick="switchTab('password')">密码登录</button>
+                <button class="tab-btn" onclick="switchTab('sms')">短信登录</button>
+            </div>
+        </div>
+        
+        <form class="login-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <div class="input-icon user">
+                    <input 
+                        type="text" 
+                        class="form-input" 
+                        required
+                        id="usernameInput"
+                    />
+                    <div class="input-placeholder" id="usernamePlaceholder">请输入用户名或邮箱</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <div class="input-icon lock">
+                    <input 
+                        type="password" 
+                        class="form-input" 
+                        required
+                        id="passwordInput"
+                    />
+                    <div class="input-placeholder" id="passwordPlaceholder">请输入密码</div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <div class="captcha-container">
+                    <div class="input-icon key captcha-input">
+                        <input 
+                            type="text" 
+                            class="form-input" 
+                            maxlength="6"
+                            required
+                            id="captchaInput"
+                        />
+                        <div class="input-placeholder" id="captchaPlaceholder">请输入验证码</div>
+                    </div>
+                    <div class="captcha-image" onclick="refreshCaptcha()">
+                        <span>点击获取验证码</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="remember-me">
+                <input type="checkbox" id="rememberMe">
+                <label for="rememberMe">记住我</label>
+            </div>
+            
+            <button type="submit" class="login-btn">
+                立即登录
+            </button>
+            
+            <div class="register-link">
+                还没有账号？
+                <a href="注册.html">立即注册</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // 初始化输入框提示文字
+        document.addEventListener('DOMContentLoaded', function() {
+            setupInputPlaceholders();
+        });
+
+        function setupInputPlaceholders() {
+            const inputs = [
+                { input: 'usernameInput', placeholder: 'usernamePlaceholder' },
+                { input: 'passwordInput', placeholder: 'passwordPlaceholder' },
+                { input: 'captchaInput', placeholder: 'captchaPlaceholder' }
+            ];
+
+            inputs.forEach(({ input, placeholder }) => {
+                const inputElement = document.getElementById(input);
+                const placeholderElement = document.getElementById(placeholder);
+
+                if (inputElement && placeholderElement) {
+                    // 聚焦事件
+                    inputElement.addEventListener('focus', function() {
+                        placeholderElement.classList.add('focused');
+                    });
+
+                    // 失焦事件
+                    inputElement.addEventListener('blur', function() {
+                        if (this.value === '') {
+                            placeholderElement.classList.remove('focused');
+                        }
+                    });
+
+                    // 输入事件
+                    inputElement.addEventListener('input', function() {
+                        if (this.value !== '') {
+                            placeholderElement.classList.add('focused');
+                        } else {
+                            placeholderElement.classList.remove('focused');
+                        }
+                    });
+                }
+            });
+        }
+
+        function refreshCaptcha() {
+            const captchaImage = document.querySelector('.captcha-image span');
+            captchaImage.textContent = '验证码已刷新';
+            
+            // 模拟验证码图片
+            setTimeout(() => {
+                captchaImage.textContent = '点击刷新验证码';
+            }, 2000);
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+            alert('验证码登录功能演示 - 实际项目中会调用后端API');
+        }
+    </script>
+</body>
+</html>

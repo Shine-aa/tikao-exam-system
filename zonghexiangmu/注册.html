@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户注册 - 权限管理系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px 0;
+        }
+
+        .register-container {
+            width: 400px;
+            padding: 40px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+
+        .developer-tools {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 10;
+        }
+
+        .api-btn {
+            background: #f4f4f5;
+            border: 1px solid #d3d4d6;
+            color: #606266;
+            padding: 8px 16px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 12px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            transition: all 0.3s;
+        }
+
+        .api-btn:hover {
+            background: #e9e9eb;
+            border-color: #c0c4cc;
+        }
+
+        .register-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .register-header h2 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .register-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 8px;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            letter-spacing: 1px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #606266;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            height: 44px;
+            padding: 0 15px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #606266;
+            background: white;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #409eff;
+            box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+        }
+
+        .form-input::placeholder {
+            color: #c0c4cc;
+        }
+
+        .form-input.error {
+            border-color: #f56c6c;
+        }
+
+        .form-input.success {
+            border-color: #67c23a;
+        }
+
+        .captcha-container {
+            display: flex;
+            gap: 12px;
+        }
+
+        .captcha-input {
+            flex: 1;
+        }
+
+        .captcha-image {
+            width: 120px;
+            height: 44px;
+            border: 1px solid #dcdfe6;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            background: #f5f7fa;
+            transition: all 0.3s;
+            font-size: 12px;
+            color: #909399;
+            border: none;
+        }
+
+        .captcha-image:hover {
+            border-color: #409eff;
+            background: #ecf5ff;
+        }
+
+        .captcha-image:disabled {
+            background: #f5f7fa;
+            color: #c0c4cc;
+            cursor: not-allowed;
+        }
+
+        .captcha-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+
+        .register-btn {
+            width: 100%;
+            height: 44px;
+            background: #409eff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .register-btn:hover {
+            background: #337ecc;
+        }
+
+        .register-btn:active {
+            background: #2b6cb0;
+        }
+
+        .login-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .login-link a {
+            color: #409eff;
+            text-decoration: none;
+        }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+
+        .input-icon {
+            position: relative;
+        }
+
+        .input-icon::before {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 16px;
+            height: 16px;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            z-index: 1;
+        }
+
+        .input-icon.user::before {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c0c4cc'%3E%3Cpath d='M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z'/%3E%3C/svg%3E");
+        }
+
+        .input-icon.lock::before {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c0c4cc'%3E%3Cpath d='M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z'/%3E%3C/svg%3E");
+        }
+
+        .input-icon.phone::before {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c0c4cc'%3E%3Cpath d='M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z'/%3E%3C/svg%3E");
+        }
+
+        .input-icon.message::before {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23c0c4cc'%3E%3Cpath d='M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z'/%3E%3C/svg%3E");
+        }
+
+        .input-icon .form-input {
+            padding-left: 45px;
+        }
+
+        .input-placeholder {
+            position: absolute;
+            left: 45px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #c0c4cc;
+            font-size: 14px;
+            pointer-events: none;
+            transition: all 0.3s;
+            z-index: 1;
+        }
+
+        .input-placeholder.focused {
+            color: #409eff;
+            font-size: 12px;
+            top: 8px;
+            transform: none;
+        }
+
+        .input-placeholder.hidden {
+            opacity: 0;
+        }
+
+        .password-strength {
+            margin-top: 5px;
+            font-size: 12px;
+        }
+
+        .strength-weak { color: #f56c6c; }
+        .strength-medium { color: #e6a23c; }
+        .strength-strong { color: #67c23a; }
+
+        .form-tips {
+            background: #f0f9ff;
+            border: 1px solid #b3d8ff;
+            color: #1890ff;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .error-message {
+            color: #f56c6c;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .success-message {
+            color: #67c23a;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <!-- API文档按钮 -->
+        <div class="developer-tools">
+            <a href="http://localhost:3000/swagger" target="_blank" class="api-btn">
+                📄 API文档
+            </a>
+        </div>
+        
+        <div class="register-header">
+            <div class="logo">
+                <div class="logo-icon">钛</div>
+                <div class="logo-text">钛考</div>
+            </div>
+            <h2>用户注册</h2>
+            <p>欢迎加入我们</p>
+        </div>
+        
+        <form class="register-form" onsubmit="handleRegister(event)">
+            <div class="form-tips">
+                💡 请填写真实信息，手机号将用于接收验证码
+            </div>
+            
+            <div class="form-group">
+                <div class="input-icon user">
+                    <input 
+                        type="text" 
+                        class="form-input" 
+                        required
+                        id="usernameInput"
+                        onblur="validateUsername()"
+                    />
+                    <div class="input-placeholder" id="usernamePlaceholder">请输入用户名（3-20个字符）</div>
+                </div>
+                <div id="usernameError" class="error-message"></div>
+            </div>
+            
+            <div class="form-group">
+                <div class="input-icon lock">
+                    <input 
+                        type="password" 
+                        class="form-input" 
+                        required
+                        id="passwordInput"
+                        oninput="checkPasswordStrength()"
+                    />
+                    <div class="input-placeholder" id="passwordPlaceholder">请输入密码（6-20个字符）</div>
+                </div>
+                <div id="passwordStrength" class="password-strength"></div>
+            </div>
+            
+            <div class="form-group">
+                <div class="input-icon lock">
+                    <input 
+                        type="password" 
+                        class="form-input" 
+                        required
+                        id="confirmPasswordInput"
+                        onblur="validateConfirmPassword()"
+                    />
+                    <div class="input-placeholder" id="confirmPasswordPlaceholder">请确认密码</div>
+                </div>
+                <div id="confirmPasswordError" class="error-message"></div>
+            </div>
+            
+            <div class="form-group">
+                <div class="input-icon phone">
+                    <input 
+                        type="tel" 
+                        class="form-input" 
+                        maxlength="11"
+                        required
+                        id="phoneInput"
+                        onblur="validatePhone()"
+                    />
+                    <div class="input-placeholder" id="phonePlaceholder">请输入手机号</div>
+                </div>
+                <div id="phoneError" class="error-message"></div>
+            </div>
+            
+            <div class="form-group">
+                <div class="input-icon message">
+                    <input 
+                        type="email" 
+                        class="form-input" 
+                        required
+                        id="emailInput"
+                        onblur="validateEmail()"
+                    />
+                    <div class="input-placeholder" id="emailPlaceholder">请输入邮箱地址</div>
+                </div>
+                <div id="emailError" class="error-message"></div>
+            </div>
+            
+            <div class="form-group">
+                <div class="captcha-container">
+                    <div class="input-icon message captcha-input">
+                        <input 
+                            type="text" 
+                            class="form-input" 
+                            maxlength="6"
+                            required
+                            id="smsCodeInput"
+                        />
+                        <div class="input-placeholder" id="smsCodePlaceholder">请输入短信验证码</div>
+                    </div>
+                    <button type="button" class="captcha-image" id="smsBtn" onclick="sendSmsCode()">
+                        <span>获取验证码</span>
+                    </button>
+                </div>
+                <div id="smsError" class="error-message"></div>
+            </div>
+            
+            <button type="submit" class="register-btn">
+                立即注册
+            </button>
+            
+            <div class="login-link">
+                已有账号？
+                <a href="验证码登录.html">立即登录</a>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        let countdownTimer = null;
+        let countdown = 0;
+
+        // 初始化输入框提示文字
+        document.addEventListener('DOMContentLoaded', function() {
+            setupInputPlaceholders();
+        });
+
+        function setupInputPlaceholders() {
+            const inputs = [
+                { input: 'usernameInput', placeholder: 'usernamePlaceholder' },
+                { input: 'passwordInput', placeholder: 'passwordPlaceholder' },
+                { input: 'confirmPasswordInput', placeholder: 'confirmPasswordPlaceholder' },
+                { input: 'phoneInput', placeholder: 'phonePlaceholder' },
+                { input: 'emailInput', placeholder: 'emailPlaceholder' },
+                { input: 'smsCodeInput', placeholder: 'smsCodePlaceholder' }
+            ];
+
+            inputs.forEach(({ input, placeholder }) => {
+                const inputElement = document.getElementById(input);
+                const placeholderElement = document.getElementById(placeholder);
+
+                if (inputElement && placeholderElement) {
+                    // 聚焦事件
+                    inputElement.addEventListener('focus', function() {
+                        placeholderElement.classList.add('focused');
+                    });
+
+                    // 失焦事件
+                    inputElement.addEventListener('blur', function() {
+                        if (this.value === '') {
+                            placeholderElement.classList.remove('focused');
+                        }
+                    });
+
+                    // 输入事件
+                    inputElement.addEventListener('input', function() {
+                        if (this.value !== '') {
+                            placeholderElement.classList.add('focused');
+                        } else {
+                            placeholderElement.classList.remove('focused');
+                        }
+                    });
+                }
+            });
+        }
+
+        function validateUsername() {
+            const username = document.getElementById('usernameInput').value;
+            const errorDiv = document.getElementById('usernameError');
+            
+            if (username.length < 3) {
+                errorDiv.textContent = '用户名至少需要3个字符';
+                return false;
+            } else if (username.length > 20) {
+                errorDiv.textContent = '用户名不能超过20个字符';
+                return false;
+            } else {
+                errorDiv.textContent = '';
+                return true;
+            }
+        }
+
+        function checkPasswordStrength() {
+            const password = document.getElementById('passwordInput').value;
+            const strengthDiv = document.getElementById('passwordStrength');
+            
+            if (password.length === 0) {
+                strengthDiv.textContent = '';
+                return;
+            }
+            
+            let strength = 0;
+            if (password.length >= 6) strength++;
+            if (/[a-z]/.test(password)) strength++;
+            if (/[A-Z]/.test(password)) strength++;
+            if (/[0-9]/.test(password)) strength++;
+            if (/[^A-Za-z0-9]/.test(password)) strength++;
+            
+            if (strength < 2) {
+                strengthDiv.textContent = '密码强度：弱';
+                strengthDiv.className = 'password-strength strength-weak';
+            } else if (strength < 4) {
+                strengthDiv.textContent = '密码强度：中等';
+                strengthDiv.className = 'password-strength strength-medium';
+            } else {
+                strengthDiv.textContent = '密码强度：强';
+                strengthDiv.className = 'password-strength strength-strong';
+            }
+        }
+
+        function validateConfirmPassword() {
+            const password = document.getElementById('passwordInput').value;
+            const confirmPassword = document.getElementById('confirmPasswordInput').value;
+            const errorDiv = document.getElementById('confirmPasswordError');
+            
+            if (confirmPassword !== password) {
+                errorDiv.textContent = '两次输入的密码不一致';
+                return false;
+            } else {
+                errorDiv.textContent = '';
+                return true;
+            }
+        }
+
+        function validatePhone() {
+            const phone = document.getElementById('phoneInput').value;
+            const errorDiv = document.getElementById('phoneError');
+            
+            if (!/^1[3-9]\d{9}$/.test(phone)) {
+                errorDiv.textContent = '请输入正确的手机号格式';
+                return false;
+            } else {
+                errorDiv.textContent = '';
+                return true;
+            }
+        }
+
+        function validateEmail() {
+            const email = document.getElementById('emailInput').value;
+            const errorDiv = document.getElementById('emailError');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            if (!emailRegex.test(email)) {
+                errorDiv.textContent = '请输入正确的邮箱格式';
+                return false;
+            } else {
+                errorDiv.textContent = '';
+                return true;
+            }
+        }
+
+        function sendSmsCode() {
+            const phoneInput = document.getElementById('phoneInput');
+            const phone = phoneInput.value;
+            const smsBtn = document.getElementById('smsBtn');
+            const smsBtnText = smsBtn.querySelector('span');
+            const errorDiv = document.getElementById('smsError');
+            
+            if (!validatePhone()) {
+                errorDiv.textContent = '请先输入正确的手机号';
+                return;
+            }
+            
+            // 禁用按钮
+            smsBtn.disabled = true;
+            smsBtnText.textContent = '60s';
+            errorDiv.textContent = '';
+            
+            // 模拟发送成功
+            alert(`验证码已发送到 ${phone}，请注意查收`);
+            
+            // 开始倒计时
+            countdown = 60;
+            countdownTimer = setInterval(() => {
+                countdown--;
+                smsBtnText.textContent = countdown + 's';
+                
+                if (countdown <= 0) {
+                    clearInterval(countdownTimer);
+                    smsBtn.disabled = false;
+                    smsBtnText.textContent = '获取验证码';
+                }
+            }, 1000);
+        }
+
+        function handleRegister(event) {
+            event.preventDefault();
+            
+            // 验证所有字段
+            const isUsernameValid = validateUsername();
+            const isPasswordValid = document.getElementById('passwordInput').value.length >= 6;
+            const isConfirmPasswordValid = validateConfirmPassword();
+            const isPhoneValid = validatePhone();
+            const isEmailValid = validateEmail();
+            const isSmsCodeValid = document.getElementById('smsCodeInput').value.length >= 4;
+            
+            if (!isUsernameValid || !isPasswordValid || !isConfirmPasswordValid || 
+                !isPhoneValid || !isEmailValid || !isSmsCodeValid) {
+                alert('请填写完整的注册信息');
+                return;
+            }
+            
+            const formData = {
+                username: document.getElementById('usernameInput').value,
+                phone: document.getElementById('phoneInput').value,
+                email: document.getElementById('emailInput').value,
+                smsCode: document.getElementById('smsCodeInput').value
+            };
+            
+            alert(`注册功能演示 - 用户信息: ${JSON.stringify(formData, null, 2)}`);
+        }
+
+        // 页面加载时自动聚焦到用户名输入框
+        window.onload = function() {
+            document.getElementById('usernameInput').focus();
+        }
+    </script>
+</body>
+</html>
