@@ -468,28 +468,34 @@ onMounted(() => {
 }
 
 .captcha-image {
-  width: 120px;
-  height: 40px;
-  border: 1px solid #dcdfe6;
-  border-radius: 4px;
+  width: 130px;
+  height: 45px;
+  border: 2px solid #dcdfe6;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background: #f5f7fa;
+  background: #ffffff;
   transition: all 0.3s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .captcha-image:hover {
   border-color: #409eff;
-  background: #ecf5ff;
+  background: #f8f9ff;
+  box-shadow: 0 4px 8px rgba(64, 158, 255, 0.2);
+  transform: translateY(-1px);
 }
 
 .captcha-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: 4px;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
 }
 
 .captcha-image span {

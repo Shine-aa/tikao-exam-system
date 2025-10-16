@@ -42,6 +42,11 @@ public class SwaggerConfig {
                 new Tag().name("角色管理").description("角色信息管理相关接口"),
                 new Tag().name("权限管理").description("权限信息管理相关接口"),
                 new Tag().name("菜单管理").description("菜单管理相关接口"),
+                new Tag().name("题库管理").description("题库管理相关接口"),
+                new Tag().name("课程管理").description("课程管理相关接口"),
+                new Tag().name("班级管理").description("班级管理相关接口"),
+                new Tag().name("专业管理").description("专业管理相关接口"),
+                new Tag().name("班级课程关联").description("班级课程关联管理相关接口"),
                 new Tag().name("仪表盘").description("系统仪表盘统计数据相关接口")
             ))
             .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))

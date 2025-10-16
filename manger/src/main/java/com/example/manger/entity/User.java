@@ -43,6 +43,9 @@ public class User {
     @Column(name = "last_login_time")
     private LocalDateTime lastLoginTime;
     
+    @Column(name = "class_id")
+    private Long classId;
+    
     @CreationTimestamp
     @Column(name = "create_time", nullable = false, updatable = false)
     private LocalDateTime createTime;

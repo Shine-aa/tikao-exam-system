@@ -185,7 +185,7 @@ import { ElMessage } from 'element-plus'
 
 // 用户信息
 const userInfo = ref({
-  username: '学生用户'
+  username: '同学们'
 })
 
 // 当前选中的标签页

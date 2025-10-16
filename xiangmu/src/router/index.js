@@ -13,6 +13,7 @@ import Profile from '../views/user/Profile.vue'
 import StudentDashboard from '../views/StudentDashboard.vue'
 import TeacherLayout from '../views/TeacherLayout.vue'
 import TeacherDashboard from '../views/TeacherDashboard.vue'
+import QuestionBankManagement from '../views/teacher/QuestionBankManagement.vue'
 import SwaggerTest from '../views/SwaggerTest.vue'
 import { getUserInfo } from '../api/user'
 
@@ -119,6 +120,42 @@ const routes = [
         path: 'dashboard',
         name: 'TeacherDashboard',
         component: TeacherDashboard,
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'question-bank',
+        name: 'QuestionBankManagement',
+        component: QuestionBankManagement,
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'course-management',
+        name: 'CourseManagement',
+        component: () => import('@/views/teacher/CourseManagement.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'major-management',
+        name: 'MajorManagement',
+        component: () => import('@/views/teacher/MajorManagement.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'class-management',
+        name: 'ClassManagement',
+        component: () => import('@/views/teacher/ClassManagement.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'student-management',
+        name: 'StudentManagement',
+        component: () => import('@/views/teacher/StudentManagement.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'exam-grouping',
+        name: 'ExamGrouping',
+        component: () => import('@/views/teacher/ExamGrouping.vue'),
         meta: { requiresAuth: true, role: 'TEACHER' }
       }
     ]

@@ -35,8 +35,38 @@ public class ErrorCode {
     public static final int MENU_HAS_CHILDREN = 4004;
     public static final int MENU_CANNOT_BE_PARENT_OF_ITSELF = 4005;
     
+    // 题库相关错误码 (6000-6999)
+    public static final int QUESTION_NOT_FOUND = 6001;
+    public static final int KNOWLEDGE_POINT_NOT_FOUND = 6002;
+    public static final int KNOWLEDGE_POINT_NAME_EXISTS = 6003;
+    public static final int QUESTION_TAG_NOT_FOUND = 6004;
+    public static final int QUESTION_TAG_NAME_EXISTS = 6005;
+    public static final int ACCESS_DENIED = 6006;
+    
+    // 课程相关错误码 (7000-7999)
+    public static final int COURSE_NOT_FOUND = 7001;
+    public static final int COURSE_CODE_EXISTS = 7002;
+    public static final int COURSE_HAS_CLASSES = 7003;
+    
+    // 班级相关错误码 (8000-8999)
+    public static final int CLASS_NOT_FOUND = 8001;
+    public static final int CLASS_CODE_EXISTS = 8002;
+    public static final int CLASS_FULL = 8003;
+    public static final int STUDENT_ALREADY_IN_CLASS = 8004;
+    public static final int STUDENT_NOT_IN_CLASS = 8005;
+    
+    // 专业相关错误码 (9000-9999)
+    public static final int MAJOR_NOT_FOUND = 9001;
+    public static final int MAJOR_CODE_EXISTS = 9002;
+    
+    // 班级课程关联相关错误码 (10000-10999)
+    public static final int CLASS_COURSE_NOT_FOUND = 10001;
+    public static final int CLASS_COURSE_EXISTS = 10002;
+    
     // 系统相关错误码 (5000-5999)
     public static final int SYSTEM_ERROR = 5001;
     public static final int DATABASE_ERROR = 5002;
     public static final int NETWORK_ERROR = 5003;
+    public static final int INVALID_OPERATION = 5004;
+    public static final int PAPER_NOT_FOUND = 5005;
 }

@@ -1,9 +1,16 @@
 package com.example.manger.service;
 
 import com.example.manger.dto.*;
+import com.example.manger.entity.Class;
 import com.example.manger.entity.Role;
+import com.example.manger.entity.StudentClass;
 import com.example.manger.entity.User;
+import com.example.manger.exception.BusinessException;
+import com.example.manger.exception.ErrorCode;
+import com.example.manger.repository.ClassRepository;
+import com.example.manger.repository.MajorRepository;
 import com.example.manger.repository.RoleRepository;
+import com.example.manger.repository.StudentClassRepository;
 import com.example.manger.repository.UserRepository;
 import com.example.manger.util.PasswordUtil;
 import lombok.RequiredArgsConstructor;
@@ -11,9 +18,13 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.criteria.Predicate;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -24,6 +35,9 @@ public class UserManagementService {
     
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final ClassRepository classRepository;
+    private final MajorRepository majorRepository;
+    private final StudentClassRepository studentClassRepository;
     private final PasswordUtil passwordUtil;
     
     /**
@@ -166,8 +180,15 @@ public class UserManagementService {
      * 根据条件搜索用户
      */
     @Transactional(readOnly = true)
-    public List<UserResponse> getAllUsers(String username, String email, Boolean isActive) {
-        List<User> users = userRepository.findAllWithRoles();
+    public List<UserResponse> getAllUsers(String username, String email, Boolean isActive, String role) {
+        List<User> users;
+        
+        // 如果指定了角色，使用按角色查询的方法
+        if (role != null && !role.isEmpty()) {
+            users = userRepository.findByRolesRoleCodeAndIsActiveTrue(role);
+        } else {
+            users = userRepository.findAllWithRoles();
+        }
         
         // 应用搜索过滤条件
         return users.stream()
@@ -297,6 +318,237 @@ public class UserManagementService {
                     .map(this::convertRoleToResponse)
                     .collect(Collectors.toSet());
             response.setRoles(roleResponses);
+        }
+        
+        return response;
+    }
+    
+    /**
+     * 获取所有学生（普通用户）
+     */
+    public List<UserResponse> getStudents() {
+        // 查找所有普通用户（假设普通用户的角色代码是"USER"）
+        List<User> students = userRepository.findByRolesRoleCodeAndIsActiveTrue("USER");
+        return students.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * 分页获取学生列表（带班级信息）
+     */
+    public PageResponse<UserResponse> getStudentsWithPagination(int page, int size, String keyword, 
+                                                               Long classId, String status) {
+        Pageable pageable = PageRequest.of(page - 1, size);
+        
+        // 构建查询条件
+        Specification<User> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            
+            // 只查询普通用户（学生）- 通过角色关系表查询
+            predicates.add(cb.equal(root.join("roles").get("roleCode"), "USER"));
+            
+            // 只查询激活的用户
+            predicates.add(cb.equal(root.get("isActive"), true));
+            
+            // 关键词搜索
+            if (keyword != null && !keyword.trim().isEmpty()) {
+                String keywordPattern = "%" + keyword.trim() + "%";
+                Predicate usernamePredicate = cb.like(root.get("username"), keywordPattern);
+                Predicate emailPredicate = cb.like(root.get("email"), keywordPattern);
+                predicates.add(cb.or(usernamePredicate, emailPredicate));
+            }
+            
+            // 状态筛选
+            if (status != null && !status.trim().isEmpty()) {
+                if ("assigned".equals(status)) {
+                    // 已分配班级的学生
+                    predicates.add(cb.isNotNull(root.get("classId")));
+                } else if ("unassigned".equals(status)) {
+                    // 未分配班级的学生
+                    predicates.add(cb.isNull(root.get("classId")));
+                }
+            }
+            
+            // 班级筛选
+            if (classId != null) {
+                predicates.add(cb.equal(root.get("classId"), classId));
+            }
+            
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+        
+        Page<User> userPage = userRepository.findAll(spec, pageable);
+        
+        // 转换为响应DTO
+        List<UserResponse> userResponses = userPage.getContent().stream()
+                .map(this::convertUserToResponseWithClassInfo)
+                .collect(Collectors.toList());
+        
+        return PageResponse.of(
+                userResponses,
+                page,
+                size,
+                userPage.getTotalElements()
+        );
+    }
+    
+    /**
+     * 分配学生到班级
+     */
+    @Transactional
+    public void assignStudentToClass(Long studentId, Long classId) {
+        // 验证学生是否存在
+        User student = userRepository.findById(studentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "学生不存在"));
+        
+        // 验证学生是否为普通用户
+        boolean isStudent = student.getRoles().stream()
+                .anyMatch(role -> "USER".equals(role.getRoleCode()));
+        if (!isStudent) {
+            throw new BusinessException(ErrorCode.INVALID_OPERATION, "只能分配普通用户到班级");
+        }
+        
+        // 验证班级是否存在
+        Class classEntity = classRepository.findById(classId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
+        
+        // 如果学生已经在同一个班级，无需操作
+        if (student.getClassId() != null && student.getClassId().equals(classId)) {
+            return; // 学生已经在目标班级中，无需重复分配
+        }
+        
+        // 如果学生之前在其他班级，先删除旧的关联记录并更新旧班级人数
+        if (student.getClassId() != null) {
+            Long oldClassId = student.getClassId();
+            studentClassRepository.deleteByClassIdAndStudentId(oldClassId, studentId);
+            
+            // 更新旧班级的学生人数
+            Class oldClass = classRepository.findById(oldClassId).orElse(null);
+            if (oldClass != null) {
+                oldClass.setCurrentStudents(Math.max(0, oldClass.getCurrentStudents() - 1));
+                classRepository.save(oldClass);
+            }
+        }
+        
+        // 分配学生到班级
+        student.setClassId(classId);
+        student.setUpdateTime(LocalDateTime.now());
+        userRepository.save(student);
+        
+        // 创建学生班级关联记录
+        StudentClass studentClass = new StudentClass();
+        studentClass.setStudentId(studentId);
+        studentClass.setClassId(classId);
+        studentClass.setIsActive(true);
+        studentClass.setCreatedAt(LocalDateTime.now());
+        studentClassRepository.save(studentClass);
+        
+        // 更新新班级的学生人数
+        classEntity.setCurrentStudents(classEntity.getCurrentStudents() + 1);
+        classRepository.save(classEntity);
+    }
+    
+    /**
+     * 批量分配学生到班级
+     */
+    @Transactional
+    public void batchAssignStudentsToClass(List<Long> studentIds, Long classId) {
+        for (Long studentId : studentIds) {
+            assignStudentToClass(studentId, classId);
+        }
+    }
+    
+    /**
+     * 将学生移出班级
+     */
+    @Transactional
+    public void removeStudentFromClass(Long studentId) {
+        // 验证学生是否存在
+        User student = userRepository.findById(studentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "学生不存在"));
+        
+        if (student.getClassId() == null) {
+            throw new BusinessException(ErrorCode.INVALID_OPERATION, "学生未分配班级");
+        }
+        
+        // 保存班级ID，因为之后会设置为null
+        Long classId = student.getClassId();
+        
+        // 移除学生班级关联
+        student.setClassId(null);
+        student.setUpdateTime(LocalDateTime.now());
+        userRepository.save(student);
+        
+        // 软删除学生班级关联记录
+        studentClassRepository.deleteByClassIdAndStudentId(classId, studentId);
+        
+        // 更新班级的学生人数
+        Class classEntity = classRepository.findById(classId).orElse(null);
+        if (classEntity != null) {
+            classEntity.setCurrentStudents(Math.max(0, classEntity.getCurrentStudents() - 1));
+            classRepository.save(classEntity);
+        }
+    }
+    
+    /**
+     * 批量将学生移出班级
+     */
+    @Transactional
+    public void batchRemoveStudentsFromClass(List<Long> studentIds) {
+        for (Long studentId : studentIds) {
+            removeStudentFromClass(studentId);
+        }
+    }
+    
+    /**
+     * 转换用户为响应DTO
+     */
+    private UserResponse convertUserToResponse(User user) {
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setEmail(user.getEmail());
+        response.setPhone(user.getPhone());
+        response.setIsActive(user.getIsActive());
+        response.setLastLoginTime(user.getLastLoginTime());
+        response.setCreateTime(user.getCreateTime());
+        response.setUpdateTime(user.getUpdateTime());
+        // 设置角色信息
+        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+            response.setRoles(user.getRoles().stream()
+                    .map(this::convertRoleToResponse)
+                    .collect(Collectors.toSet()));
+            
+            // 设置主要角色信息
+            Role primaryRole = user.getRoles().iterator().next();
+            response.setRole(primaryRole.getRoleCode());
+            response.setRoleName(primaryRole.getRoleName());
+        }
+        
+        return response;
+    }
+    
+    /**
+     * 转换用户为响应DTO（带班级信息）
+     */
+    private UserResponse convertUserToResponseWithClassInfo(User user) {
+        UserResponse response = convertUserToResponse(user);
+        
+        // 设置班级信息
+        if (user.getClassId() != null) {
+            classRepository.findById(user.getClassId()).ifPresent(classEntity -> {
+                response.setClassName(classEntity.getClassName());
+                response.setClassId(classEntity.getId());
+                
+                // 设置专业信息
+                if (classEntity.getMajorId() != null) {
+                    majorRepository.findById(classEntity.getMajorId()).ifPresent(major -> {
+                        response.setMajorName(major.getMajorName());
+                        response.setMajorId(major.getId());
+                    });
+                }
+            });
         }
         
         return response;

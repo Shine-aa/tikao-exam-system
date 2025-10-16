@@ -3,11 +3,11 @@ import request from '../utils/request'
 // ==================== 用户管理 API ====================
 
 // 获取用户列表
-export function getUserList(params) {
+export function getUserList(username, email, isActive, role) {
   return request({
     url: '/api/admin/users',
     method: 'get',
-    params
+    params: { username, email, isActive, role }
   })
 }
 
@@ -180,6 +180,68 @@ export function togglePermissionStatus(id) {
   })
 }
 
+// ==================== 题库管理相关API ====================
+
+// 获取题目列表
+export function getQuestions(params) {
+  return request({
+    url: '/api/questions',
+    method: 'get',
+    params
+  })
+}
+
+// 获取题目详情
+export function getQuestionById(id) {
+  return request({
+    url: `/api/questions/${id}`,
+    method: 'get'
+  })
+}
+
+// 创建题目
+export function createQuestion(data) {
+  return request({
+    url: '/api/questions',
+    method: 'post',
+    data
+  })
+}
+
+// 更新题目
+export function updateQuestion(id, data) {
+  return request({
+    url: `/api/questions/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+// 删除题目
+export function deleteQuestion(id) {
+  return request({
+    url: `/api/questions/${id}`,
+    method: 'delete'
+  })
+}
+
+// 批量删除题目
+export function batchDeleteQuestions(ids) {
+  return request({
+    url: '/api/questions/batch',
+    method: 'delete',
+    data: ids
+  })
+}
+
+// 获取题目统计信息
+export function getQuestionStatistics() {
+  return request({
+    url: '/api/questions/statistics',
+    method: 'get'
+  })
+}
+
 // ==================== 菜单管理 API ====================
 
 // 获取菜单列表
@@ -249,6 +311,58 @@ export function getMenusByUserId(userId) {
   })
 }
 
+// 获取所有学生（普通用户）
+export function getStudents() {
+  return request({
+    url: '/api/admin/users/students',
+    method: 'get'
+  })
+}
+
+// 分页获取学生列表（带班级信息）
+export function getStudentsWithPagination(page, size, keyword, classId, status) {
+  return request({
+    url: '/api/admin/users/students/page',
+    method: 'get',
+    params: { page, size, keyword, classId, status }
+  })
+}
+
+// 分配学生到班级
+export function assignStudentToClass(studentId, classId) {
+  return request({
+    url: '/api/admin/users/students/assign',
+    method: 'post',
+    data: { studentId, classId }
+  })
+}
+
+// 批量分配学生到班级
+export function batchAssignStudentsToClass(studentIds, classId) {
+  return request({
+    url: '/api/admin/users/students/batch-assign',
+    method: 'post',
+    data: { studentIds, classId }
+  })
+}
+
+// 将学生移出班级
+export function removeStudentFromClass(studentId) {
+  return request({
+    url: `/api/admin/users/students/${studentId}/remove-from-class`,
+    method: 'delete'
+  })
+}
+
+// 批量将学生移出班级
+export function batchRemoveStudentsFromClass(studentIds) {
+  return request({
+    url: '/api/admin/users/students/batch-remove-from-class',
+    method: 'delete',
+    data: { studentIds }
+  })
+}
+
 // 为角色分配菜单
 export function assignMenusToRole(data) {
   return request({
@@ -302,4 +416,392 @@ export function batchDeletePermissions(permissionIds) {
     method: 'delete',
     data: permissionIds
   })
+}
+
+// ==================== 课程管理 API ====================
+
+// 创建课程
+export function createCourse(data) {
+  return request({
+    url: '/api/courses',
+    method: 'post',
+    data
+  })
+}
+
+// 更新课程
+export function updateCourse(id, data) {
+  return request({
+    url: `/api/courses/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+// 删除课程
+export function deleteCourse(id) {
+  return request({
+    url: `/api/courses/${id}`,
+    method: 'delete'
+  })
+}
+
+// 获取课程详情
+export function getCourseById(id) {
+  return request({
+    url: `/api/courses/${id}`,
+    method: 'get'
+  })
+}
+
+// 分页获取课程列表
+export function getCoursesWithPagination(page, size, keyword) {
+  return request({
+    url: '/api/courses/page',
+    method: 'get',
+    params: { page, size, keyword }
+  })
+}
+
+// 获取所有课程
+export function getCourses() {
+  return request({
+    url: '/api/courses',
+    method: 'get'
+  })
+}
+
+// ==================== 班级管理 API ====================
+
+// 创建班级
+export function createClass(data) {
+  return request({
+    url: '/api/classes',
+    method: 'post',
+    data
+  })
+}
+
+// 更新班级
+export function updateClass(id, data) {
+  return request({
+    url: `/api/classes/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+// 删除班级
+export function deleteClass(id) {
+  return request({
+    url: `/api/classes/${id}`,
+    method: 'delete'
+  })
+}
+
+// 批量删除班级
+export function batchDeleteClasses(ids) {
+  return request({
+    url: '/api/classes/batch',
+    method: 'delete',
+    data: ids
+  })
+}
+
+// 获取班级详情
+export function getClassById(id) {
+  return request({
+    url: `/api/classes/${id}`,
+    method: 'get'
+  })
+}
+
+// 分页获取班级列表
+export function getClassesWithPagination(page, size, keyword, majorId, grade) {
+  return request({
+    url: '/api/classes/page',
+    method: 'get',
+    params: { page, size, keyword, majorId, grade }
+  })
+}
+
+// 获取所有班级
+export function getClasses() {
+  return request({
+    url: '/api/classes',
+    method: 'get'
+  })
+}
+
+// 根据课程获取班级
+export function getClassesByCourse(courseId) {
+  return request({
+    url: `/api/classes/course/${courseId}`,
+    method: 'get'
+  })
+}
+
+// ==================== 导出API对象 ====================
+
+export const courseApi = {
+  createCourse,
+  updateCourse,
+  deleteCourse,
+  getCourseById,
+  getCoursesWithPagination,
+  getCourses
+}
+
+export const classApi = {
+  createClass,
+  updateClass,
+  deleteClass,
+  batchDeleteClasses,
+  getClassById,
+  getClassesWithPagination,
+  getClasses,
+  getClassesByCourse
+}
+
+export const userApi = {
+  getUserList,
+  getUserListWithPagination,
+  createUser,
+  updateUser,
+  deleteUser,
+  batchDeleteUsers,
+  toggleUserStatus,
+  resetUserPassword,
+  assignUserRoles,
+  getStudents,
+  getStudentsWithPagination,
+  assignStudentToClass,
+  batchAssignStudentsToClass,
+  removeStudentFromClass,
+  batchRemoveStudentsFromClass
+}
+
+// ==================== 专业管理 API ====================
+
+// 获取专业列表
+export function getMajorList(params) {
+  return request({
+    url: '/api/majors',
+    method: 'get',
+    params
+  })
+}
+
+// 分页获取专业
+export function getMajorsWithPagination(params) {
+  return request({
+    url: '/api/majors/page',
+    method: 'get',
+    params
+  })
+}
+
+// 创建专业
+export function createMajor(data) {
+  return request({
+    url: '/api/majors',
+    method: 'post',
+    data
+  })
+}
+
+// 更新专业
+export function updateMajor(id, data) {
+  return request({
+    url: `/api/majors/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+// 删除专业
+export function deleteMajor(id) {
+  return request({
+    url: `/api/majors/${id}`,
+    method: 'delete'
+  })
+}
+
+// 批量删除专业
+export function batchDeleteMajors(ids) {
+  return request({
+    url: '/api/majors/batch',
+    method: 'delete',
+    data: ids
+  })
+}
+
+// 获取专业详情
+export function getMajorById(id) {
+  return request({
+    url: `/api/majors/${id}`,
+    method: 'get'
+  })
+}
+
+export const majorApi = {
+  getMajorList,
+  getMajorsWithPagination,
+  createMajor,
+  updateMajor,
+  deleteMajor,
+  batchDeleteMajors,
+  getMajorById
+}
+
+// ==================== 班级课程关联 API ====================
+
+// 获取班级课程关联列表
+export function getClassCourseList(params) {
+  return request({
+    url: '/api/class-courses',
+    method: 'get',
+    params
+  })
+}
+
+// 获取所有课程列表
+export function getAllCourses() {
+  return request({
+    url: '/api/class-courses',
+    method: 'get'
+  })
+}
+
+// 分页获取班级课程关联
+export function getClassCoursesWithPagination(params) {
+  return request({
+    url: '/api/class-courses/page',
+    method: 'get',
+    params
+  })
+}
+
+// 创建班级课程关联
+export function createClassCourse(data) {
+  return request({
+    url: '/api/class-courses',
+    method: 'post',
+    data
+  })
+}
+
+// 更新班级课程关联
+export function updateClassCourse(id, data) {
+  return request({
+    url: `/api/class-courses/${id}`,
+    method: 'put',
+    data
+  })
+}
+
+// 删除班级课程关联
+export function deleteClassCourse(id) {
+  return request({
+    url: `/api/class-courses/${id}`,
+    method: 'delete'
+  })
+}
+
+// 批量删除班级课程关联
+export function batchDeleteClassCourses(ids) {
+  return request({
+    url: '/api/class-courses/batch',
+    method: 'delete',
+    data: ids
+  })
+}
+
+// 根据班级ID获取课程列表
+export function getClassCoursesByClassId(classId) {
+  return request({
+    url: `/api/class-courses/class/${classId}`,
+    method: 'get'
+  })
+}
+
+// 根据课程ID获取班级列表
+export function getClassCoursesByCourseId(courseId) {
+  return request({
+    url: `/api/class-courses/course/${courseId}`,
+    method: 'get'
+  })
+}
+
+// 删除班级所有课程关联
+export function deleteClassCoursesByClassId(classId) {
+  return request({
+    url: `/api/class-courses/class/${classId}`,
+    method: 'delete'
+  })
+}
+
+// 删除课程所有班级关联
+export function deleteClassCoursesByCourseId(courseId) {
+  return request({
+    url: `/api/class-courses/course/${courseId}`,
+    method: 'delete'
+  })
+}
+
+export const classCourseApi = {
+  getClassCourseList,
+  getAllCourses,
+  getClassCoursesWithPagination,
+  createClassCourse,
+  updateClassCourse,
+  deleteClassCourse,
+  batchDeleteClassCourses,
+  getClassCoursesByClassId,
+  getClassCoursesByCourseId,
+  deleteClassCoursesByClassId,
+  deleteClassCoursesByCourseId
+}
+
+// ==================== 试卷生成相关API ====================
+
+// 生成试卷
+export function generatePaper(data) {
+  return request({
+    url: '/api/papers/generate',
+    method: 'post',
+    data
+  })
+}
+
+// 分页获取试卷列表
+export function getPapersWithPagination(page, size, keyword) {
+  return request({
+    url: '/api/papers/page',
+    method: 'get',
+    params: { page, size, keyword }
+  })
+}
+
+// 根据ID获取试卷详情
+export function getPaperById(id) {
+  return request({
+    url: `/api/papers/${id}`,
+    method: 'get'
+  })
+}
+
+// 删除试卷
+export function deletePaper(id) {
+  return request({
+    url: `/api/papers/${id}`,
+    method: 'delete'
+  })
+}
+
+export const paperApi = {
+  generatePaper,
+  getPapersWithPagination,
+  getPaperById,
+  deletePaper
 }

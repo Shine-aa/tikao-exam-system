@@ -22,6 +22,19 @@
           <el-icon><Collection /></el-icon>
           <span>题库管理</span>
         </el-menu-item>
+        <el-menu-item index="course-management">
+          <el-icon><Reading /></el-icon>
+          <span>课程管理</span>
+        </el-menu-item>
+        <!-- 专业管理暂时隐藏，保留代码 -->
+        <!-- <el-menu-item index="major-management">
+          <el-icon><Reading /></el-icon>
+          <span>专业管理</span>
+        </el-menu-item> -->
+        <el-menu-item index="class-management">
+          <el-icon><School /></el-icon>
+          <span>班级管理</span>
+        </el-menu-item>
         <el-menu-item index="exam-grouping">
           <el-icon><Document /></el-icon>
           <span>组卷管理</span>
@@ -88,9 +101,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
+import {
   House, 
   Collection, 
+  Reading,
+  School,
   Document, 
   List, 
   User, 
@@ -118,6 +133,9 @@ const currentPageTitle = computed(() => {
   const titleMap = {
     'dashboard': '仪表盘',
     'question-bank': '题库管理',
+    'course-management': '课程管理',
+    'major-management': '专业管理', // 保留代码，暂时隐藏
+    'class-management': '班级管理',
     'exam-grouping': '组卷管理',
     'exam-management': '考试管理',
     'student-management': '学生管理',
@@ -136,6 +154,23 @@ const getUserInfo = () => {
   }
 }
 
+// 根据当前路由设置激活菜单
+const setActiveMenuFromRoute = () => {
+  const currentPath = route.path
+  if (currentPath.includes('/teacher/course-management')) {
+    activeMenu.value = 'course-management'
+  } else if (currentPath.includes('/teacher/major-management')) {
+    activeMenu.value = 'major-management'
+  } else if (currentPath.includes('/teacher/class-management')) {
+    activeMenu.value = 'class-management'
+  } else if (currentPath.includes('/teacher/question-bank')) {
+    activeMenu.value = 'question-bank'
+  } else if (currentPath.includes('/teacher/dashboard')) {
+    activeMenu.value = 'dashboard'
+  }
+  // 可以根据需要添加更多路由判断
+}
+
 // 菜单选择处理
 const handleMenuSelect = (index) => {
   activeMenu.value = index
@@ -144,6 +179,9 @@ const handleMenuSelect = (index) => {
   const routeMap = {
     'dashboard': '/teacher/dashboard',
     'question-bank': '/teacher/question-bank',
+    'course-management': '/teacher/course-management',
+    'major-management': '/teacher/major-management',
+    'class-management': '/teacher/class-management',
     'exam-grouping': '/teacher/exam-grouping',
     'exam-management': '/teacher/exam-management',
     'student-management': '/teacher/student-management',

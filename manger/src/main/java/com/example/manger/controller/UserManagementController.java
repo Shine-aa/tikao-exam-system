@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin/users")
@@ -108,13 +109,14 @@ public class UserManagementController {
      * 获取所有用户
      */
     @GetMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<List<UserResponse>> getAllUsers(
             @RequestParam(required = false) String username,
             @RequestParam(required = false) String email,
-            @RequestParam(required = false) Boolean isActive) {
+            @RequestParam(required = false) Boolean isActive,
+            @RequestParam(required = false) String role) {
         try {
-            List<UserResponse> users = userManagementService.getAllUsers(username, email, isActive);
+            List<UserResponse> users = userManagementService.getAllUsers(username, email, isActive, role);
             return ApiResponse.success(users);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
@@ -218,6 +220,118 @@ public class UserManagementController {
             String newPassword = request.get("newPassword");
             userManagementService.resetUserPassword(userId, newPassword);
             return ApiResponse.success("密码重置成功", null);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 获取所有学生（普通用户）
+     */
+    @GetMapping("/students")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "获取学生列表", description = "获取所有普通用户（学生）列表")
+    public ApiResponse<List<UserResponse>> getStudents() {
+        try {
+            List<UserResponse> students = userManagementService.getStudents();
+            return ApiResponse.success("获取学生列表成功", students);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 分页获取学生列表（带班级信息）
+     */
+    @GetMapping("/students/page")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "分页获取学生列表", description = "分页获取学生列表，支持按班级和状态筛选")
+    public ApiResponse<PageResponse<UserResponse>> getStudentsWithPagination(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Long classId,
+            @RequestParam(required = false) String status) {
+        try {
+            PageResponse<UserResponse> response = userManagementService.getStudentsWithPagination(
+                    page, size, keyword, classId, status);
+            return ApiResponse.success("获取学生列表成功", response);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 分配学生到班级
+     */
+    @PostMapping("/students/assign")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "分配学生到班级", description = "将学生分配到指定班级")
+    public ApiResponse<Void> assignStudentToClass(@RequestBody Map<String, Object> request) {
+        try {
+            Long studentId = Long.valueOf(request.get("studentId").toString());
+            Long classId = Long.valueOf(request.get("classId").toString());
+            
+            userManagementService.assignStudentToClass(studentId, classId);
+            return ApiResponse.success("分配成功", null);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 批量分配学生到班级
+     */
+    @PostMapping("/students/batch-assign")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "批量分配学生到班级", description = "批量将学生分配到指定班级")
+    public ApiResponse<Void> batchAssignStudentsToClass(@RequestBody Map<String, Object> request) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<Object> studentIdsObj = (List<Object>) request.get("studentIds");
+            List<Long> studentIds = studentIdsObj.stream()
+                    .map(id -> Long.valueOf(id.toString()))
+                    .collect(Collectors.toList());
+            Long classId = Long.valueOf(request.get("classId").toString());
+            
+            userManagementService.batchAssignStudentsToClass(studentIds, classId);
+            return ApiResponse.success("批量分配成功", null);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 将学生移出班级
+     */
+    @DeleteMapping("/students/{studentId}/remove-from-class")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "将学生移出班级", description = "将学生从当前班级中移除")
+    public ApiResponse<Void> removeStudentFromClass(@PathVariable Long studentId) {
+        try {
+            userManagementService.removeStudentFromClass(studentId);
+            return ApiResponse.success("移出成功", null);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+    
+    /**
+     * 批量将学生移出班级
+     */
+    @DeleteMapping("/students/batch-remove-from-class")
+    @PreAuthorize("hasRole('TEACHER')")
+    @Operation(summary = "批量将学生移出班级", description = "批量将学生从当前班级中移除")
+    public ApiResponse<Void> batchRemoveStudentsFromClass(@RequestBody Map<String, Object> request) {
+        try {
+            @SuppressWarnings("unchecked")
+            List<Object> studentIdsObj = (List<Object>) request.get("studentIds");
+            List<Long> studentIds = studentIdsObj.stream()
+                    .map(id -> Long.valueOf(id.toString()))
+                    .collect(Collectors.toList());
+            
+            userManagementService.batchRemoveStudentsFromClass(studentIds);
+            return ApiResponse.success("批量移出成功", null);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
         }
