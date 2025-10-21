@@ -78,4 +78,9 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
      */
     @Query("SELECT q FROM Question q JOIN QuestionCourse qc ON q.id = qc.questionId WHERE q.isActive = true AND qc.courseId = :courseId AND q.type = :type AND q.difficulty = :difficulty AND qc.isActive = true")
     List<Question> findByCourseIdAndTypeAndDifficultyAndIsActiveTrue(@Param("courseId") Long courseId, @Param("type") Question.QuestionType type, @Param("difficulty") Question.DifficultyLevel difficulty);
+    
+    /**
+     * 根据题目ID列表查询题目
+     */
+    List<Question> findByIdIn(List<Long> questionIds);
 }

@@ -27,10 +27,8 @@
     <div class="quick-actions">
       <h3>快速操作</h3>
       <div class="action-buttons">
-        <el-button type="primary" @click="handleCreateExam">创建考试</el-button>
         <el-button type="success" @click="handleQuestionBank">题库管理</el-button>
         <el-button type="warning" @click="handleSmartGrouping">智能组卷</el-button>
-        <el-button type="primary" @click="handleMonitoring">实时监考</el-button>
         <el-button type="success" @click="handleScoreAnalysis">成绩分析</el-button>
         <el-button type="warning" @click="handleStudentManagement">学生管理</el-button>
       </div>
@@ -57,77 +55,72 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { useRouter } from 'vue-router'
+import { examApi } from '@/api/admin'
+
+const router = useRouter()
 
 // 统计数据
 const stats = ref({
-  questionBankCount: 156,
-  ongoingExams: 23,
-  studentCount: 1234,
-  completedExams: 89
+  questionBankCount: 0,
+  ongoingExams: 0,
+  studentCount: 0,
+  completedExams: 0
 })
 
 // 最近活动
-const recentActivities = ref([
-  {
-    id: 1,
-    content: '创建了新的数学考试',
-    time: '2025-01-15 14:30',
-    type: 'primary'
-  },
-  {
-    id: 2,
-    content: '批改了英语考试试卷',
-    time: '2025-01-15 10:20',
-    type: 'success'
-  },
-  {
-    id: 3,
-    content: '添加了新的物理题库',
-    time: '2025-01-14 16:45',
-    type: 'warning'
-  },
-  {
-    id: 4,
-    content: '监考了化学考试',
-    time: '2025-01-14 09:15',
-    type: 'info'
-  }
-])
+const recentActivities = ref([])
+
+// 加载状态
+const loading = ref(false)
 
 // 快速操作处理函数
-const handleCreateExam = () => {
-  ElMessage.info('创建考试功能开发中...')
-}
-
 const handleQuestionBank = () => {
-  ElMessage.info('题库管理功能开发中...')
+  router.push('/teacher/question-bank')
 }
 
 const handleSmartGrouping = () => {
-  ElMessage.info('智能组卷功能开发中...')
-}
-
-const handleMonitoring = () => {
-  ElMessage.info('实时监考功能开发中...')
+  router.push('/teacher/exam-grouping')
 }
 
 const handleScoreAnalysis = () => {
-  ElMessage.info('成绩分析功能开发中...')
+  router.push('/teacher/score-analysis')
 }
 
 const handleStudentManagement = () => {
-  ElMessage.info('学生管理功能开发中...')
+  router.push('/teacher/student-management')
+}
+
+// 加载仪表盘数据
+const loadDashboardData = async () => {
+  try {
+    loading.value = true
+    
+    // 并行加载统计数据和最近活动
+    const [statsResponse, activitiesResponse] = await Promise.all([
+      examApi.getDashboardStats(),
+      examApi.getRecentActivities()
+    ])
+    
+    if (statsResponse.code === 200) {
+      stats.value = statsResponse.data
+    }
+    
+    if (activitiesResponse.code === 200) {
+      recentActivities.value = activitiesResponse.data
+    }
+    
+  } catch (error) {
+    console.error('加载仪表盘数据失败:', error)
+    ElMessage.error('加载仪表盘数据失败')
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {
-  // 可以在这里加载实际的数据
   loadDashboardData()
 })
-
-const loadDashboardData = () => {
-  // 模拟加载数据
-  console.log('加载老师端仪表盘数据...')
-}
 </script>
 
 <style scoped>

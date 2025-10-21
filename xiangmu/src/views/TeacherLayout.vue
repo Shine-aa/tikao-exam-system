@@ -98,7 +98,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -165,6 +165,14 @@ const setActiveMenuFromRoute = () => {
     activeMenu.value = 'class-management'
   } else if (currentPath.includes('/teacher/question-bank')) {
     activeMenu.value = 'question-bank'
+  } else if (currentPath.includes('/teacher/exam-grouping')) {
+    activeMenu.value = 'exam-grouping'
+  } else if (currentPath.includes('/teacher/exam-management')) {
+    activeMenu.value = 'exam-management'
+  } else if (currentPath.includes('/teacher/student-management')) {
+    activeMenu.value = 'student-management'
+  } else if (currentPath.includes('/teacher/score-analysis')) {
+    activeMenu.value = 'score-analysis'
   } else if (currentPath.includes('/teacher/dashboard')) {
     activeMenu.value = 'dashboard'
   }
@@ -231,14 +239,12 @@ const handleUserCommand = async (command) => {
 
 onMounted(() => {
   getUserInfo()
-  
-  // 根据当前路由设置激活的菜单
-  const currentPath = route.path
-  if (currentPath.includes('/teacher/')) {
-    const pathParts = currentPath.split('/')
-    const page = pathParts[pathParts.length - 1]
-    activeMenu.value = page || 'dashboard'
-  }
+  setActiveMenuFromRoute()
+})
+
+// 监听路由变化
+watch(() => route.path, () => {
+  setActiveMenuFromRoute()
 })
 </script>
 

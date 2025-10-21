@@ -235,6 +235,9 @@ public class PaperGenerationService {
             return;
         }
         
+        // 先删除该试卷的所有题目关联，避免重复
+        paperQuestionRepository.deleteByPaperId(paperId);
+        
         int basePoints = totalPoints / questionCount;
         int remainingPoints = totalPoints % questionCount;
         

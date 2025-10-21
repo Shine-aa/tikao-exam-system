@@ -17,4 +17,6 @@ public interface QuestionAnswerRepository extends JpaRepository<QuestionAnswer, 
     List<QuestionAnswer> findPrimaryAnswersByQuestionId(@Param("questionId") Long questionId);
     
     void deleteByQuestionId(Long questionId);
+    
+    List<QuestionAnswer> findByQuestionIdIn(List<Long> questionIds);
 }

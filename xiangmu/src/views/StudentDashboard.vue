@@ -23,15 +23,15 @@
             <span>我的考试</span>
           </div>
           <div class="exam-tabs">
-            <div class="tab-item active" @click="switchTab('ongoing')">
+            <div class="tab-item" :class="{ active: currentTab === 'ongoing' }" @click="switchTab('ongoing')">
               <span class="tab-count">{{ ongoingExams.length }}</span>
               <span class="tab-label">进行中</span>
             </div>
-            <div class="tab-item" @click="switchTab('upcoming')">
+            <div class="tab-item" :class="{ active: currentTab === 'upcoming' }" @click="switchTab('upcoming')">
               <span class="tab-count">{{ upcomingExams.length }}</span>
               <span class="tab-label">即将开始</span>
             </div>
-            <div class="tab-item" @click="switchTab('completed')">
+            <div class="tab-item" :class="{ active: currentTab === 'completed' }" @click="switchTab('completed')">
               <span class="tab-count">{{ completedExams.length }}</span>
               <span class="tab-label">已完成</span>
             </div>
@@ -71,7 +71,7 @@
             <span class="card-icon">📋</span>
             <span>{{ getCurrentTabTitle() }}</span>
           </div>
-          <div class="exam-list">
+          <div class="exam-list" v-loading="loading">
             <div 
               v-for="exam in getCurrentExams()" 
               :key="exam.id" 
@@ -79,15 +79,15 @@
               @click="handleExamClick(exam)"
             >
               <div class="exam-header">
-                <div class="exam-title">{{ exam.title }}</div>
+                <div class="exam-title">{{ exam.examName }}</div>
                 <div class="exam-status" :class="getStatusClass(exam.status)">
                   {{ getStatusText(exam.status) }}
                 </div>
               </div>
               <div class="exam-info">
-                <span>📅 {{ exam.date }}</span>
-                <span>⏱️ {{ exam.duration }}分钟</span>
-                <span>📊 {{ exam.score || '未评分' }}</span>
+                <span>📅 {{ formatExamTime(exam.startTime) }}</span>
+                <span>⏱️ {{ exam.durationMinutes }}分钟</span>
+                <span>📊 {{ exam.totalScore || '未评分' }}</span>
               </div>
               <div class="exam-description">{{ exam.description }}</div>
             </div>
@@ -181,7 +181,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { studentExamApi } from '@/api/admin'
+
+const router = useRouter()
 
 // 用户信息
 const userInfo = ref({
@@ -191,90 +195,59 @@ const userInfo = ref({
 // 当前选中的标签页
 const currentTab = ref('ongoing')
 
+// 加载状态
+const loading = ref(false)
+
 // 考试数据
-const ongoingExams = ref([
-  {
-    id: 1,
-    title: '数据结构期末考试',
-    description: '包含链表、栈、队列等基础数据结构',
-    date: '2024-01-15',
-    duration: 120,
-    status: 'ongoing',
-    score: null
-  }
-])
-
-const upcomingExams = ref([
-  {
-    id: 2,
-    title: '算法设计期中考试',
-    description: '动态规划、贪心算法等核心算法',
-    date: '2024-01-20',
-    duration: 90,
-    status: 'upcoming',
-    score: null
-  },
-  {
-    id: 3,
-    title: '数据库原理考试',
-    description: 'SQL查询、事务处理、索引优化',
-    date: '2024-01-25',
-    duration: 100,
-    status: 'upcoming',
-    score: null
-  }
-])
-
-const completedExams = ref([
-  {
-    id: 4,
-    title: 'Java编程基础考试',
-    description: '面向对象编程、异常处理、集合框架',
-    date: '2024-01-10',
-    duration: 90,
-    status: 'completed',
-    score: 85
-  },
-  {
-    id: 5,
-    title: '计算机网络考试',
-    description: 'TCP/IP协议、HTTP协议、网络安全',
-    date: '2024-01-05',
-    duration: 120,
-    status: 'completed',
-    score: 92
-  }
-])
+const ongoingExams = ref([])
+const upcomingExams = ref([])
+const completedExams = ref([])
 
 // 统计数据
 const stats = ref({
-  totalExams: 12,
-  avgScore: 88,
-  studyDays: 45,
-  rank: 3
+  totalExams: 0,
+  avgScore: 0,
+  studyDays: 0,
+  rank: 0
 })
 
 // 通知数据
-const notifications = ref([
-  {
-    id: 1,
-    title: '数据结构期末考试即将开始',
-    time: '2小时前',
-    icon: '📝'
-  },
-  {
-    id: 2,
-    title: '新学习资料已发布',
-    time: '1天前',
-    icon: '📚'
-  },
-  {
-    id: 3,
-    title: '算法设计考试时间调整',
-    time: '2天前',
-    icon: '⏰'
+const notifications = ref([])
+
+// 加载考试数据
+const loadExamData = async () => {
+  try {
+    loading.value = true
+    const response = await studentExamApi.getStudentExams()
+    
+    if (response.code === 200) {
+      const data = response.data
+      ongoingExams.value = data.ongoing || []
+      upcomingExams.value = data.upcoming || []
+      completedExams.value = data.completed || []
+    } else {
+      ElMessage.error(response.message || '加载考试数据失败')
+    }
+  } catch (error) {
+    console.error('Load exam data error:', error)
+    ElMessage.error('加载考试数据失败')
+  } finally {
+    loading.value = false
   }
-])
+}
+
+// 加载统计数据
+const loadStats = async () => {
+  try {
+    const response = await studentExamApi.getStudentExamStats()
+    
+    if (response.code === 200) {
+      stats.value = response.data
+    }
+  } catch (error) {
+    console.error('Load stats error:', error)
+  }
+}
 
 // 切换标签页
 const switchTab = (tab) => {
@@ -303,27 +276,63 @@ const getCurrentExams = () => {
 
 // 获取状态样式类
 const getStatusClass = (status) => {
-  return `status-${status}`
+  const statusClassMap = {
+    'ONGOING': 'status-ongoing',
+    'SCHEDULED': 'status-upcoming',
+    'COMPLETED': 'status-completed',
+    'CANCELLED': 'status-cancelled'
+  }
+  return statusClassMap[status] || 'status-default'
 }
 
 // 获取状态文本
 const getStatusText = (status) => {
   const statusMap = {
-    ongoing: '进行中',
-    upcoming: '即将开始',
-    completed: '已完成'
+    'ONGOING': '进行中',
+    'SCHEDULED': '即将开始',
+    'COMPLETED': '已完成',
+    'CANCELLED': '已取消'
   }
   return statusMap[status] || status
 }
 
+// 格式化日期
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// 格式化考试时间（简洁的日期时间格式）
+const formatExamTime = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  const year = date.getFullYear()
+  const month = (date.getMonth() + 1).toString().padStart(2, '0')
+  const day = date.getDate().toString().padStart(2, '0')
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  
+  return `${year}-${month}-${day} ${hours}:${minutes}`
+}
+
 // 处理考试点击
-const handleExamClick = (exam) => {
-  if (exam.status === 'ongoing') {
-    ElMessage.info('开始考试功能')
-  } else if (exam.status === 'upcoming') {
-    ElMessage.info('考试尚未开始')
+const handleExamClick = async (exam) => {
+  if (exam.status === 'ONGOING' || exam.status === 'SCHEDULED') {
+    // 进行中和已安排的考试可以进入考试信息页面
+    router.push(`/user/exam/${exam.id}/info`)
+  } else if (exam.status === 'COMPLETED') {
+    // 已完成的考试显示成绩
+    ElMessage.info('查看考试成绩功能开发中')
+  } else if (exam.status === 'CANCELLED') {
+    // 已取消的考试
+    ElMessage.warning('该考试已取消')
   } else {
-    ElMessage.info('查看考试详情功能')
+    // 其他状态
+    ElMessage.info('考试状态异常')
   }
 }
 
@@ -346,8 +355,15 @@ const viewHistory = () => {
 
 // 组件挂载
 onMounted(() => {
-  // 这里可以加载用户数据
-  console.log('学生端仪表盘已加载')
+  // 获取用户信息
+  const storedUserInfo = localStorage.getItem('userInfo')
+  if (storedUserInfo) {
+    userInfo.value = JSON.parse(storedUserInfo)
+  }
+  
+  // 加载数据
+  loadExamData()
+  loadStats()
 })
 </script>
 
@@ -580,6 +596,16 @@ onMounted(() => {
 
 .status-completed {
   background: #f0f0f0;
+  color: #909399;
+}
+
+.status-cancelled {
+  background: #fef0f0;
+  color: #f56c6c;
+}
+
+.status-default {
+  background: #f4f4f5;
   color: #909399;
 }
 

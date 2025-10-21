@@ -14,6 +14,7 @@ import StudentDashboard from '../views/StudentDashboard.vue'
 import TeacherLayout from '../views/TeacherLayout.vue'
 import TeacherDashboard from '../views/TeacherDashboard.vue'
 import QuestionBankManagement from '../views/teacher/QuestionBankManagement.vue'
+import GradingInterface from '../views/teacher/GradingInterface.vue'
 import SwaggerTest from '../views/SwaggerTest.vue'
 import { getUserInfo } from '../api/user'
 
@@ -104,6 +105,24 @@ const routes = [
         name: 'Profile',
         component: Profile,
         meta: { requiresAuth: true, role: 'USER' }
+      },
+      {
+        path: 'exam/:id/info',
+        name: 'ExamInfo',
+        component: () => import('@/views/student/ExamInfo.vue'),
+        meta: { requiresAuth: true, role: 'USER' }
+      },
+      {
+        path: 'exam/:id/preview',
+        name: 'ExamPreview',
+        component: () => import('@/views/student/ExamPreview.vue'),
+        meta: { requiresAuth: true, role: 'USER' }
+      },
+      {
+        path: 'exam/:id/result',
+        name: 'ExamResult',
+        component: () => import('@/views/student/ExamResult.vue'),
+        meta: { requiresAuth: true, role: 'USER' }
       }
     ]
   },
@@ -156,6 +175,30 @@ const routes = [
         path: 'exam-grouping',
         name: 'ExamGrouping',
         component: () => import('@/views/teacher/ExamGrouping.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'exam-management',
+        name: 'ExamManagement',
+        component: () => import('@/views/teacher/ExamManagement.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'score-analysis',
+        name: 'GradingAnalysis',
+        component: () => import('@/views/teacher/GradingAnalysis.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'score-analysis/students/:examId',
+        name: 'StudentSelection',
+        component: () => import('@/views/teacher/StudentSelection.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'score-analysis/:examId/student/:studentId',
+        name: 'GradingInterface',
+        component: GradingInterface,
         meta: { requiresAuth: true, role: 'TEACHER' }
       }
     ]

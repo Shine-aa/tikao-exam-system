@@ -69,4 +69,6 @@ public class ErrorCode {
     public static final int NETWORK_ERROR = 5003;
     public static final int INVALID_OPERATION = 5004;
     public static final int PAPER_NOT_FOUND = 5005;
+    public static final int EXAM_NOT_FOUND = 5006;
+    public static final int STUDENT_EXAM_NOT_FOUND = 5007;
 }

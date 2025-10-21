@@ -287,6 +287,104 @@
       </div>
     </el-dialog>
 
+    <!-- 创建考试对话框 -->
+    <el-dialog
+      v-model="createExamDialogVisible"
+      title="创建考试"
+      width="600px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        ref="createExamFormRef"
+        :model="createExamForm"
+        :rules="createExamFormRules"
+        label-width="120px"
+      >
+        <el-form-item label="考试名称" prop="examName">
+          <el-input v-model="createExamForm.examName" placeholder="请输入考试名称" />
+        </el-form-item>
+        
+        <el-form-item label="考试描述" prop="description">
+          <el-input
+            v-model="createExamForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入考试描述"
+          />
+        </el-form-item>
+        
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="开始时间" prop="startTime">
+              <el-date-picker
+                v-model="createExamForm.startTime"
+                type="datetime"
+                placeholder="选择开始时间"
+                style="width: 100%"
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DD HH:mm:ss"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="结束时间" prop="endTime">
+              <el-date-picker
+                v-model="createExamForm.endTime"
+                type="datetime"
+                placeholder="选择结束时间"
+                style="width: 100%"
+                format="YYYY-MM-DD HH:mm:ss"
+                value-format="YYYY-MM-DD HH:mm:ss"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="考试时长" prop="durationMinutes">
+              <el-input-number
+                v-model="createExamForm.durationMinutes"
+                :min="1"
+                :max="480"
+                placeholder="分钟"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="最大尝试次数" prop="maxAttempts">
+              <el-input-number
+                v-model="createExamForm.maxAttempts"
+                :min="1"
+                :max="10"
+                placeholder="次数"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        
+        <el-form-item label="乱序设置">
+          <el-checkbox v-model="createExamForm.isRandomOrder">题目乱序</el-checkbox>
+          <el-checkbox v-model="createExamForm.isRandomOptions">选项乱序</el-checkbox>
+        </el-form-item>
+        
+        <el-form-item label="其他设置">
+          <el-checkbox v-model="createExamForm.allowReview">允许查看答案</el-checkbox>
+        </el-form-item>
+      </el-form>
+      
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button @click="createExamDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="handleConfirmCreateExam" :loading="createExamLoading">
+            创建考试
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
     <!-- 题目详情对话框 -->
     <el-dialog
       v-model="questionsDialogVisible"
@@ -378,7 +476,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, ArrowDown, Delete } from '@element-plus/icons-vue'
-import { paperApi, classApi, courseApi } from '@/api/admin'
+import { paperApi, classApi, courseApi, examApi } from '@/api/admin'
 
 // 响应式数据
 const loading = ref(false)
@@ -390,6 +488,43 @@ const createDialogVisible = ref(false)
 const viewDialogVisible = ref(false)
 const questionsDialogVisible = ref(false)
 const currentPaper = ref(null)
+
+// 创建考试对话框
+const createExamDialogVisible = ref(false)
+const createExamLoading = ref(false)
+const createExamFormRef = ref(null)
+const currentPaperForExam = ref(null)
+
+// 创建考试表单
+const createExamForm = reactive({
+  examName: '',
+  description: '',
+  paperId: null,
+  classId: null,
+  startTime: '',
+  endTime: '',
+  durationMinutes: 120,
+  maxAttempts: 1,
+  isRandomOrder: true,
+  isRandomOptions: true,
+  allowReview: true
+})
+
+// 创建考试表单验证规则
+const createExamFormRules = {
+  examName: [
+    { required: true, message: '请输入考试名称', trigger: 'blur' }
+  ],
+  startTime: [
+    { required: true, message: '请选择开始时间', trigger: 'change' }
+  ],
+  endTime: [
+    { required: true, message: '请选择结束时间', trigger: 'change' }
+  ],
+  durationMinutes: [
+    { required: true, message: '请输入考试时长', trigger: 'blur' }
+  ]
+}
 
 // 搜索表单
 const searchForm = reactive({
@@ -582,7 +717,12 @@ const handleViewQuestions = async (row) => {
 }
 
 const handleCreateExam = (row) => {
-  ElMessage.info('创建考试功能开发中...')
+  currentPaperForExam.value = row
+  createExamForm.paperId = row.id
+  createExamForm.classId = row.classId
+  createExamForm.examName = `${row.paperName} - 考试`
+  createExamForm.durationMinutes = row.durationMinutes
+  createExamDialogVisible.value = true
 }
 
 const handleActionCommand = (command, row) => {
@@ -693,6 +833,56 @@ const getGlobalQuestionNumber = (question) => {
   }
   const index = currentPaper.value.questions.findIndex(q => q.questionId === question.questionId)
   return index + 1
+}
+
+// 创建考试相关方法
+const handleConfirmCreateExam = async () => {
+  if (!createExamFormRef.value) return
+  
+  try {
+    await createExamFormRef.value.validate()
+    
+    createExamLoading.value = true
+    
+    // 转换时间格式 - 转换为ISO格式
+    const examData = {
+      ...createExamForm,
+      startTime: createExamForm.startTime ? createExamForm.startTime.replace(' ', 'T') : null,
+      endTime: createExamForm.endTime ? createExamForm.endTime.replace(' ', 'T') : null
+    }
+    
+    const response = await examApi.createExam(examData)
+    
+    if (response.code === 200) {
+      ElMessage.success('考试创建成功')
+      createExamDialogVisible.value = false
+      resetCreateExamForm()
+      // 可以跳转到考试管理页面或刷新当前页面
+      loadPaperList()
+    } else {
+      ElMessage.error(response.message || '创建考试失败')
+    }
+  } catch (error) {
+    console.error('Create exam error:', error)
+    ElMessage.error('创建考试失败')
+  } finally {
+    createExamLoading.value = false
+  }
+}
+
+const resetCreateExamForm = () => {
+  createExamForm.examName = ''
+  createExamForm.description = ''
+  createExamForm.paperId = null
+  createExamForm.classId = null
+  createExamForm.startTime = ''
+  createExamForm.endTime = ''
+  createExamForm.durationMinutes = 120
+  createExamForm.maxAttempts = 1
+  createExamForm.isRandomOrder = true
+  createExamForm.isRandomOptions = true
+  createExamForm.allowReview = true
+  currentPaperForExam.value = null
 }
 
 // 生命周期

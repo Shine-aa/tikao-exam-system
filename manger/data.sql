@@ -99,7 +99,7 @@ CREATE TABLE `classes` (
 /*Data for the table `classes` */
 
 insert  into `classes`(`id`,`class_code`,`class_name`,`grade`,`major_id`,`class_number`,`teacher_id`,`description`,`max_students`,`current_students`,`is_active`,`created_at`,`updated_at`) values 
-(1,'SE2022-01','2022级软件工程1班','2022',1,1,1,'2022级软件工程专业1班，培养软件开发能力',50,2,1,'2025-10-14 10:00:00','2025-10-15 10:43:31'),
+(1,'SE2022-01','2022级软件工程1班','2022',1,1,1,'2022级软件工程专业1班，培养软件开发能力',50,2,1,'2025-10-14 10:00:00','2025-10-17 08:54:40'),
 (2,'SE2022-02','2022级软件工程2班','2022',1,2,1,'2022级软件工程专业2班，培养软件开发能力',45,0,1,'2025-10-14 10:00:00','2025-10-14 10:00:00'),
 (3,'SE2023-01','2023级软件工程1班','2023',1,1,1,'2023级软件工程专业1班，培养软件开发能力',48,0,1,'2025-10-14 10:00:00','2025-10-14 10:00:00'),
 (4,'CS2022-01','2022级计算机科学与技术1班','2022',2,1,1,'2022级计算机科学与技术专业1班，培养系统设计能力',48,0,1,'2025-10-14 10:00:00','2025-10-14 10:00:00'),
@@ -167,6 +167,8 @@ CREATE TABLE `exams` (
   `is_active` tinyint(1) DEFAULT '1' COMMENT '是否启用',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `student_count` int DEFAULT '0' COMMENT '应考人数（班级学生总数）',
+  `participated_count` int DEFAULT '0' COMMENT '实考人数（实际参加考试的学生数）',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_exam_code` (`exam_code`),
   KEY `idx_paper_id` (`paper_id`),
@@ -176,9 +178,52 @@ CREATE TABLE `exams` (
   CONSTRAINT `exams_ibfk_1` FOREIGN KEY (`paper_id`) REFERENCES `papers` (`id`),
   CONSTRAINT `exams_ibfk_2` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
   CONSTRAINT `exams_ibfk_3` FOREIGN KEY (`teacher_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='考试表';
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='考试表';
 
 /*Data for the table `exams` */
+
+insert  into `exams`(`id`,`exam_code`,`exam_name`,`description`,`paper_id`,`class_id`,`teacher_id`,`start_time`,`end_time`,`duration_minutes`,`max_attempts`,`is_random_order`,`is_random_options`,`allow_review`,`status`,`is_active`,`created_at`,`updated_at`,`student_count`,`participated_count`) values 
+(1,'EXAM_1760581686303','阿瓦达伟大 - 考试','啊达瓦2',6,1,6,'2025-10-17 09:00:00','2025-10-17 11:00:00',120,1,1,1,0,'COMPLETED',1,'2025-10-16 10:28:06','2025-10-20 08:39:33',2,2),
+(2,'EXAM_1760667541194','sfsfff - 考试','asd1',7,1,6,'2025-10-17 10:20:00','2025-10-17 12:20:00',120,1,1,1,0,'COMPLETED',1,'2025-10-17 10:19:01','2025-10-20 08:39:30',2,2),
+(3,'EXAM_1760668637960','dawdawawfawf - 考试','',13,1,6,'2025-10-17 10:37:00','2025-10-17 12:37:00',120,1,1,1,0,'COMPLETED',1,'2025-10-17 10:37:18','2025-10-20 08:39:27',2,2);
+
+/*Table structure for table `grading_results` */
+
+DROP TABLE IF EXISTS `grading_results`;
+
+CREATE TABLE `grading_results` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `exam_id` bigint NOT NULL COMMENT '考试ID',
+  `student_id` bigint NOT NULL COMMENT '学生ID',
+  `student_exam_id` bigint NOT NULL COMMENT '学生考试记录ID',
+  `exam_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '考试名称',
+  `student_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '学生姓名',
+  `exam_start_time` datetime NOT NULL COMMENT '考试开始时间',
+  `grading_data` json NOT NULL COMMENT '判卷结果数据，包含所有题目的分数和判分状态',
+  `total_score` decimal(5,2) DEFAULT '0.00' COMMENT '总分',
+  `is_grading_completed` tinyint(1) DEFAULT '0' COMMENT '是否判卷完成',
+  `graded_at` datetime DEFAULT NULL COMMENT '判卷完成时间',
+  `graded_by` bigint DEFAULT NULL COMMENT '判卷人ID',
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_exam_student` (`exam_id`,`student_id`),
+  KEY `idx_exam_id` (`exam_id`),
+  KEY `idx_student_id` (`student_id`),
+  KEY `idx_graded_by` (`graded_by`),
+  KEY `idx_grading_completed` (`is_grading_completed`),
+  KEY `student_exam_id` (`student_exam_id`),
+  CONSTRAINT `grading_results_ibfk_1` FOREIGN KEY (`exam_id`) REFERENCES `exams` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `grading_results_ibfk_2` FOREIGN KEY (`student_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `grading_results_ibfk_3` FOREIGN KEY (`student_exam_id`) REFERENCES `student_exams` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `grading_results_ibfk_4` FOREIGN KEY (`graded_by`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='判卷结果表';
+
+/*Data for the table `grading_results` */
+
+insert  into `grading_results`(`id`,`exam_id`,`student_id`,`student_exam_id`,`exam_name`,`student_name`,`exam_start_time`,`grading_data`,`total_score`,`is_grading_completed`,`graded_at`,`graded_by`,`created_at`,`updated_at`) values 
+(1,1,2,1,'阿瓦达伟大 - 考试','user','2025-10-17 09:00:00','{\"10\": {\"isGraded\": true, \"givenScore\": 5.0}, \"11\": {\"isGraded\": true, \"givenScore\": 0.0}, \"15\": {\"isGraded\": true, \"givenScore\": 0.0}, \"16\": {\"isGraded\": true, \"givenScore\": 0.0}, \"20\": {\"isGraded\": true, \"givenScore\": 0.0}, \"26\": {\"isGraded\": true, \"givenScore\": 3.0}, \"30\": {\"isGraded\": true, \"givenScore\": 3.0}, \"31\": {\"isGraded\": true, \"givenScore\": 3.0}, \"32\": {\"isGraded\": true, \"givenScore\": 0.0}, \"33\": {\"isGraded\": true, \"givenScore\": 5.0}, \"34\": {\"isGraded\": true, \"givenScore\": 0.0}, \"35\": {\"isGraded\": true, \"givenScore\": 0.0}, \"36\": {\"isGraded\": true, \"givenScore\": 5.0}, \"37\": {\"isGraded\": true, \"givenScore\": 5.0}, \"38\": {\"isGraded\": true, \"givenScore\": 5.0}, \"39\": {\"isGraded\": true, \"givenScore\": 5.0}, \"40\": {\"isGraded\": true, \"givenScore\": 5.0}, \"42\": {\"isGraded\": true, \"givenScore\": 5.0}, \"45\": {\"isGraded\": true, \"givenScore\": 5.0}, \"46\": {\"isGraded\": true, \"givenScore\": 5.0}}',59.00,0,'2025-10-21 08:57:27',6,'2025-10-21 08:52:33','2025-10-21 08:58:09'),
+(2,1,8,2,'阿瓦达伟大 - 考试','user123','2025-10-17 09:00:00','{\"10\": {\"isGraded\": true, \"givenScore\": 0.0}, \"11\": {\"isGraded\": true, \"givenScore\": 0.0}, \"15\": {\"isGraded\": true, \"givenScore\": 0.0}, \"16\": {\"isGraded\": true, \"givenScore\": 0.0}, \"20\": {\"isGraded\": true, \"givenScore\": 0.0}, \"26\": {\"isGraded\": true, \"givenScore\": 3.0}, \"30\": {\"isGraded\": true, \"givenScore\": 3.0}, \"31\": {\"isGraded\": true, \"givenScore\": 3.0}, \"32\": {\"isGraded\": true, \"givenScore\": 0.0}, \"33\": {\"isGraded\": true, \"givenScore\": 0.0}, \"34\": {\"isGraded\": true, \"givenScore\": 0.0}, \"35\": {\"isGraded\": true, \"givenScore\": 0.0}, \"36\": {\"isGraded\": true, \"givenScore\": 0.0}, \"37\": {\"isGraded\": false, \"givenScore\": null}, \"38\": {\"isGraded\": true, \"givenScore\": 5.0}, \"39\": {\"isGraded\": true, \"givenScore\": 0.0}, \"40\": {\"isGraded\": true, \"givenScore\": 0.0}, \"42\": {\"isGraded\": false, \"givenScore\": null}, \"45\": {\"isGraded\": false, \"givenScore\": null}, \"46\": {\"isGraded\": false, \"givenScore\": null}}',14.00,1,'2025-10-21 08:59:11',6,'2025-10-21 08:58:54','2025-10-21 08:59:11');
 
 /*Table structure for table `knowledge_points` */
 
@@ -303,7 +348,7 @@ CREATE TABLE `paper_questions` (
   KEY `idx_question_id` (`question_id`),
   CONSTRAINT `paper_questions_ibfk_1` FOREIGN KEY (`paper_id`) REFERENCES `papers` (`id`) ON DELETE CASCADE,
   CONSTRAINT `paper_questions_ibfk_2` FOREIGN KEY (`question_id`) REFERENCES `questions` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=61 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='试卷题目关联表';
+) ENGINE=InnoDB AUTO_INCREMENT=156 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='试卷题目关联表';
 
 /*Data for the table `paper_questions` */
 
@@ -367,7 +412,67 @@ insert  into `paper_questions`(`id`,`paper_id`,`question_id`,`question_order`,`p
 (57,5,77,17,5,'2025-10-15 11:38:17'),
 (58,5,84,18,5,'2025-10-15 11:38:17'),
 (59,5,83,19,5,'2025-10-15 11:38:17'),
-(60,5,82,20,5,'2025-10-15 11:38:17');
+(60,5,82,20,5,'2025-10-15 11:38:17'),
+(61,6,11,1,5,'2025-10-16 10:18:55'),
+(62,6,20,2,5,'2025-10-16 10:18:55'),
+(63,6,16,3,5,'2025-10-16 10:18:55'),
+(64,6,15,4,5,'2025-10-16 10:18:55'),
+(65,6,10,5,5,'2025-10-16 10:18:55'),
+(66,6,26,6,5,'2025-10-16 10:18:55'),
+(67,6,30,7,5,'2025-10-16 10:18:55'),
+(68,6,31,8,5,'2025-10-16 10:18:55'),
+(69,6,35,9,5,'2025-10-16 10:18:55'),
+(70,6,33,10,5,'2025-10-16 10:18:55'),
+(71,6,34,11,5,'2025-10-16 10:18:55'),
+(72,6,36,12,5,'2025-10-16 10:18:55'),
+(73,6,32,13,5,'2025-10-16 10:18:55'),
+(74,6,39,14,5,'2025-10-16 10:18:55'),
+(75,6,38,15,5,'2025-10-16 10:18:55'),
+(76,6,37,16,5,'2025-10-16 10:18:55'),
+(77,6,40,17,5,'2025-10-16 10:18:55'),
+(78,6,45,18,5,'2025-10-16 10:18:55'),
+(79,6,42,19,5,'2025-10-16 10:18:55'),
+(80,6,46,20,5,'2025-10-16 10:18:55'),
+(81,7,56,1,5,'2025-10-17 10:18:33'),
+(82,7,59,2,5,'2025-10-17 10:18:33'),
+(83,7,54,3,5,'2025-10-17 10:18:33'),
+(84,7,48,4,5,'2025-10-17 10:18:33'),
+(85,7,50,5,5,'2025-10-17 10:18:33'),
+(86,7,71,6,5,'2025-10-17 10:18:33'),
+(87,7,68,7,5,'2025-10-17 10:18:33'),
+(88,7,66,8,5,'2025-10-17 10:18:33'),
+(89,7,74,9,5,'2025-10-17 10:18:33'),
+(90,7,72,10,5,'2025-10-17 10:18:33'),
+(91,7,73,11,5,'2025-10-17 10:18:33'),
+(92,7,75,12,5,'2025-10-17 10:18:33'),
+(93,7,76,13,5,'2025-10-17 10:18:33'),
+(94,7,81,14,5,'2025-10-17 10:18:33'),
+(95,7,78,15,5,'2025-10-17 10:18:33'),
+(96,7,80,16,5,'2025-10-17 10:18:33'),
+(97,7,79,17,5,'2025-10-17 10:18:33'),
+(98,7,84,18,5,'2025-10-17 10:18:33'),
+(99,7,83,19,5,'2025-10-17 10:18:33'),
+(100,7,85,20,5,'2025-10-17 10:18:33'),
+(136,13,9,1,5,'2025-10-17 10:36:56'),
+(137,13,15,2,5,'2025-10-17 10:36:56'),
+(138,13,20,3,5,'2025-10-17 10:36:56'),
+(139,13,12,4,5,'2025-10-17 10:36:56'),
+(140,13,11,5,5,'2025-10-17 10:36:56'),
+(141,13,17,6,5,'2025-10-17 10:36:56'),
+(142,13,8,7,5,'2025-10-17 10:36:56'),
+(143,13,22,8,5,'2025-10-17 10:36:56'),
+(144,13,30,9,5,'2025-10-17 10:36:56'),
+(145,13,29,10,5,'2025-10-17 10:36:56'),
+(146,13,26,11,5,'2025-10-17 10:36:56'),
+(147,13,27,12,5,'2025-10-17 10:36:56'),
+(148,13,34,13,5,'2025-10-17 10:36:56'),
+(149,13,35,14,5,'2025-10-17 10:36:56'),
+(150,13,32,15,5,'2025-10-17 10:36:56'),
+(151,13,37,16,5,'2025-10-17 10:36:56'),
+(152,13,40,17,5,'2025-10-17 10:36:56'),
+(153,13,46,18,5,'2025-10-17 10:36:56'),
+(154,13,44,19,5,'2025-10-17 10:36:56'),
+(155,13,42,20,5,'2025-10-17 10:36:56');
 
 /*Table structure for table `papers` */
 
@@ -397,14 +502,17 @@ CREATE TABLE `papers` (
   CONSTRAINT `papers_ibfk_1` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`),
   CONSTRAINT `papers_ibfk_2` FOREIGN KEY (`course_id`) REFERENCES `courses` (`id`),
   CONSTRAINT `papers_ibfk_3` FOREIGN KEY (`teacher_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='试卷表';
+) ENGINE=InnoDB AUTO_INCREMENT=14 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='试卷表';
 
 /*Data for the table `papers` */
 
 insert  into `papers`(`id`,`paper_code`,`paper_name`,`description`,`class_id`,`course_id`,`teacher_id`,`total_questions`,`total_points`,`duration_minutes`,`difficulty_distribution`,`question_type_distribution`,`is_active`,`created_at`,`updated_at`) values 
 (3,'PAPER_1760497928873','艾斯但','啊达瓦',2,2,6,20,100,120,'{\"EASY\": 5, \"HARD\": 5, \"MEDIUM\": 10}','{\"FILL_BLANK\": 2, \"SUBJECTIVE\": 0, \"TRUE_FALSE\": 3, \"SINGLE_CHOICE\": 10, \"MULTIPLE_CHOICE\": 5}',1,'2025-10-15 11:12:09','2025-10-15 11:12:09'),
 (4,'PAPER_1760498852204','啊达瓦','啊达瓦',3,1,6,20,100,120,'{\"EASY\": 5, \"HARD\": 5, \"MEDIUM\": 10}','{\"FILL_BLANK\": 4, \"SUBJECTIVE\": 3, \"TRUE_FALSE\": 5, \"SINGLE_CHOICE\": 5, \"MULTIPLE_CHOICE\": 3}',1,'2025-10-15 11:27:32','2025-10-15 11:27:32'),
-(5,'PAPER_1760499497356','阿达','啊达瓦',4,2,6,20,100,120,'{\"EASY\": 5, \"HARD\": 5, \"MEDIUM\": 10}','{\"FILL_BLANK\": 2, \"SUBJECTIVE\": 3, \"TRUE_FALSE\": 5, \"SINGLE_CHOICE\": 5, \"MULTIPLE_CHOICE\": 5}',1,'2025-10-15 11:38:17','2025-10-15 11:38:17');
+(5,'PAPER_1760499497356','阿达','啊达瓦',4,2,6,20,100,120,'{\"EASY\": 5, \"HARD\": 5, \"MEDIUM\": 10}','{\"FILL_BLANK\": 2, \"SUBJECTIVE\": 3, \"TRUE_FALSE\": 5, \"SINGLE_CHOICE\": 5, \"MULTIPLE_CHOICE\": 5}',1,'2025-10-15 11:38:17','2025-10-15 11:38:17'),
+(6,'PAPER_1760581135392','阿瓦达伟大','挖的',1,1,6,20,100,120,'{\"EASY\": 5, \"HARD\": 5, \"MEDIUM\": 10}','{\"FILL_BLANK\": 4, \"SUBJECTIVE\": 3, \"TRUE_FALSE\": 5, \"SINGLE_CHOICE\": 5, \"MULTIPLE_CHOICE\": 3}',1,'2025-10-16 10:18:55','2025-10-16 10:18:55'),
+(7,'PAPER_1760667513310','sfsfff','awdawd',1,2,6,20,100,120,'{\"EASY\": 5, \"HARD\": 5, \"MEDIUM\": 10}','{\"FILL_BLANK\": 4, \"SUBJECTIVE\": 3, \"TRUE_FALSE\": 5, \"SINGLE_CHOICE\": 5, \"MULTIPLE_CHOICE\": 3}',1,'2025-10-17 10:18:33','2025-10-17 10:18:33'),
+(13,'PAPER_1760668616263','dawdawawfawf','awdawdawd',1,1,6,20,100,120,'{\"EASY\": 5, \"HARD\": 5, \"MEDIUM\": 10}','{\"FILL_BLANK\": 2, \"SUBJECTIVE\": 3, \"TRUE_FALSE\": 3, \"SINGLE_CHOICE\": 7, \"MULTIPLE_CHOICE\": 5}',1,'2025-10-17 10:36:56','2025-10-17 10:36:56');
 
 /*Table structure for table `permissions` */
 
@@ -1265,22 +1373,23 @@ DROP TABLE IF EXISTS `student_answers`;
 CREATE TABLE `student_answers` (
   `id` bigint NOT NULL AUTO_INCREMENT COMMENT '记录ID',
   `student_exam_id` bigint NOT NULL COMMENT '学生考试记录ID',
-  `question_id` bigint NOT NULL COMMENT '题目ID',
-  `answer_content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '学生答案',
-  `is_correct` tinyint(1) DEFAULT NULL COMMENT '是否正确',
-  `score` decimal(5,2) DEFAULT NULL COMMENT '得分',
-  `time_spent_seconds` int DEFAULT NULL COMMENT '答题用时(秒)',
+  `answer_content` json DEFAULT NULL COMMENT '学生整张试卷的答案(JSON格式)',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `total_score` decimal(5,2) DEFAULT NULL COMMENT '总分',
+  `is_graded` tinyint(1) DEFAULT '0' COMMENT '是否已评分',
+  `graded_at` timestamp NULL DEFAULT NULL COMMENT '评分时间',
+  `graded_by` bigint DEFAULT NULL COMMENT '评分人ID',
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_student_exam_question` (`student_exam_id`,`question_id`),
   KEY `idx_student_exam_id` (`student_exam_id`),
-  KEY `idx_question_id` (`question_id`),
-  CONSTRAINT `student_answers_ibfk_1` FOREIGN KEY (`student_exam_id`) REFERENCES `student_exams` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `student_answers_ibfk_2` FOREIGN KEY (`question_id`) REFERENCES `questions` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='学生答题记录表';
+  CONSTRAINT `student_answers_ibfk_1` FOREIGN KEY (`student_exam_id`) REFERENCES `student_exams` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='学生答题记录表(整张试卷)';
 
 /*Data for the table `student_answers` */
+
+insert  into `student_answers`(`id`,`student_exam_id`,`answer_content`,`created_at`,`updated_at`,`total_score`,`is_graded`,`graded_at`,`graded_by`) values 
+(1,1,'{\"answers\": {\"0\": [\"extends\"], \"1\": [\"int arr[]\"], \"2\": [\"Hashtable\"], \"3\": [\"StringBuffer\"], \"4\": [\"throw\"], \"5\": [\"Character\", \"Boolean\", \"Double\"], \"6\": [\"abstract\", \"interface\", \"final\", \"static\"], \"7\": [\"do-while\", \"while\", \"for\"], \"8\": [\"正确\"], \"9\": [\"错误\"], \"10\": [\"错误\"], \"11\": [\"正确\"], \"12\": [\"正确\"], \"13\": \"adqw1\", \"14\": \"awdawd\", \"15\": \"awd\", \"16\": \"dawd1\", \"17\": \"dw1dwa\", \"18\": \"dwadw1\", \"19\": \"awdw1\"}}','2025-10-17 10:13:26','2025-10-17 10:13:26',NULL,0,NULL,NULL),
+(2,2,'{\"answers\": {\"0\": [\"Vector\"], \"1\": [\"array int arr\"], \"2\": [\"StringBuilder\"], \"3\": [\"throws\"], \"4\": [\"implements\"], \"5\": [\"interface\", \"static\", \"final\"], \"6\": [\"Boolean\", \"Character\", \"Double\"], \"7\": [\"while\", \"do-while\", \"for\"], \"8\": [\"错误\"], \"9\": [\"正确\"], \"10\": [\"错误\"], \"11\": [\"错误\"], \"12\": [\"错误\"]}}','2025-10-17 10:15:28','2025-10-17 10:15:28',NULL,0,NULL,NULL);
 
 /*Table structure for table `student_classes` */
 
@@ -1299,13 +1408,13 @@ CREATE TABLE `student_classes` (
   KEY `idx_class_id` (`class_id`),
   CONSTRAINT `student_classes_ibfk_1` FOREIGN KEY (`student_id`) REFERENCES `users` (`id`),
   CONSTRAINT `student_classes_ibfk_2` FOREIGN KEY (`class_id`) REFERENCES `classes` (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='学生班级关联表';
+) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='学生班级关联表';
 
 /*Data for the table `student_classes` */
 
 insert  into `student_classes`(`id`,`student_id`,`class_id`,`enrolled_at`,`is_active`,`created_at`) values 
 (21,2,1,NULL,1,'2025-10-15 10:43:31'),
-(22,8,1,NULL,1,'2025-10-15 10:43:31');
+(23,8,1,NULL,1,'2025-10-17 08:54:40');
 
 /*Table structure for table `student_exams` */
 
@@ -1324,15 +1433,25 @@ CREATE TABLE `student_exams` (
   `is_active` tinyint(1) DEFAULT '1' COMMENT '是否有效',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  `is_graded` tinyint(1) DEFAULT '0' COMMENT '是否已判卷',
+  `graded_at` timestamp NULL DEFAULT NULL COMMENT '判卷时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_exam_student_attempt` (`exam_id`,`student_id`,`attempt_number`),
   KEY `idx_exam_id` (`exam_id`),
   KEY `idx_student_id` (`student_id`),
   CONSTRAINT `student_exams_ibfk_1` FOREIGN KEY (`exam_id`) REFERENCES `exams` (`id`),
   CONSTRAINT `student_exams_ibfk_2` FOREIGN KEY (`student_id`) REFERENCES `users` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='学生考试记录表';
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='学生考试记录表';
 
 /*Data for the table `student_exams` */
+
+insert  into `student_exams`(`id`,`exam_id`,`student_id`,`attempt_number`,`start_time`,`submit_time`,`total_score`,`status`,`time_spent_minutes`,`is_active`,`created_at`,`updated_at`,`is_graded`,`graded_at`) values 
+(1,1,2,1,'2025-10-17 09:20:25','2025-10-17 10:13:26',59.00,'SUBMITTED',53,1,'2025-10-16 10:28:06','2025-10-21 08:53:29',0,NULL),
+(2,1,8,1,'2025-10-17 10:15:04','2025-10-17 10:15:28',14.00,'SUBMITTED',0,1,'2025-10-16 10:28:06','2025-10-21 08:59:03',0,NULL),
+(3,2,2,1,'2025-10-17 10:29:46',NULL,NULL,'IN_PROGRESS',NULL,1,'2025-10-17 10:19:01','2025-10-17 10:29:46',0,NULL),
+(4,2,8,1,'2025-10-17 10:30:11',NULL,NULL,'IN_PROGRESS',NULL,1,'2025-10-17 10:19:01','2025-10-17 10:30:11',0,NULL),
+(5,3,2,1,'2025-10-17 10:38:06',NULL,NULL,'IN_PROGRESS',NULL,1,'2025-10-17 10:37:18','2025-10-17 10:38:06',0,NULL),
+(6,3,8,1,'2025-10-17 10:39:06',NULL,NULL,'IN_PROGRESS',NULL,1,'2025-10-17 10:37:18','2025-10-17 10:39:06',0,NULL);
 
 /*Table structure for table `user_roles` */
 
@@ -1380,7 +1499,7 @@ CREATE TABLE `user_sessions` (
   KEY `idx_expires_at` (`expires_at`),
   KEY `idx_is_active` (`is_active`),
   CONSTRAINT `user_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=105 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户会话表';
+) ENGINE=InnoDB AUTO_INCREMENT=135 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户会话表';
 
 /*Data for the table `user_sessions` */
 
@@ -1473,14 +1592,44 @@ insert  into `user_sessions`(`id`,`user_id`,`session_token`,`refresh_token`,`ip_
 (94,1,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsInN1YiI6ImFkbWluIiwiaWF0IjoxNzU5OTcxMzMwLCJleHAiOjE3NjAwNTc3MzB9.oKTEZrDydqMXAWhw3N_yGz9iD_8oN98Bu0qJt-4BT1mMmeiCZFH7PmAjxkqKaHLL','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsInN1YiI6ImFkbWluIiwiaWF0IjoxNzU5OTcxMzMwLCJleHAiOjE3NjI1NjMzMzB9.UROelWqW33JtGKAeSU7lKScmx5yfwU2IG1Ix1TWL1BPQSMTEXTr3f8C9OlT8by4_','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-10 08:55:31','2025-10-09 08:55:31'),
 (95,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NTk5NzEzNDUsImV4cCI6MTc2MDA1Nzc0NX0.BQJ0pesN8-puvTz6Rtp-qxTKJyv1tIjwQObb4ObHuT0cdoOGV43Vj3g-6fN0k0iR','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NTk5NzEzNDUsImV4cCI6MTc2MjU2MzM0NX0.CT5dNM6zPLdS_k22qGDSCEvqvl9fYtkRYW2XMOH2xq0FuZNMxD4wbCIjUpSNYQtq','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-10 08:55:46','2025-10-09 08:55:46'),
 (96,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc1OTk3MTM3NSwiZXhwIjoxNzYwMDU3Nzc1fQ.TJguPPmuog_agXySEhiozh8IU0AL7h0EWTRxuEs8Q13H7PUTvIZhSobLuKRZrgeo','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc1OTk3MTM3NSwiZXhwIjoxNzYyNTYzMzc1fQ.tHmkIliYn5uUKqZgKotRG9pqe99ySr7WcMI5aeuGIWdGalLKg0ounq9BXOcj1vzo','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-10 08:56:16','2025-10-09 08:56:16'),
-(97,1,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsInN1YiI6ImFkbWluIiwiaWF0IjoxNzU5OTcyNDUxLCJleHAiOjE3NjAwNTg4NTF9.RlbNeRgloUN2vjJqAawrZ3AtHSZ7Bh6uvsg1R7JJloXKykC5XCBaW0bxMGRd6tA5','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsInN1YiI6ImFkbWluIiwiaWF0IjoxNzU5OTcyNDUxLCJleHAiOjE3NjI1NjQ0NTF9.xB5RAmOc-VtjJlFoAj-ATdGeVkk267jrPXFGJaILcJaexESFEecn5GL0lScl1Jcz','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',1,'2025-10-10 09:14:12','2025-10-09 09:14:12'),
+(97,1,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsInN1YiI6ImFkbWluIiwiaWF0IjoxNzU5OTcyNDUxLCJleHAiOjE3NjAwNTg4NTF9.RlbNeRgloUN2vjJqAawrZ3AtHSZ7Bh6uvsg1R7JJloXKykC5XCBaW0bxMGRd6tA5','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsInN1YiI6ImFkbWluIiwiaWF0IjoxNzU5OTcyNDUxLCJleHAiOjE3NjI1NjQ0NTF9.xB5RAmOc-VtjJlFoAj-ATdGeVkk267jrPXFGJaILcJaexESFEecn5GL0lScl1Jcz','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-10 09:14:12','2025-10-09 09:14:12'),
 (98,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc1OTk3MjQ4MSwiZXhwIjoxNzYwMDU4ODgxfQ.gbcpMIlfJ-ryvtjJU-l7o_oi4aiCE0N9yceparbeWG2mqZeRiMxtr7spUPH-BLra','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc1OTk3MjQ4MSwiZXhwIjoxNzYyNTY0NDgxfQ.2tnXhyjRXb4jG4LH55AdtE1mIV2m8YvEVrvKyhneEIcAOb1o2bFMYl2uStqAHN2D','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-10 09:14:42','2025-10-09 09:14:42'),
 (99,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc1OTk3MzMwOCwiZXhwIjoxNzYwMDU5NzA4fQ.hGODfBS4MrtGRlowy_WyxNpVmT2RwEqX_Fpy3qlhLG9zUd9HAtVzRdt4NSbXGhMi','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc1OTk3MzMwOCwiZXhwIjoxNzYyNTY1MzA4fQ.7Nn6qc1EET4kglg4Drs0t-yhHnaDO5FZLGscPJyFGv1fWFmkQURXaBuXDLTqHVji','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-10 09:28:29','2025-10-09 09:28:29'),
 (100,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NTk5NzMzMzksImV4cCI6MTc2MDA1OTczOX0.G1khVyYYiodPBXB54wqP0qOlb6Z6Lqqu47Br4emt3LJWXoSYy51QBuFEfZDopJbc','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NTk5NzMzMzksImV4cCI6MTc2MjU2NTMzOX0.ULgSIxCriHkXRWEiSzK7Tfl0X3ineJm-UOwN-WFSUJdn7we_-7DrhVbI3imE93hc','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-10 09:28:59','2025-10-09 09:28:59'),
 (101,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc1OTk3Nzg2OSwiZXhwIjoxNzYwMDY0MjY5fQ.fp99JaBoUV48F8NqidoLT64A3Cal1-M4RhkJ9JO7oML-U2LDM6Ido3jNO_efIhch','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc1OTk3Nzg2OSwiZXhwIjoxNzYyNTY5ODY5fQ.4BUPA0cjPGlRChcerc4R4HfA5GNMBIZkaUVcKUTOaGBtM4-Iw9hyajHIQ7VflNAv','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-10 10:44:29','2025-10-09 10:44:29'),
 (102,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjAzMTg2NjMsImV4cCI6MTc2MDQwNTA2M30.1EfPVfK64fIaUnBUElpQ_Q5g9dEimnWjEVYliVHTPZdOUob-jcBKUTkZ_Rd41xV8','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjAzMTg2NjMsImV4cCI6MTc2MjkxMDY2M30.ruyPw2hH1qJofl6O0kfaeYtcrpjcnr0ZvSj9tOp7XfUFZVNq1bGfwYxtoE9GGoru','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-14 09:24:24','2025-10-13 09:24:24'),
 (103,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDQwMzIxMywiZXhwIjoxNzYwNDg5NjEzfQ._LhdVuAmLeqflnBDBuY3doa2S_UwHD7zp9iHJr9NrhsVs0LUXwJDv-M7LNufxYUZ','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDQwMzIxMywiZXhwIjoxNzYyOTk1MjEzfQ.wufsdDGQi5TN21B9EFSk16m3fNF9VWMa3ZUoAgkIDl2XdMw46FlShZxNYDadoXms','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-15 08:53:34','2025-10-14 08:53:34'),
-(104,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDQ4OTE2NywiZXhwIjoxNzYwNTc1NTY3fQ.hy5xsT5i8dNExce_rYIG-JQ1xB82FbENc3OUVdNIdxNDmL74FzwVTP77n69n1huU','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDQ4OTE2NywiZXhwIjoxNzYzMDgxMTY3fQ.ctlcZt7FH_eZG_ckpJ9c6FPKj2QliQrVQgXnIX0qd4xK8LIJA9nHrkhEsh66BOev','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',1,'2025-10-16 08:46:07','2025-10-15 08:46:07');
+(104,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDQ4OTE2NywiZXhwIjoxNzYwNTc1NTY3fQ.hy5xsT5i8dNExce_rYIG-JQ1xB82FbENc3OUVdNIdxNDmL74FzwVTP77n69n1huU','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDQ4OTE2NywiZXhwIjoxNzYzMDgxMTY3fQ.ctlcZt7FH_eZG_ckpJ9c6FPKj2QliQrVQgXnIX0qd4xK8LIJA9nHrkhEsh66BOev','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-16 08:46:07','2025-10-15 08:46:07'),
+(105,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDU4MDE4NywiZXhwIjoxNzYwNjY2NTg3fQ.kc9K_IEI4TgslWcHdenQ9oZBQGxHwsbJLAvJxoXE2bUJQWph5HPMTmJgXbxLiKE9','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDU4MDE4NywiZXhwIjoxNzYzMTcyMTg3fQ.-AgnHGK4fCt7m2Goee5sPNh5bLePIiy-64gpyOeBQoManBBF2yJq1aiJj3QwvJ68','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-17 10:03:08','2025-10-16 10:03:08'),
+(106,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA1ODI1ODksImV4cCI6MTc2MDY2ODk4OX0.9Cgi12N1yCMYbTt2Zt9Pi2yHVvbqx-XERxbE6DRzzY5KXrovPcycjTV1Whttowiv','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA1ODI1ODksImV4cCI6MTc2MzE3NDU4OX0.qVr87TqslpqdM46Sye3ZRyzAyaPywLZFntMDNtWAM0_8E6sPPP0SmLCw9EtvQ1XB','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-17 10:43:09','2025-10-16 10:43:09'),
+(107,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDU4MzY0NywiZXhwIjoxNzYwNjcwMDQ3fQ.VDiXAzn28R64O_HXlG2rG7g0MaH6J47qCC7MTWOr8IzV_lSQcv-iUl8blpmN_9ka','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDU4MzY0NywiZXhwIjoxNzYzMTc1NjQ3fQ.JV4RFb75Q8TFFAdxfYCieq0d3E-XMNI9_uVXarYlP5uwK7w9yEgeP1kN3VzaggWj','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-17 11:00:48','2025-10-16 11:00:48'),
+(108,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA1ODQ5MjUsImV4cCI6MTc2MDY3MTMyNX0.OLVVm4NnnSwBvBmM-YGYpio1XszrNXIN-zG_r-n17TJBeSmgzZsfn954RAjLsaZD','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA1ODQ5MjUsImV4cCI6MTc2MzE3NjkyNX0.Btv5q70bQJi_MlqN-fh-5K4GNR_qpVcPpIIcqgMNfA1L3Z9TEjfVXu2XzRR03Tvg','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-17 11:22:05','2025-10-16 11:22:05'),
+(109,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2MjEyNywiZXhwIjoxNzYwNzQ4NTI3fQ.hgaJfDlAftEAT2L5lUfBEIM9WNKj_uRwOKEekFMbKR3qceRlcL3Q434YuO6-ZHH1','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2MjEyNywiZXhwIjoxNzYzMjU0MTI3fQ.cTNU2yotaVdSoYih4uuJTMALd7A4g4bIU1gS0c8w0kC8ZeFPQfApRfHEYb_7sk91','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 08:48:48','2025-10-17 08:48:48'),
+(110,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2NjIxNzIsImV4cCI6MTc2MDc0ODU3Mn0.2MIYSkzr34qiSdZ2-3PR7rOS9n3W51iU8FjaGBloTPwfJXp_1-KCphSN_kYIrGR0','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2NjIxNzIsImV4cCI6MTc2MzI1NDE3Mn0.Bbsx8VNcbs1FlwG2Z8aK-F9EH1wUNRqpAEp4zExqkFskIKLKqA74FeEOaWkDDSej','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 08:49:33','2025-10-17 08:49:33'),
+(111,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2MjQ0NSwiZXhwIjoxNzYwNzQ4ODQ1fQ.UpBJHhhXKz6dpi2M_w7FCzcvDHESJslOdPf7btW5He-LTKjidNjulxWzCi_IejuF','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2MjQ0NSwiZXhwIjoxNzYzMjU0NDQ1fQ.rFHueD-ANsBgKcqJIBiTjbzcch3q6l7e0PNBiqKwDApvUR21_J-es4wNF1PMLqTQ','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 08:54:06','2025-10-17 08:54:06'),
+(112,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2NjI0OTgsImV4cCI6MTc2MDc0ODg5OH0.7d9RAvc2eY-MjV1pvrCx8nqhrPJXIUZSUfAqAMoL6kNE8odkvHmApQH8_TeymJTq','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2NjI0OTgsImV4cCI6MTc2MzI1NDQ5OH0.5NtBrwpQbRhpR58cpjWVFQCzsXyhVMdfU2G3NsZ8FCyFvVWGniicC-ipVeySAw9x','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 08:54:58','2025-10-17 08:54:58'),
+(113,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2NzI3NiwiZXhwIjoxNzYwNzUzNjc2fQ.n7YS8d5fet1U2YZL-PfKtDf7T6WaJbzc10iBWcShh4ibORP2Q06QXn9vVvB4SYwJ','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2NzI3NiwiZXhwIjoxNzYzMjU5Mjc2fQ.NWdOaIIHWIa7sHOviWoGvlYgF22xdgefu_U6dZbzrJfNFewKyfPbS3cIaqQ6BC80','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:14:37','2025-10-17 10:14:37'),
+(114,8,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjgsInN1YiI6InVzZXIxMjMiLCJpYXQiOjE3NjA2NjcyOTksImV4cCI6MTc2MDc1MzY5OX0.RckMj42eW0_ekFPBPizFNOo1-vlh4s0bsY9vNCP6ZpQ4GwWKcM0UnQnT65sGlr5v','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjgsInN1YiI6InVzZXIxMjMiLCJpYXQiOjE3NjA2NjcyOTksImV4cCI6MTc2MzI1OTI5OX0.MDC3bUGAFFzhzgLX8UBG294QflcgP6zU-4jTkKUv8Vqjr34VuVWIyXCQFuhSHDGD','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:14:59','2025-10-17 10:14:59'),
+(115,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2NzQ3OCwiZXhwIjoxNzYwNzUzODc4fQ.swVopP4n75o0X8zAJUjNUulNYqmdhWYQYYH6EODZY8MY8u6o_U9eyW0brqJ9qUon','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2NzQ3OCwiZXhwIjoxNzYzMjU5NDc4fQ.xAsfnlXT9pNoDhZZSFT3PxB3LbEBLMiX1cSFMFLY01NiwkzuhkcurOIdnyLGVN7C','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:17:58','2025-10-17 10:17:58'),
+(116,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2Njc1NzcsImV4cCI6MTc2MDc1Mzk3N30.SQ_4o70JIorjtqW2tGw6UOkyxylV21JTdYWRAR4jsmoWQXHUE_3Eg1RrrMH9afdL','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2Njc1NzcsImV4cCI6MTc2MzI1OTU3N30.YoTXT-YU16nezo0pOtV9cseGj9_fDxzfXkpw6u4e-K0MWEofBONrOyReAp9a-Vxt','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:19:38','2025-10-17 10:19:38'),
+(117,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2Njc2NTcsImV4cCI6MTc2MDc1NDA1N30.8uR9RB1NLcfReEhIlStGjB8J6zIiP-rIXpd64pic6sCsewcqd8nMVpG9uTAyratw','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2Njc2NTcsImV4cCI6MTc2MzI1OTY1N30.oUz6jqTXE_T06yDbh1l_xplSWhMKSWDf40fOH8lJQx9Gaa5mp2BFDkoN0rpx5zwM','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:20:58','2025-10-17 10:20:58'),
+(118,8,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjgsInN1YiI6InVzZXIxMjMiLCJpYXQiOjE3NjA2Njc2NzcsImV4cCI6MTc2MDc1NDA3N30.yUQzDMSUYJ8rS-isiuVtt54ZmsTcfuF8ig_2tSQfYw2K45064gOuYp9ym4MEsZr_','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjgsInN1YiI6InVzZXIxMjMiLCJpYXQiOjE3NjA2Njc2NzcsImV4cCI6MTc2MzI1OTY3N30.b0Fn2m1MhIwiUIuspIRBQrrhfNgPAjTxAc3lcAY4P1S4DFOwbbmNpDWfBU9g2Zlo','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:21:17','2025-10-17 10:21:17'),
+(119,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2NjgwMTgsImV4cCI6MTc2MDc1NDQxOH0.bKAeJ6zI_eAyO3yvS9nYgTDi1AT6H2oX5T52to8pArU-sdClH9rxwoo3OaoIU7jw','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2NjgwMTgsImV4cCI6MTc2MzI2MDAxOH0.GHqHPAHcj4sZKJxUt2agXfG65jcH0CjZHS7-hKZc38YRx35HQO0uGXYGLKv0Oe1e','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:26:58','2025-10-17 10:26:58'),
+(120,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2NjgwNDYsImV4cCI6MTc2MDc1NDQ0Nn0.lyUDZcnWmqrW81uSYrj_gbCzDwnEeGybaGJ3Kega_v15Vzdqk1sfz4xUQraOj67_','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2NjgwNDYsImV4cCI6MTc2MzI2MDA0Nn0.X2o086_FwU97MhoyzPNKE3Adp9-OBp0ZewghmVYXgNGY-rNVYF1jShcT_pXtOE7C','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:27:27','2025-10-17 10:27:27'),
+(121,8,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjgsInN1YiI6InVzZXIxMjMiLCJpYXQiOjE3NjA2NjgwODIsImV4cCI6MTc2MDc1NDQ4Mn0.ZfG0GDxmXIbADTGOwAWXLfaRjtibTsORB5qRv4GSEXo8kzR4ko6RLfXOknyq0Edn','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjgsInN1YiI6InVzZXIxMjMiLCJpYXQiOjE3NjA2NjgwODIsImV4cCI6MTc2MzI2MDA4Mn0.5sD7w7CoKzvmq7HZ8mE2pIdSi8Vg3RmCBwcDvy-417P_PGqX5VwUxpsUxb3zA5YJ','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:28:03','2025-10-17 10:28:03'),
+(122,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2NjgxODEsImV4cCI6MTc2MDc1NDU4MX0.P2DUvPbBl6twQpVe5046VE9vWbGn-t6M17slOMYYRpIoZlGeXZYvY8AXzrevEVrQ','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2NjgxODEsImV4cCI6MTc2MzI2MDE4MX0.zZV6ZvpxMVKRkjRiSyGw97AxZsVFvVT2NptsyeQDwEcG8U_H7V_euO26yd2ba79f','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:29:41','2025-10-17 10:29:41'),
+(123,8,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjgsInN1YiI6InVzZXIxMjMiLCJpYXQiOjE3NjA2NjgyMDQsImV4cCI6MTc2MDc1NDYwNH0.vc1fPGLwTS_YuBzhX9Jni_9CwaZRjaKYr1pxVc8YlMDYOXLGhAIGH0bEakiyPacI','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjgsInN1YiI6InVzZXIxMjMiLCJpYXQiOjE3NjA2NjgyMDQsImV4cCI6MTc2MzI2MDIwNH0.6kBUREHLocPr39vR_qA0EFSHkT5-mhudHI7RzindIyJu_KEBWZ0BonLtwLV_c_SB','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:30:05','2025-10-17 10:30:05'),
+(124,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2ODI3NCwiZXhwIjoxNzYwNzU0Njc0fQ.1Hy9uQPWlvAxqCCQbun-XlTwRz1nRu7kr02ehdLVmgjLf2RKx-ilxXTzibyHCC7E','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2ODI3NCwiZXhwIjoxNzYzMjYwMjc0fQ.jd6lJFwIzpC7nyfYz1YjXUwrSlhkUi8PaZJawoCXA3z49ahkcYVYZORrn2UEO1sF','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:31:15','2025-10-17 10:31:15'),
+(125,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2Njg2NzgsImV4cCI6MTc2MDc1NTA3OH0.ck_pozEbU7YVfS2RjrTquZfcY4-fObQRB1c9w3gz_n92bj_b0dYR-quJnNSMYdE5','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA2Njg2NzgsImV4cCI6MTc2MzI2MDY3OH0.4_5kXULLsnMK86kCkt0-Ruhgu0ncVxQGlDv5G5Ttjw4N8MjqPPAjkKwrjwwD3-uf','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:37:58','2025-10-17 10:37:58'),
+(126,8,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjgsInN1YiI6InVzZXIxMjMiLCJpYXQiOjE3NjA2Njg3MzYsImV4cCI6MTc2MDc1NTEzNn0.cIdWukZPq2W8A5FV6gbwifHbBNBDSb9tbTOhTV9V3uH8VCbDtaqNk0UIs94H4wqT','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjgsInN1YiI6InVzZXIxMjMiLCJpYXQiOjE3NjA2Njg3MzYsImV4cCI6MTc2MzI2MDczNn0.7xoFTtbwk4pmzllrhsi0llCxABmTpChWaZj4If18oJilnIRF9HXLpU4Cir26KLVn','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:38:57','2025-10-17 10:38:57'),
+(127,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2ODg2OCwiZXhwIjoxNzYwNzU1MjY4fQ.-irJIk0169LyNHBifmSJLy46srtnb3LvVwNJ3l9211C8FpYEjFEXAdKVTAl6_kiz','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDY2ODg2OCwiZXhwIjoxNzYzMjYwODY4fQ.LLIJ3BC2TIKMU6FbtsXxNxyR09fK2ycBU8PCoN6FeYWmLpQc8nU-ugbbQF5Hpdxd','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-18 10:41:08','2025-10-17 10:41:08'),
+(128,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDkyMDcxNCwiZXhwIjoxNzYxMDA3MTE0fQ.cwx6OYv71VCRHXA1YTkFI6L0V3KBJFb03EWADpjN2DWEuv5OiUYXCMok90OJE431','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDkyMDcxNCwiZXhwIjoxNzYzNTEyNzE0fQ.xD9x1qCned0YSJELwuNKSbM4GvYjLQpw7YgpCv4oDtg2Vd4Kjn1xt_Sebrwg5RvH','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-21 08:38:34','2025-10-20 08:38:34'),
+(129,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA5MjA4NjQsImV4cCI6MTc2MTAwNzI2NH0.6Kv69-hY_12hubBt-js_PSkErQ_nIQWRPXPUtAUwi-vjiGdLNj0EbVRLOKRRzWCs','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjA5MjA4NjQsImV4cCI6MTc2MzUxMjg2NH0.dhQsvhtgrCIHFIFg_OsgX_DPANUWOzN61ziSxD3k-Pq6EjLwo_8U7vIjT_RFUSY-','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-21 08:41:05','2025-10-20 08:41:05'),
+(130,1,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsInN1YiI6ImFkbWluIiwiaWF0IjoxNzYwOTIwOTAwLCJleHAiOjE3NjEwMDczMDB9.iXisV-kav8aFyiPyFAfb9GkZm9g1HOaucwpvEWvWx4DAby1eDedl7WSJNYyYRpXi','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjEsInN1YiI6ImFkbWluIiwiaWF0IjoxNzYwOTIwOTAwLCJleHAiOjE3NjM1MTI5MDB9.KI9vQ8Ga0IWgc0WIeYJnWN9FPxKnthowzJEG5SR9boP2LGrdHUoEUUSF0JbQLci4','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',1,'2025-10-21 08:41:41','2025-10-20 08:41:41'),
+(131,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDkyMDkyOCwiZXhwIjoxNzYxMDA3MzI4fQ.oXJryqVnkBCgC0jQi1PGFDa5hRdVp4ca2JPjPmolCecAHLF1LG2ek8m3Zev_U1yX','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MDkyMDkyOCwiZXhwIjoxNzYzNTEyOTI4fQ.PvwIfxlvakHH29cP6um2_UouBW3ldwX-givRDEmH7ObXf1dr5QtKlIfpoPKFDO8c','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-21 08:42:08','2025-10-20 08:42:08'),
+(132,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MTAwNzkzNywiZXhwIjoxNzYxMDk0MzM3fQ.fdPwcyr0_ZnhhUJ0oSvdqWSm-6o9RAXXEmcFR7y7XVE0pQ5TQz0SlOrr2hQOydCS','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MTAwNzkzNywiZXhwIjoxNzYzNTk5OTM3fQ.jWF2ufmEF5RQNhtXZvyI1bEQDIYP49G4iZ5vwbWuwRRX7Au-8MPLrbjIy9JaxeVg','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-22 08:52:17','2025-10-21 08:52:17'),
+(133,2,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjEwMDg1NTksImV4cCI6MTc2MTA5NDk1OX0.GXWLWpk32d5_BDQWJciyPB5eELB8nIHVcepCpUNwNoARQ-oUX9TZwUX1H6EY2fUG','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjIsInN1YiI6InVzZXIiLCJpYXQiOjE3NjEwMDg1NTksImV4cCI6MTc2MzYwMDU1OX0.WLnr8JxFNyUfjUyz3wDYVSFpU4Z0vdnMutnjwEhEl7M_IgOMXvBGKo3iJbGNFELi','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',0,'2025-10-22 09:02:39','2025-10-21 09:02:39'),
+(134,6,'eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MTAwOTA3MSwiZXhwIjoxNzYxMDk1NDcxfQ.fwd2vC_YKdtvWvwYzwZUQ6TE2gTAKJefFsT22X5Iw53k7iavH6feFOWaztBYsxkT','eyJhbGciOiJIUzM4NCJ9.eyJ1c2VySWQiOjYsInN1YiI6ImFkbWluMSIsImlhdCI6MTc2MTAwOTA3MSwiZXhwIjoxNzYzNjAxMDcxfQ.kUKK1g8czPf49a7Hg05_WQcPjhhw4ccHnXTqYulihyuambZZxRFoWNwOeHCgUNOW','127.0.0.1','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36 Edg/141.0.0.0',1,'2025-10-22 09:11:11','2025-10-21 09:11:11');
 
 /*Table structure for table `users` */
 
@@ -1511,10 +1660,10 @@ CREATE TABLE `users` (
 /*Data for the table `users` */
 
 insert  into `users`(`id`,`username`,`password`,`email`,`salt`,`is_active`,`last_login_time`,`create_time`,`update_time`,`phone`,`class_id`) values 
-(1,'admin','Wib17jaGy+f+dqRRLlU31LtkyMXXhRH5P7mBqVJSWZA=','3310530272@qq.com','VENfs5/WIp94Y3epBDQPz3lIHiL+ldNUQq4hn1TXgAk=',1,'2025-10-09 09:14:12','2025-09-04 08:51:54','2025-10-09 09:14:12',NULL,NULL),
-(2,'user','kOVDpxTPMCxh154PMx2L/llhfHP2GouehIqgfxRUNLE=','3310530279@qq.com','CAyH7i3GuDBGp5dTu/6pa8x2XQG7oNx7u0Hj2SxlNeU=',1,'2025-10-13 09:24:24','2025-09-04 10:50:56','2025-10-15 10:43:31','17531307050',1),
-(6,'admin1','GTOr1vxr5noxerTXtqffVJzzEVefZDZnIihbw1lizFU=','3310530270@qq.com','iNA1TSxIOglENt+5axq4cIuFVeyHYQT1kNSH+/UIrBA=',1,'2025-10-15 08:46:07','2025-09-08 10:57:08','2025-10-15 08:46:07','17531307057',NULL),
-(8,'user123','VEcZdfPU8OkbKyUYHXZI+7wGVwiiq5zL1H8tFtu9zzE=','3310530275@qq.com','lM5NWTBXSBnqD85Z132j82IKiH9y1dhTCCjzaGZMqtc=',1,'2025-09-30 08:41:51','2025-09-30 08:41:40','2025-10-15 10:43:31','17531307055',1);
+(1,'admin','Wib17jaGy+f+dqRRLlU31LtkyMXXhRH5P7mBqVJSWZA=','3310530272@qq.com','VENfs5/WIp94Y3epBDQPz3lIHiL+ldNUQq4hn1TXgAk=',1,'2025-10-20 08:41:41','2025-09-04 08:51:54','2025-10-20 08:41:41',NULL,NULL),
+(2,'user','kOVDpxTPMCxh154PMx2L/llhfHP2GouehIqgfxRUNLE=','3310530279@qq.com','CAyH7i3GuDBGp5dTu/6pa8x2XQG7oNx7u0Hj2SxlNeU=',1,'2025-10-21 09:02:39','2025-09-04 10:50:56','2025-10-21 09:02:39','17531307050',1),
+(6,'admin1','GTOr1vxr5noxerTXtqffVJzzEVefZDZnIihbw1lizFU=','3310530270@qq.com','iNA1TSxIOglENt+5axq4cIuFVeyHYQT1kNSH+/UIrBA=',1,'2025-10-21 09:11:11','2025-09-08 10:57:08','2025-10-21 09:11:11','17531307057',NULL),
+(8,'user123','VEcZdfPU8OkbKyUYHXZI+7wGVwiiq5zL1H8tFtu9zzE=','3310530275@qq.com','lM5NWTBXSBnqD85Z132j82IKiH9y1dhTCCjzaGZMqtc=',1,'2025-10-17 10:38:57','2025-09-30 08:41:40','2025-10-17 10:38:57','17531307055',1);
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;

@@ -75,4 +75,9 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
      */
     @Query("SELECT DISTINCT u FROM User u JOIN u.roles r WHERE r.roleCode = :roleCode AND u.isActive = true")
     List<User> findByRolesRoleCodeAndIsActiveTrue(@Param("roleCode") String roleCode);
+    
+    /**
+     * 根据班级ID列表统计学生数量
+     */
+    long countByClassIdInAndIsActiveTrue(List<Long> classIds);
 }

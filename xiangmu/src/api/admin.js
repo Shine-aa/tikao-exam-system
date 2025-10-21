@@ -805,3 +805,239 @@ export const paperApi = {
   getPaperById,
   deletePaper
 }
+
+// ==================== 考试管理 API ====================
+
+// 创建考试
+export function createExam(data) {
+  return request({
+    url: '/api/exams',
+    method: 'post',
+    data
+  })
+}
+
+// 分页获取考试列表
+export function getExamsWithPagination(page, size, keyword) {
+  return request({
+    url: '/api/exams/page',
+    method: 'get',
+    params: { page, size, keyword }
+  })
+}
+
+// 根据ID获取考试详情
+export function getExamById(id) {
+  return request({
+    url: `/api/exams/${id}`,
+    method: 'get'
+  })
+}
+
+// 删除考试
+export function deleteExam(id) {
+  return request({
+    url: `/api/exams/${id}`,
+    method: 'delete'
+  })
+}
+
+// 开始考试
+export function startExam(id) {
+  return request({
+    url: `/api/exams/${id}/start`,
+    method: 'post'
+  })
+}
+
+// 结束考试
+export function endExam(id) {
+  return request({
+    url: `/api/exams/${id}/end`,
+    method: 'post'
+  })
+}
+
+// 获取考试学生列表
+export function getExamStudents(id) {
+  return request({
+    url: `/api/exams/${id}/students`,
+    method: 'get'
+  })
+}
+
+// 更新考试
+export function updateExam(examId, examData) {
+  return request({
+    url: `/api/exams/${examId}`,
+    method: 'put',
+    data: examData
+  })
+}
+
+// 获取判卷考试列表
+export function getGradingExams(page, size, keyword, classId, status) {
+  return request({
+    url: '/api/exams/grading',
+    method: 'get',
+    params: { page, size, keyword, classId, status }
+  })
+}
+
+// 获取考试学生列表（用于判卷）
+export function getExamStudentsForGrading(examId, page, size, keyword, status, gradingStatus) {
+  return request({
+    url: `/api/exams/${examId}/students/grading`,
+    method: 'get',
+    params: { page, size, keyword, status, gradingStatus }
+  })
+}
+
+// 获取学生答案
+export function getStudentAnswers(examId, studentId) {
+  return request({
+    url: `/api/exams/${examId}/students/${studentId}/answers`,
+    method: 'get'
+  })
+}
+
+// 保存判卷结果
+export function saveGradingResult(gradingData) {
+  return request({
+    url: '/api/exams/grading/save',
+    method: 'post',
+    data: gradingData
+  })
+}
+
+// 提交判卷结果
+export function submitGradingResult(gradingData) {
+  return request({
+    url: '/api/exams/grading/submit',
+    method: 'post',
+    data: gradingData
+  })
+}
+
+// 获取用户信息
+export function getUserById(id) {
+  return request({
+    url: `/api/user/${id}`,
+    method: 'get'
+  })
+}
+
+// 获取学生信息
+export function getStudentInfo(studentId) {
+  return request({
+    url: `/api/user/${studentId}`,
+    method: 'get'
+  })
+}
+
+// 获取学生考试结果（仅显示分数）
+export function getStudentExamResult(examId) {
+  return request({
+    url: `/api/exams/${examId}/student-result`,
+    method: 'get'
+  })
+}
+
+// 获取老师端仪表盘统计数据
+export function getDashboardStats() {
+  return request({
+    url: '/api/exams/dashboard/stats',
+    method: 'get'
+  })
+}
+
+// 获取老师端最近活动
+export function getRecentActivities() {
+  return request({
+    url: '/api/exams/dashboard/activities',
+    method: 'get'
+  })
+}
+
+export const examApi = {
+  createExam,
+  getExamsWithPagination,
+  getExamById,
+  updateExam,
+  deleteExam,
+  startExam,
+  endExam,
+  getExamStudents,
+  getGradingExams,
+  getExamStudentsForGrading,
+  getStudentAnswers,
+  saveGradingResult,
+  submitGradingResult,
+  getStudentInfo,
+  getStudentExamResult,
+  getDashboardStats,
+  getRecentActivities
+}
+
+// ==================== 学生端考试 API ====================
+
+// 获取学生的考试列表（按状态分类）
+export function getStudentExams() {
+  return request({
+    url: '/api/student/exams',
+    method: 'get'
+  })
+}
+
+// 获取学生考试详情
+export function getStudentExamDetail(examId) {
+  return request({
+    url: `/api/student/exams/${examId}`,
+    method: 'get'
+  })
+}
+
+// 开始考试
+export function startStudentExam(examId) {
+  return request({
+    url: `/api/student/exams/${examId}/start`,
+    method: 'post'
+  })
+}
+
+// 提交考试答案
+export function submitStudentExam(examId, answers) {
+  return request({
+    url: `/api/student/exams/${examId}/submit`,
+    method: 'post',
+    data: { answers }
+  })
+}
+
+// 获取学生考试统计
+export function getStudentExamStats() {
+  return request({
+    url: '/api/student/exams/stats',
+    method: 'get'
+  })
+}
+
+// 获取学生考试试卷题目
+export function getStudentExamPaper(examId) {
+  return request({
+    url: `/api/student/exam/${examId}/paper`,
+    method: 'get',
+    params: {
+      t: Date.now() // 添加时间戳防止缓存
+    }
+  })
+}
+
+export const studentExamApi = {
+  getStudentExams,
+  getStudentExamDetail,
+  startStudentExam,
+  submitStudentExam,
+  getStudentExamStats,
+  getStudentExamPaper
+}
