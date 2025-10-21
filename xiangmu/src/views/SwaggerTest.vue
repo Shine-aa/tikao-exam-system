@@ -21,6 +21,9 @@
               <li>在线测试API接口</li>
               <li>查看请求和响应格式</li>
               <li>获取JWT Token进行认证</li>
+              <li>测试考试管理功能</li>
+              <li>测试学生考试功能</li>
+              <li>测试老师判卷功能</li>
             </ul>
           </template>
         </el-alert>
@@ -43,10 +46,11 @@
             <template #default>
               <ul>
                 <li><strong>自动扫描：</strong>自动扫描所有Controller接口</li>
-                <li><strong>分类展示：</strong>按功能模块分类显示API</li>
+                <li><strong>分类展示：</strong>按功能模块分类显示API（认证管理、用户管理、考试管理、学生考试、考试判卷、考试结果等）</li>
                 <li><strong>在线测试：</strong>直接在文档中测试API接口</li>
                 <li><strong>参数说明：</strong>详细的请求参数和响应格式说明</li>
                 <li><strong>认证支持：</strong>支持JWT Token认证测试</li>
+                <li><strong>考试系统：</strong>完整的考试管理、学生考试、老师判卷功能API</li>
               </ul>
             </template>
           </el-alert>
@@ -60,6 +64,50 @@
             <el-step title="输入Token" description="输入Bearer {token}格式的认证信息" />
             <el-step title="测试接口" description="现在可以测试需要认证的接口了" />
           </el-steps>
+        </div>
+        
+        <div class="api-categories">
+          <h3>API分类说明：</h3>
+          <el-row :gutter="20">
+            <el-col :span="8">
+              <el-card class="category-card">
+                <h4>认证管理</h4>
+                <p>用户登录、注册、验证码等认证相关接口</p>
+              </el-card>
+            </el-col>
+            <el-col :span="8">
+              <el-card class="category-card">
+                <h4>考试管理</h4>
+                <p>考试创建、编辑、删除、开始、结束等管理接口</p>
+              </el-card>
+            </el-col>
+            <el-col :span="8">
+              <el-card class="category-card">
+                <h4>学生考试</h4>
+                <p>学生端考试相关接口，包括获取考试列表、开始考试、提交答案等</p>
+              </el-card>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20" style="margin-top: 20px;">
+            <el-col :span="8">
+              <el-card class="category-card">
+                <h4>考试判卷</h4>
+                <p>老师端判卷相关接口，包括获取学生答案、保存判卷结果等</p>
+              </el-card>
+            </el-col>
+            <el-col :span="8">
+              <el-card class="category-card">
+                <h4>考试结果</h4>
+                <p>考试结果查看相关接口，包括学生查看成绩、老师查看统计等</p>
+              </el-card>
+            </el-col>
+            <el-col :span="8">
+              <el-card class="category-card">
+                <h4>系统管理</h4>
+                <p>用户管理、角色管理、权限管理、题库管理等系统管理接口</p>
+              </el-card>
+            </el-col>
+          </el-row>
         </div>
         
         <div class="test-token">
@@ -196,5 +244,25 @@ ul {
 
 li {
   margin: 5px 0;
+}
+
+.api-categories {
+  margin: 20px 0;
+}
+
+.category-card {
+  height: 120px;
+  text-align: center;
+}
+
+.category-card h4 {
+  margin: 10px 0;
+  color: #409eff;
+}
+
+.category-card p {
+  font-size: 12px;
+  color: #666;
+  line-height: 1.4;
 }
 </style>

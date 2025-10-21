@@ -3,6 +3,10 @@ package com.example.manger.controller;
 import com.example.manger.common.ApiResponse;
 import com.example.manger.dto.ExamResponse;
 import com.example.manger.service.StudentExamService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +20,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/student/exams")
 @CrossOrigin
+@Tag(name = "学生考试", description = "学生端考试相关接口，包括获取考试列表、开始考试、提交答案等")
 public class StudentExamController {
 
     @Autowired
@@ -24,6 +29,11 @@ public class StudentExamController {
     /**
      * 获取学生的考试列表（按状态分类）
      */
+    @Operation(summary = "获取学生考试列表", description = "获取学生的考试列表，按状态分类（未开始、进行中、已结束）")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权")
+    })
     @GetMapping
     @PreAuthorize("hasRole('USER')")
     public ApiResponse<Map<String, Object>> getStudentExams(HttpServletRequest request) {

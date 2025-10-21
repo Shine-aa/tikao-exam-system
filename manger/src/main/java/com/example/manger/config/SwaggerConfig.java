@@ -23,7 +23,7 @@ public class SwaggerConfig {
             .info(new Info()
                 .title("钛考在线考试系统API")
                 .version("1.0.0")
-                .description("钛考在线考试系统的RESTful API文档，包含用户认证、考试管理、题库管理、权限管理等功能")
+                .description("钛考在线考试系统的RESTful API文档，包含用户认证、考试管理、题库管理、权限管理、学生考试、老师判卷等完整功能")
                 .contact(new Contact()
                     .name("开发团队")
                     .email("dev@example.com")
@@ -47,6 +47,10 @@ public class SwaggerConfig {
                 new Tag().name("班级管理").description("班级管理相关接口"),
                 new Tag().name("专业管理").description("专业管理相关接口"),
                 new Tag().name("班级课程关联").description("班级课程关联管理相关接口"),
+                new Tag().name("考试管理").description("考试创建、编辑、删除、开始、结束等管理接口"),
+                new Tag().name("学生考试").description("学生端考试相关接口，包括获取考试列表、开始考试、提交答案等"),
+                new Tag().name("考试判卷").description("老师端判卷相关接口，包括获取学生答案、保存判卷结果等"),
+                new Tag().name("考试结果").description("考试结果查看相关接口，包括学生查看成绩、老师查看统计等"),
                 new Tag().name("仪表盘").description("系统仪表盘统计数据相关接口")
             ))
             .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))

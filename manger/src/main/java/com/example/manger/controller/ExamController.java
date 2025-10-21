@@ -5,6 +5,10 @@ import com.example.manger.dto.ExamRequest;
 import com.example.manger.dto.ExamResponse;
 import com.example.manger.dto.PageResponse;
 import com.example.manger.service.ExamService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/exams")
 @CrossOrigin
+@Tag(name = "考试管理", description = "考试创建、编辑、删除、开始、结束等管理接口")
 public class ExamController {
     
     @Autowired
@@ -28,9 +33,19 @@ public class ExamController {
     /**
      * 创建考试
      */
+    @Operation(summary = "创建考试", description = "老师或管理员创建新的考试")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "考试创建成功"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "请求参数错误"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
+    })
     @PostMapping
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ApiResponse<ExamResponse> createExam(@Valid @RequestBody ExamRequest request, HttpServletRequest httpRequest) {
+    public ApiResponse<ExamResponse> createExam(
+            @Parameter(description = "考试创建请求", required = true) 
+            @Valid @RequestBody ExamRequest request, 
+            HttpServletRequest httpRequest) {
         try {
             ExamResponse exam = examService.createExam(request, httpRequest);
             return ApiResponse.success("考试创建成功", exam);
@@ -42,11 +57,15 @@ public class ExamController {
     /**
      * 分页查询考试列表
      */
+    @Operation(summary = "分页查询考试列表", description = "获取考试列表，支持分页和关键词搜索")
     @GetMapping("/page")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<PageResponse<ExamResponse>> getExamsWithPagination(
+            @Parameter(description = "页码，从1开始", example = "1") 
             @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页大小", example = "10") 
             @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "搜索关键词") 
             @RequestParam(required = false) String keyword,
             HttpServletRequest httpRequest) {
         try {
@@ -144,6 +163,8 @@ public class ExamController {
     /**
      * 获取判卷考试列表
      */
+    @Operation(summary = "获取判卷考试列表", description = "获取需要判卷的考试列表")
+    @Tag(name = "考试判卷")
     @GetMapping("/grading")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<PageResponse<Map<String, Object>>> getGradingExams(
@@ -225,9 +246,14 @@ public class ExamController {
     /**
      * 获取学生考试结果（仅显示分数，不显示题目内容）
      */
+    @Operation(summary = "获取学生考试结果", description = "学生查看考试结果，仅显示分数不显示题目内容")
+    @Tag(name = "考试结果")
     @GetMapping("/{examId}/student-result")
     @PreAuthorize("hasRole('USER') or hasRole('TEACHER') or hasRole('ADMIN')")
-    public ApiResponse<Map<String, Object>> getStudentExamResult(@PathVariable Long examId, HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> getStudentExamResult(
+            @Parameter(description = "考试ID", required = true) 
+            @PathVariable Long examId, 
+            HttpServletRequest request) {
         try {
             Map<String, Object> result = examService.getStudentExamResult(examId, request);
             return ApiResponse.success("获取考试结果成功", result);
