@@ -373,8 +373,7 @@
       <div v-if="currentExam" class="students-list">
         <el-table :data="studentList" border stripe>
           <el-table-column prop="id" label="学生ID" width="80" />
-          <el-table-column prop="realName" label="学生姓名" width="120" />
-          <el-table-column prop="username" label="用户名" width="120" />
+          <el-table-column prop="username" label="学生姓名" width="120" />
           <el-table-column prop="className" label="班级" width="120" />
           <el-table-column prop="attemptNumber" label="尝试次数" width="90" align="center" />
           <el-table-column prop="examStatus" label="状态" width="100" align="center">

@@ -50,10 +50,10 @@
     <!-- 搜索和筛选 -->
     <div class="search-section">
       <el-row :gutter="20">
-        <el-col :span="8">
+        <el-col :span="7">
           <el-input
             v-model="searchKeyword"
-            placeholder="搜索学生姓名或用户名"
+            placeholder="搜索学生姓名、邮箱或班级"
             clearable
             @input="handleSearch"
           >
@@ -62,32 +62,38 @@
             </template>
           </el-input>
         </el-col>
-        <el-col :span="6">
+        <el-col :span="5">
           <el-select
             v-model="selectedStatus"
             placeholder="交卷状态"
             clearable
             @change="handleStatusFilter"
+            style="width: 100%"
           >
             <el-option label="全部" value="" />
             <el-option label="已交卷" value="SUBMITTED" />
             <el-option label="未交卷" value="NOT_SUBMITTED" />
           </el-select>
         </el-col>
-        <el-col :span="6">
+        <el-col :span="5">
           <el-select
             v-model="selectedGradingStatus"
             placeholder="判卷状态"
             clearable
             @change="handleGradingFilter"
+            style="width: 100%"
           >
             <el-option label="全部" value="" />
             <el-option label="未判卷" value="NOT_GRADED" />
             <el-option label="已判卷" value="GRADED" />
           </el-select>
         </el-col>
-        <el-col :span="4">
-          <el-button type="primary" @click="loadStudentList">
+        <el-col :span="7">
+          <el-button type="primary" @click="handleSearch">
+            <el-icon><Search /></el-icon>
+            搜索
+          </el-button>
+          <el-button @click="loadStudentList" style="margin-left: 10px;">
             <el-icon><Refresh /></el-icon>
             刷新
           </el-button>
@@ -98,22 +104,22 @@
 
     <!-- 学生列表 -->
     <div class="student-list">
-      <el-table
-        :data="studentList"
-        :loading="loading"
-        border
-        stripe
-        style="width: 100%"
-      >
-        <el-table-column prop="id" label="学生ID" width="80" />
-        <el-table-column prop="username" label="用户名" width="120" />
-        <el-table-column prop="realName" label="姓名" width="120" />
-        <el-table-column prop="submitTime" label="交卷时间" width="160">
+      <div class="table-container">
+        <el-table
+          :data="studentList"
+          :loading="loading"
+          border
+          stripe
+          style="width: 100%"
+        >
+        <el-table-column prop="id" label="学生ID" width="100" />
+        <el-table-column prop="username" label="学生姓名" width="180" />
+        <el-table-column prop="submitTime" label="交卷时间" width="220">
           <template #default="{ row }">
             {{ row.submitTime ? formatDateTime(row.submitTime) : '未交卷' }}
           </template>
         </el-table-column>
-        <el-table-column prop="timeSpentMinutes" label="用时(分钟)" width="120" align="center">
+        <el-table-column prop="timeSpentMinutes" label="用时(分钟)" width="130" align="center">
           <template #default="{ row }">
             {{ row.timeSpentMinutes || '-' }}
           </template>
@@ -126,7 +132,7 @@
             <span v-else class="no-score">未判卷</span>
           </template>
         </el-table-column>
-        <el-table-column prop="gradingStatus" label="判卷状态" width="100" align="center">
+        <el-table-column prop="gradingStatus" label="判卷状态" width="130" align="center">
           <template #default="{ row }">
             <el-tag :type="getGradingStatusType(row.gradingStatus)">
               {{ getGradingStatusLabel(row.gradingStatus) }}
@@ -138,15 +144,16 @@
             <el-button
               type="primary"
               size="small"
-              :disabled="!row.submitTime"
+              :disabled="!row.submitTime || row.gradingStatus === 'GRADED'"
               @click="handleStartGrading(row)"
             >
               <el-icon><EditPen /></el-icon>
-              判卷
+              {{ row.gradingStatus === 'GRADED' ? '已判卷' : '判卷' }}
             </el-button>
           </template>
         </el-table-column>
-      </el-table>
+        </el-table>
+      </div>
     </div>
 
     <!-- 分页 -->
@@ -278,6 +285,11 @@ const handleCurrentChange = (page) => {
 const handleStartGrading = (row) => {
   if (!row.submitTime) {
     ElMessage.warning('该学生尚未交卷')
+    return
+  }
+  
+  if (row.gradingStatus === 'GRADED') {
+    ElMessage.warning('该学生试卷已判卷，无法再次判卷')
     return
   }
   
@@ -426,6 +438,12 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.table-container {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
 .pagination {
   display: flex;
   justify-content: center;
@@ -434,5 +452,20 @@ onMounted(() => {
 .no-score {
   color: #909399;
   font-style: italic;
+}
+
+/* 响应式设计 - 仅适配桌面端和平板端 */
+@media (max-width: 1200px) {
+  .student-selection {
+    padding: 15px;
+  }
+  
+  .search-section {
+    padding: 15px;
+  }
+  
+  .exam-info-card {
+    margin-bottom: 15px;
+  }
 }
 </style>
