@@ -312,9 +312,27 @@ public class ExamService {
             response.setTeacherName(teacher.getUsername());
         }
         
-        // 直接使用数据库中的字段
+        // 计算考试统计数据
+        List<StudentExam> studentExams = studentExamRepository.findByExamIdAndIsActiveTrue(exam.getId());
+        long submittedCount = studentExams.stream()
+                .filter(se -> se.getSubmitTime() != null)
+                .count();
+        long gradedCount = studentExams.stream()
+                .filter(se -> se.getTotalScore() != null)
+                .count();
+        
+        // 设置统计数据
         response.setStudentCount(exam.getStudentCount());
-        response.setParticipatedCount(exam.getParticipatedCount());
+        response.setParticipatedCount((int) submittedCount);
+        response.setUnsubmittedCount((int) (studentExams.size() - submittedCount));
+        response.setGradedCount((int) gradedCount);
+        
+        // 计算判卷进度
+        int gradingProgress = submittedCount > 0 ? (int) (gradedCount * 100 / submittedCount) : 0;
+        response.setGradingProgress(gradingProgress);
+        
+        // 设置考试时长（分钟）
+        response.setDuration(exam.getDurationMinutes());
         
         // 手动设置状态字段，确保枚举值正确转换
         if (exam.getStatus() != null) {
@@ -419,8 +437,6 @@ public class ExamService {
      */
     public PageResponse<Map<String, Object>> getExamStudentsForGrading(Long examId, int page, int size, 
             String keyword, String status, String gradingStatus) {
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "submitTime"));
-        
         // 获取考试信息
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new RuntimeException("考试不存在"));
@@ -428,36 +444,13 @@ public class ExamService {
         // 获取该考试的所有学生考试记录
         List<StudentExam> studentExams = studentExamRepository.findByExamIdAndIsActiveTrue(examId);
         
-        // 过滤条件
-        List<StudentExam> filteredExams = studentExams.stream()
-                .filter(se -> {
-                    if (status != null && !status.trim().isEmpty()) {
-                        if ("SUBMITTED".equals(status) && se.getSubmitTime() == null) return false;
-                        if ("NOT_SUBMITTED".equals(status) && se.getSubmitTime() != null) return false;
-                    }
-                    return true;
-                })
-                .collect(Collectors.toList());
+        // 先获取所有学生信息，然后进行过滤
+        List<Map<String, Object>> allStudents = new ArrayList<>();
         
-        // 分页处理
-        int start = (page - 1) * size;
-        int end = Math.min(start + size, filteredExams.size());
-        List<StudentExam> pageExams = filteredExams.subList(start, end);
-        
-        List<Map<String, Object>> students = new ArrayList<>();
-        
-        for (StudentExam studentExam : pageExams) {
+        for (StudentExam studentExam : studentExams) {
             // 获取学生信息
             User student = userRepository.findById(studentExam.getStudentId()).orElse(null);
             if (student == null) continue;
-            
-            // 检查关键词过滤
-            if (keyword != null && !keyword.trim().isEmpty()) {
-                if (!student.getUsername().contains(keyword) && 
-                    !student.getEmail().contains(keyword)) {
-                    continue;
-                }
-            }
             
             // 获取学生班级信息
             List<StudentClass> studentClasses = studentClassRepository.findByStudentIdAndIsActiveTrue(student.getId());
@@ -484,10 +477,60 @@ public class ExamService {
             studentInfo.put("attemptNumber", studentExam.getAttemptNumber());
             studentInfo.put("gradingStatus", studentExam.getTotalScore() != null ? "GRADED" : "NOT_GRADED");
             
-            students.add(studentInfo);
+            allStudents.add(studentInfo);
         }
         
-        return PageResponse.of(students, page, size, (long) filteredExams.size());
+        // 应用过滤条件
+        List<Map<String, Object>> filteredStudents = allStudents.stream()
+                .filter(student -> {
+                    // 状态过滤
+                    if (status != null && !status.trim().isEmpty()) {
+                        if ("SUBMITTED".equals(status) && student.get("submitTime") == null) return false;
+                        if ("NOT_SUBMITTED".equals(status) && student.get("submitTime") != null) return false;
+                    }
+                    
+                    // 判卷状态过滤
+                    if (gradingStatus != null && !gradingStatus.trim().isEmpty()) {
+                        String currentGradingStatus = (String) student.get("gradingStatus");
+                        if (!gradingStatus.equals(currentGradingStatus)) return false;
+                    }
+                    
+                    // 关键词搜索
+                    if (keyword != null && !keyword.trim().isEmpty()) {
+                        String searchKeyword = keyword.toLowerCase();
+                        String username = ((String) student.get("username")).toLowerCase();
+                        String email = ((String) student.get("email")).toLowerCase();
+                        String className = ((String) student.get("className")).toLowerCase();
+                        
+                        if (!username.contains(searchKeyword) && 
+                            !email.contains(searchKeyword) && 
+                            !className.contains(searchKeyword)) {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        // 按交卷时间排序
+        filteredStudents.sort((a, b) -> {
+            Object submitTimeA = a.get("submitTime");
+            Object submitTimeB = b.get("submitTime");
+            
+            if (submitTimeA == null && submitTimeB == null) return 0;
+            if (submitTimeA == null) return 1;
+            if (submitTimeB == null) return -1;
+            
+            return ((LocalDateTime) submitTimeB).compareTo((LocalDateTime) submitTimeA);
+        });
+        
+        // 分页处理
+        int start = (page - 1) * size;
+        int end = Math.min(start + size, filteredStudents.size());
+        List<Map<String, Object>> pageStudents = filteredStudents.subList(start, end);
+        
+        return PageResponse.of(pageStudents, page, size, (long) filteredStudents.size());
     }
     
     /**

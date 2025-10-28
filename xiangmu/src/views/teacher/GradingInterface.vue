@@ -9,7 +9,7 @@
         </el-button>
         <div class="exam-info">
           <h2>{{ examInfo.examName }}</h2>
-          <p>{{ studentInfo.realName }} ({{ studentInfo.username }}) - {{ examInfo.className }}</p>
+          <p>{{ studentInfo.username }} - {{ examInfo.className }}</p>
         </div>
       </div>
       <div class="header-right">
@@ -17,9 +17,9 @@
           <el-icon><Check /></el-icon>
           保存判卷
         </el-button>
-        <el-button type="primary" @click="handleSubmitGrading" :loading="submitting">
+        <el-button type="primary" @click="handleSubmitGrading" :loading="submitting" :disabled="!isAllGraded">
           <el-icon><Upload /></el-icon>
-          提交判卷
+          {{ isAllGraded ? '提交判卷' : '请完成所有题目判分' }}
         </el-button>
       </div>
     </div>
@@ -325,6 +325,11 @@ const subjectiveQuestions = computed(() => {
 // 是否有客观题
 const hasObjectiveQuestions = computed(() => {
   return objectiveQuestions.value.length > 0
+})
+
+// 是否所有题目都已判完
+const isAllGraded = computed(() => {
+  return questions.value.every(q => q.isGraded)
 })
 
 // 获取考试ID和学生ID
@@ -730,14 +735,64 @@ const confirmSave = async () => {
 
 // 提交判卷结果
 const handleSubmitGrading = async () => {
+  // 显示详细的判卷摘要信息
+  const gradingSummary = generateGradingSummary()
+  
+  // 检查是否所有题目都已判完
+  if (gradingSummary.ungradedCount > 0) {
+    ElMessageBox.alert(
+      `还有 ${gradingSummary.ungradedCount} 道题目未判分，请完成所有题目的判分后再提交！`,
+      '判卷未完成',
+      {
+        confirmButtonText: '我知道了',
+        type: 'warning',
+        showClose: true
+      }
+    )
+    return
+  }
+  
   try {
     await ElMessageBox.confirm(
-      '确定要提交判卷结果吗？提交后将无法修改。',
+      `<div style="text-align: left; line-height: 1.8; font-size: 16px;">
+        <p style="margin: 0 0 15px 0; font-weight: bold; color: #e6a23c;">请仔细核对以下判卷信息：</p>
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
+          <p style="margin: 8px 0;"><strong>学生姓名：</strong>${studentInfo.value.username}</p>
+          <p style="margin: 8px 0;"><strong>考试名称：</strong>${examInfo.value.examName}</p>
+          <p style="margin: 8px 0;"><strong>班级名称：</strong>${examInfo.value.className}</p>
+          <p style="margin: 8px 0;"><strong>得分情况：</strong>${currentTotalScore.value.toFixed(1)}/${examInfo.value.totalPoints}分</p>
+          <p style="margin: 8px 0;"><strong>判卷进度：</strong>${gradingSummary.gradedCount}/${gradingSummary.totalCount}题</p>
+          <p style="margin: 8px 0;"><strong>未判题目：</strong>${gradingSummary.ungradedCount}题</p>
+        </div>
+        <p style="margin: 15px 0 0 0; color: #f56c6c; font-weight: bold;">⚠️ 提交后将无法修改，请确认无误后再提交！</p>
+      </div>`,
       '提交判卷确认',
+      {
+        confirmButtonText: '确认提交',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true,
+        customClass: 'grading-confirm-dialog',
+        showClose: true,
+        closeOnClickModal: false,
+        closeOnPressEscape: false
+      }
+    )
+    
+    // 二次确认
+    await ElMessageBox.confirm(
+      `最后确认：\n\n` +
+      `学生：${studentInfo.value.username}\n` +
+      `得分：${currentTotalScore.value.toFixed(1)}分\n\n` +
+      `确定要提交此判卷结果吗？`,
+      '最终确认',
       {
         confirmButtonText: '确定提交',
         cancelButtonText: '取消',
-        type: 'warning'
+        type: 'error',
+        showClose: true,
+        closeOnClickModal: false,
+        closeOnPressEscape: false
       }
     )
     
@@ -776,6 +831,19 @@ const handleSubmitGrading = async () => {
     }
   } finally {
     submitting.value = false
+  }
+}
+
+// 生成判卷摘要信息
+const generateGradingSummary = () => {
+  const totalCount = questions.value.length
+  const gradedCount = questions.value.filter(q => q.isGraded).length
+  const ungradedCount = totalCount - gradedCount
+  
+  return {
+    totalCount,
+    gradedCount,
+    ungradedCount
   }
 }
 
@@ -1374,5 +1442,53 @@ onMounted(() => {
 .answer-label {
   font-weight: bold;
   margin-right: 8px;
+}
+
+/* 判卷确认对话框样式 */
+:deep(.grading-confirm-dialog) {
+  width: 650px !important;
+  max-width: 90vw !important;
+  
+  .el-message-box__content {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    padding: 30px 35px;
+  }
+  
+  .el-message-box__title {
+    color: #e6a23c;
+    font-weight: bold;
+    font-size: 22px;
+    margin-bottom: 25px;
+  }
+  
+  .el-message-box__message {
+    text-align: left;
+    color: #303133;
+    line-height: 1.8;
+    font-size: 16px;
+  }
+  
+  .el-message-box__btns {
+    padding: 25px 35px 35px;
+    text-align: center;
+  }
+  
+  .el-button {
+    min-width: 130px;
+    height: 50px;
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0 15px;
+  }
+  
+  .el-button--primary {
+    background-color: #f56c6c;
+    border-color: #f56c6c;
+  }
+  
+  .el-button--primary:hover {
+    background-color: #f78989;
+    border-color: #f78989;
+  }
 }
 </style>

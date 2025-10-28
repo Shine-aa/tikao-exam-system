@@ -44,6 +44,18 @@ public class ExamResponse {
     // 已参加考试的学生数量
     private Integer participatedCount;
     
+    // 未交卷的学生数量
+    private Integer unsubmittedCount;
+    
+    // 已判卷的学生数量
+    private Integer gradedCount;
+    
+    // 判卷进度（百分比）
+    private Integer gradingProgress;
+    
+    // 考试时长（分钟）
+    private Integer duration;
+    
     // 学生考试分数
     private Double totalScore;
     

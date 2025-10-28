@@ -119,11 +119,11 @@
               <el-button
                 type="primary"
                 size="default"
-                :disabled="row.status !== 'COMPLETED'"
+                :disabled="row.status !== 'COMPLETED' || row.gradingProgress === 100"
                 @click="handleStartGrading(row)"
               >
                 <el-icon><EditPen /></el-icon>
-                开始判卷
+                {{ row.gradingProgress === 100 ? '已判卷' : '开始判卷' }}
               </el-button>
               <el-button
                 type="info"
@@ -177,9 +177,9 @@
         </el-descriptions>
         
         <div class="dialog-actions">
-          <el-button type="primary" @click="handleStartGrading(currentExam)">
-            <el-icon><EditPen /></el-icon>
-            开始判卷
+          <el-button type="info" @click="detailsDialogVisible = false">
+            <el-icon><Close /></el-icon>
+            关闭
           </el-button>
         </div>
       </div>
@@ -191,7 +191,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  Search, Refresh, EditPen, View
+  Search, Refresh, EditPen, View, Close
 } from '@element-plus/icons-vue'
 import { useRouter } from 'vue-router'
 import { examApi, classApi } from '@/api/admin'
@@ -285,6 +285,11 @@ const handleCurrentChange = (page) => {
 const handleStartGrading = (row) => {
   if (row.status !== 'COMPLETED') {
     ElMessage.warning('只有已结束的考试才能进行判卷')
+    return
+  }
+  
+  if (row.gradingProgress === 100) {
+    ElMessage.warning('该考试已全部判卷完成，无法再次判卷')
     return
   }
   
