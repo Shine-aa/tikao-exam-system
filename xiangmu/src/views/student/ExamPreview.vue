@@ -586,9 +586,29 @@ const submitExam = async () => {
     
     console.log('Submitting answers:', allAnswers)
     
-    const response = await studentExamApi.submitStudentExam(examId, {
-      answers: allAnswers
-    })
+    // 准备试卷内容（包含题目和选项顺序）
+    const paperContent = {
+      questions: questions.value.map(q => ({
+        questionId: q.questionId,
+        questionOrder: q.questionOrder,
+        questionType: q.questionType,
+        questionContent: q.questionText || q.questionContent,  // 题目内容
+        points: q.points,
+        options: q.options || []
+        // 不存储答案（answers），避免重复和格式问题
+      }))
+    }
+    
+    const submitData = {
+      answers: allAnswers,
+      paperContent: paperContent
+    }
+    
+    console.log('Submitting data:', submitData)
+    console.log('Answers count:', Object.keys(allAnswers).length)
+    console.log('Paper content questions count:', paperContent.questions.length)
+    
+    const response = await studentExamApi.submitStudentExam(examId, submitData)
     
     if (response.code === 200) {
       ElMessage.success('试卷提交成功')

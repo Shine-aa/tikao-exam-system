@@ -11,6 +11,7 @@ import com.example.manger.repository.CourseRepository;
 import com.example.manger.repository.ClassRepository;
 import com.example.manger.repository.ClassCourseRepository;
 import com.example.manger.repository.UserRepository;
+import com.example.manger.repository.TeacherCourseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -32,6 +33,7 @@ public class CourseService {
     private final ClassRepository classRepository;
     private final ClassCourseRepository classCourseRepository;
     private final UserRepository userRepository;
+    private final TeacherCourseRepository teacherCourseRepository;
     
     /**
      * 创建课程
@@ -120,32 +122,56 @@ public class CourseService {
     }
     
     /**
-     * 分页获取教师的课程
+     * 分页获取教师的课程（通过teacher_courses关联表）
      */
     public PageResponse<CourseResponse> getCoursesWithPagination(Long teacherId, int page, int size, String keyword) {
         Pageable pageable = PageRequest.of(page - 1, size);
-        Page<Course> coursePage;
         
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            coursePage = courseRepository.findByTeacherIdAndKeyword(teacherId, keyword.trim(), pageable);
-        } else {
-            coursePage = courseRepository.findByTeacherIdAndIsActiveTrue(teacherId, pageable);
+        // 先获取教师的课程ID列表
+        List<Long> teacherCourseIds = teacherCourseRepository.findByTeacherIdAndIsActiveTrue(teacherId)
+            .stream()
+            .map(tc -> tc.getCourseId())
+            .collect(Collectors.toList());
+        
+        if (teacherCourseIds.isEmpty()) {
+            return PageResponse.<CourseResponse>builder()
+                    .content(List.of())
+                    .total(0L)
+                    .page(page)
+                    .size(size)
+                    .totalPages(0)
+                    .first(true)
+                    .last(true)
+                    .hasNext(false)
+                    .hasPrevious(false)
+                    .build();
         }
         
-        List<CourseResponse> responses = coursePage.getContent().stream()
+        // 根据课程ID列表和关键词查询
+        List<Course> courses;
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            courses = courseRepository.findByIdInAndKeyword(teacherCourseIds, keyword.trim());
+        } else {
+            courses = courseRepository.findByIdInAndIsActiveTrue(teacherCourseIds);
+        }
+        
+        // 手动分页
+        int start = (page - 1) * size;
+        int end = Math.min(start + size, courses.size());
+        List<CourseResponse> responses = courses.subList(start, end).stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
         
         return PageResponse.<CourseResponse>builder()
                 .content(responses)
-                .total(coursePage.getTotalElements())
+                .total((long) courses.size())
                 .page(page)
                 .size(size)
-                .totalPages(coursePage.getTotalPages())
-                .first(coursePage.isFirst())
-                .last(coursePage.isLast())
-                .hasNext(coursePage.hasNext())
-                .hasPrevious(coursePage.hasPrevious())
+                .totalPages((int) Math.ceil((double) courses.size() / size))
+                .first(page == 1)
+                .last(end >= courses.size())
+                .hasNext(end < courses.size())
+                .hasPrevious(page > 1)
                 .build();
     }
     
