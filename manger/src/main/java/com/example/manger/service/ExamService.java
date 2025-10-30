@@ -233,6 +233,29 @@ public class ExamService {
         
         exam.setStatus(Exam.ExamStatus.COMPLETED);
         examRepository.save(exam);
+        
+        // 处理未提交的学生考试记录：自动标记为已提交
+        List<StudentExam> studentExams = studentExamRepository.findByExamIdAndIsActiveTrue(examId);
+        LocalDateTime now = LocalDateTime.now();
+        
+        for (StudentExam studentExam : studentExams) {
+            // 只处理进行中的考试记录
+            if (studentExam.getStatus() == StudentExam.StudentExamStatus.IN_PROGRESS) {
+                studentExam.setStatus(StudentExam.StudentExamStatus.SUBMITTED);
+                // 如果还没有提交时间，设置为当前时间或考试结束时间
+                if (studentExam.getSubmitTime() == null) {
+                    studentExam.setSubmitTime(now.isAfter(exam.getEndTime()) ? exam.getEndTime() : now);
+                }
+                
+                // 计算考试用时
+                if (studentExam.getStartTime() != null && studentExam.getSubmitTime() != null) {
+                    long minutes = java.time.Duration.between(studentExam.getStartTime(), studentExam.getSubmitTime()).toMinutes();
+                    studentExam.setTimeSpentMinutes((int) minutes);
+                }
+                
+                studentExamRepository.save(studentExam);
+            }
+        }
     }
     
     /**

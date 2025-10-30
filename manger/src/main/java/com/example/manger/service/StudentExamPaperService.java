@@ -26,6 +26,7 @@ public class StudentExamPaperService {
     private final PaperRepository paperRepository;
     private final QuestionRepository questionRepository;
     private final StudentClassRepository studentClassRepository;
+    private final StudentExamRepository studentExamRepository;
     private final JwtUtil jwtUtil;
     
     /**
@@ -133,6 +134,8 @@ public class StudentExamPaperService {
             questionResponseList = shuffleQuestions(questionResponseList, studentId);
         }
         
+        // 获取学生考试记录以计算个人截止时间
+        Optional<StudentExam> studentExamOpt = studentExamRepository.findByExamIdAndStudentIdAndIsActiveTrue(examId, studentId);
         // 构建响应数据
         Map<String, Object> response = new HashMap<>();
         response.put("examId", exam.getId());
@@ -145,6 +148,20 @@ public class StudentExamPaperService {
         response.put("endTime", exam.getEndTime());
         response.put("isRandomOrder", exam.getIsRandomOrder());
         response.put("isRandomOptions", exam.getIsRandomOptions());
+        // 学生个人开始时间与有效截止时间（窗口截止 与 个人时长截止 取较早者）
+        if (studentExamOpt.isPresent()) {
+            StudentExam se = studentExamOpt.get();
+            response.put("studentStartTime", se.getStartTime());
+            if (se.getStartTime() != null && exam.getDurationMinutes() != null) {
+                java.time.LocalDateTime personalDeadline = se.getStartTime().plusMinutes(exam.getDurationMinutes());
+                java.time.LocalDateTime allowedEndTime = personalDeadline.isBefore(exam.getEndTime()) ? personalDeadline : exam.getEndTime();
+                response.put("allowedEndTime", allowedEndTime);
+            } else {
+                response.put("allowedEndTime", exam.getEndTime());
+            }
+        } else {
+            response.put("allowedEndTime", exam.getEndTime());
+        }
         response.put("questions", questionResponseList);
         
         return response;

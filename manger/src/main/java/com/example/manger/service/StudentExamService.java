@@ -207,10 +207,8 @@ public class StudentExamService {
 
         // 如果考试正在进行中，允许重新进入（处理网络中断、浏览器崩溃等情况）
         if (studentExam.getStatus() == StudentExam.StudentExamStatus.IN_PROGRESS) {
-            // 更新开始时间（重新进入考试）
-            studentExam.setStartTime(now);
-            studentExamRepository.save(studentExam);
-            return; // 直接返回，不重复设置状态
+            // 已在进行中，保持原有开始时间，不重置开始计时
+            return; // 直接返回
         }
 
         // 如果考试状态是SCHEDULED，自动更新为ONGOING
@@ -273,6 +271,37 @@ public class StudentExamService {
 
         // 这里可以添加自动评分的逻辑
         // TODO: 实现自动评分功能
+    }
+
+    /**
+     * 保存答卷草稿（不改变考试状态）
+     */
+    @Transactional
+    public void saveDraftAnswers(Long examId, Map<String, Object> requestData, HttpServletRequest request) {
+        // 获取当前学生ID
+        String authorizationHeader = request.getHeader("Authorization");
+        String token = authorizationHeader != null && authorizationHeader.startsWith("Bearer ")
+            ? authorizationHeader.substring(7)
+            : authorizationHeader;
+        Long studentId = jwtUtil.getUserIdFromToken(token);
+
+        // 验证考试是否存在
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EXAM_NOT_FOUND, "考试不存在"));
+
+        // 获取学生考试记录（必须处于进行中才能保存草稿）
+        StudentExam studentExam = studentExamRepository.findByExamIdAndStudentIdAndIsActiveTrue(examId, studentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_EXAM_NOT_FOUND, "学生考试记录不存在"));
+
+        if (studentExam.getStatus() != StudentExam.StudentExamStatus.IN_PROGRESS) {
+            throw new BusinessException(ErrorCode.INVALID_OPERATION, "考试未在进行中，无法保存草稿");
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> paperContent = (Map<String, Object>) requestData.get("paperContent");
+
+        // 仅保存答案与试卷快照，不改变StudentExam状态
+        saveStudentAnswers(studentExam.getId(), requestData, paperContent, request);
     }
 
     /**

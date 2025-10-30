@@ -1034,6 +1034,15 @@ export function submitStudentExam(examId, data) {
   })
 }
 
+// 保存考试答卷（草稿）
+export function saveStudentExamDraft(examId, data) {
+  return request({
+    url: `/api/student/exams/${examId}/save`,
+    method: 'post',
+    data: data
+  })
+}
+
 // 获取学生考试统计
 export function getStudentExamStats() {
   return request({
@@ -1066,6 +1075,7 @@ export const studentExamApi = {
   getStudentExamDetail,
   startStudentExam,
   submitStudentExam,
+  saveStudentExamDraft,
   getStudentExamStats,
   getStudentExamPaper
 }
