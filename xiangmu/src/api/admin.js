@@ -242,6 +242,26 @@ export function getQuestionStatistics() {
   })
 }
 
+// 导入题目
+export function importQuestions(formData) {
+  return request({
+    url: '/api/questions/import',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
+// 根据课程ID获取题目列表
+export function getQuestionsByCourse(courseId) {
+  return request({
+    url: `/api/questions/course/${courseId}`,
+    method: 'get'
+  })
+}
+
 // ==================== 菜单管理 API ====================
 
 // 获取菜单列表
@@ -1006,11 +1026,20 @@ export function startStudentExam(examId) {
 }
 
 // 提交考试答案
-export function submitStudentExam(examId, answers) {
+export function submitStudentExam(examId, data) {
   return request({
     url: `/api/student/exams/${examId}/submit`,
     method: 'post',
-    data: { answers }
+    data: data
+  })
+}
+
+// 保存考试答卷（草稿）
+export function saveStudentExamDraft(examId, data) {
+  return request({
+    url: `/api/student/exams/${examId}/save`,
+    method: 'post',
+    data: data
   })
 }
 
@@ -1018,6 +1047,14 @@ export function submitStudentExam(examId, answers) {
 export function getStudentExamStats() {
   return request({
     url: '/api/student/exams/stats',
+    method: 'get'
+  })
+}
+
+// 获取客户端IP地址
+export function getClientIP() {
+  return request({
+    url: '/api/common/client-ip',
     method: 'get'
   })
 }
@@ -1038,6 +1075,20 @@ export const studentExamApi = {
   getStudentExamDetail,
   startStudentExam,
   submitStudentExam,
+  saveStudentExamDraft,
   getStudentExamStats,
   getStudentExamPaper
+}
+
+// ==================== 题库API对象 ====================
+export const questionApi = {
+  getQuestions,
+  getQuestionById,
+  createQuestion,
+  updateQuestion,
+  deleteQuestion,
+  batchDeleteQuestions,
+  getQuestionStatistics,
+  getQuestionsByCourse,
+  importQuestions
 }

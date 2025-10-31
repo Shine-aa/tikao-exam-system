@@ -2,11 +2,16 @@ package com.example.manger.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 试卷实体类
@@ -14,6 +19,8 @@ import java.util.List;
 @Entity
 @Table(name = "papers")
 @Data
+@Getter
+@Setter
 public class Paper {
     
     @Id
@@ -34,6 +41,10 @@ public class Paper {
     
     @Column(name = "course_id", nullable = false)
     private Long courseId;
+    
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "questions", columnDefinition = "JSON")
+    private List<Map<String, Object>> questions;
     
     @Column(name = "teacher_id", nullable = false)
     private Long teacherId;
@@ -64,7 +75,5 @@ public class Paper {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
     
-    // 关联关系
-    @OneToMany(mappedBy = "paperId", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<PaperQuestion> paperQuestions;
+    // 注意：题目信息现在存储在questions字段中，不再是关联表
 }

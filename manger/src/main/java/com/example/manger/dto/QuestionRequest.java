@@ -1,7 +1,6 @@
 package com.example.manger.dto;
 
 import com.example.manger.entity.Question;
-import com.example.manger.entity.QuestionAnswer;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
@@ -16,6 +15,8 @@ public class QuestionRequest {
     private String content;
     
     private String title;
+    
+    private String images; // 题目图片路径，多个路径用分号(;)分隔
     
     @NotNull(message = "题目类型不能为空")
     private Question.QuestionType type;
@@ -54,11 +55,5 @@ public class QuestionRequest {
     public static class QuestionAnswerRequest {
         @NotBlank(message = "答案内容不能为空")
         private String answerContent;
-        
-        private QuestionAnswer.AnswerType answerType = QuestionAnswer.AnswerType.TEXT;
-        
-        private Boolean isPrimary = true;
-        
-        private Integer sortOrder = 0;
     }
 }

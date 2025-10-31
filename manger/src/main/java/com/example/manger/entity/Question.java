@@ -7,6 +7,9 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "questions")
@@ -23,6 +26,10 @@ public class Question {
     @Column(name = "content", columnDefinition = "TEXT", nullable = false)
     private String content;
     
+    // 题目图片（TEXT格式，多个路径用分号(;)分隔）
+    @Column(name = "images", columnDefinition = "TEXT")
+    private String images;
+    
     @Enumerated(EnumType.STRING)
     @Column(name = "type", nullable = false)
     private QuestionType type;
@@ -34,8 +41,18 @@ public class Question {
     @Column(name = "points")
     private Integer points = 1;
     
-    @Column(name = "knowledge_point_id")
-    private Long knowledgePointId;
+    // 题目选项（JSON格式存储）
+    @Column(name = "options", columnDefinition = "JSON")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<Map<String, Object>> options;
+    
+    // 正确答案
+    @Column(name = "correct_answer", length = 1000)
+    private String correctAnswer;
+    
+    // knowledge_point_id 字段已删除，改用 question_knowledge_points 关联表
+    // @Column(name = "knowledge_point_id")
+    // private Long knowledgePointId;
     
     @Column(name = "tags", length = 500)
     private String tags;
@@ -56,13 +73,6 @@ public class Question {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    
-    // 关联关系
-    @OneToMany(mappedBy = "questionId", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<QuestionOption> options;
-    
-    @OneToMany(mappedBy = "questionId", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<QuestionAnswer> answers;
     
     public enum QuestionType {
         SINGLE_CHOICE("单选题"),

@@ -5,6 +5,7 @@ import com.example.manger.dto.PageResponse;
 import com.example.manger.dto.QuestionRequest;
 import com.example.manger.dto.QuestionResponse;
 import com.example.manger.entity.Question;
+import com.example.manger.service.QuestionImportService;
 import com.example.manger.service.QuestionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,8 +14,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/questions")
@@ -23,6 +26,7 @@ import java.util.List;
 public class QuestionController {
     
     private final QuestionService questionService;
+    private final QuestionImportService questionImportService;
     
     @PostMapping
     @Operation(summary = "创建题目", description = "创建新的题目")
@@ -67,7 +71,6 @@ public class QuestionController {
     public ApiResponse<PageResponse<QuestionResponse>> getQuestionsWithPagination(
             @Parameter(description = "题目类型") @RequestParam(required = false) Question.QuestionType type,
             @Parameter(description = "难度等级") @RequestParam(required = false) Question.DifficultyLevel difficulty,
-            @Parameter(description = "知识点ID") @RequestParam(required = false) Long knowledgePointId,
             @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
@@ -77,7 +80,7 @@ public class QuestionController {
         
         Long userId = getCurrentUserId(authentication);
         PageResponse<QuestionResponse> response = questionService.getQuestionsWithPagination(
-            type, difficulty, knowledgePointId, keyword, page, size, sortBy, sortDir, userId);
+            type, difficulty, keyword, page, size, sortBy, sortDir, userId);
         return ApiResponse.success("获取题目列表成功", response);
     }
     
@@ -97,6 +100,37 @@ public class QuestionController {
         Long userId = getCurrentUserId(authentication);
         QuestionService.QuestionStatistics statistics = questionService.getQuestionStatistics(userId);
         return ApiResponse.success("获取统计信息成功", statistics);
+    }
+    
+    @GetMapping("/course/{courseId}")
+    @Operation(summary = "根据课程获取题目列表", description = "获取指定课程的所有题目")
+    public ApiResponse<List<QuestionResponse>> getQuestionsByCourse(@PathVariable Long courseId) {
+        List<QuestionResponse> questions = questionService.getQuestionsByCourseId(courseId);
+        return ApiResponse.success("获取题目列表成功", questions);
+    }
+    
+    @PostMapping("/import")
+    @Operation(summary = "导入题库", description = "从Excel文件导入题目")
+    public ApiResponse<Map<String, Object>> importQuestions(
+            @RequestParam("file") MultipartFile file,
+            Authentication authentication) {
+        try {
+            if (file.isEmpty()) {
+                return ApiResponse.error("文件不能为空");
+            }
+            
+            if (!file.getOriginalFilename().endsWith(".xlsx") && !file.getOriginalFilename().endsWith(".xls")) {
+                return ApiResponse.error("只支持Excel文件格式(.xlsx, .xls)");
+            }
+            
+            Long userId = getCurrentUserId(authentication);
+            Map<String, Object> result = questionImportService.importQuestions(file, userId);
+            
+            return ApiResponse.success("导入完成", result);
+            
+        } catch (Exception e) {
+            return ApiResponse.error("导入失败: " + e.getMessage());
+        }
     }
     
     private Long getCurrentUserId(Authentication authentication) {

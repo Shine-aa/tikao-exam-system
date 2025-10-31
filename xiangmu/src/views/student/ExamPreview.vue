@@ -127,6 +127,15 @@
           返回
         </el-button>
         <el-button 
+          type="warning" 
+          size="large" 
+          :loading="submitting"
+          @click="saveDraft"
+        >
+          <el-icon><Check /></el-icon>
+          保存答卷
+        </el-button>
+        <el-button 
           type="success" 
           size="large" 
           :loading="submitting"
@@ -143,7 +152,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Edit, View, Check, Refresh } from '@element-plus/icons-vue'
 import { studentExamApi } from '@/api/admin'
 
@@ -160,6 +169,8 @@ const fillBlankAnswers = ref({})
 const essayAnswers = ref({})
 const autoSaveTimer = ref(null)
 const lastSaveTime = ref(null)
+const isAutoSaving = ref(false)
+const lastAutoSaveAt = ref(null)
 
 let timer = null
 
@@ -172,6 +183,16 @@ const answeredCount = computed(() => {
     }
   }
   return count
+})
+
+// 计算未答题目数量
+const unansweredCount = computed(() => {
+  return questions.value.length - answeredCount.value
+})
+
+// 计算是否所有题目都已作答
+const isAllAnswered = computed(() => {
+  return answeredCount.value === questions.value.length && questions.value.length > 0
 })
 
 // 格式化时间
@@ -239,18 +260,24 @@ const getQuestionTypeLabel = (questionType) => {
 // 开始计时器
 const startTimer = () => {
   timer = setInterval(() => {
-    // 重新计算剩余时间（基于考试结束时间）
+    // 重新计算剩余时间（基于个人有效截止时间）
     const now = new Date()
-    const endTime = new Date(examInfo.value.endTime)
-    const remainingSeconds = Math.max(0, Math.floor((endTime - now) / 1000))
+    const windowEnd = new Date(examInfo.value.endTime)
+    let effectiveEnd = windowEnd
+    if (examInfo.value.allowedEndTime) {
+      const allowedEnd = new Date(examInfo.value.allowedEndTime)
+      effectiveEnd = allowedEnd < windowEnd ? allowedEnd : windowEnd
+    }
+    const remainingSeconds = Math.max(0, Math.floor((effectiveEnd - now) / 1000))
     
     timeLeft.value = remainingSeconds
     
     if (remainingSeconds <= 0) {
-      // 时间到，跳转到考试界面
+      // 时间到，自动提交答案
       clearInterval(timer)
-      ElMessage.warning('考试时间已到，将跳转到答题界面')
-      goToExamTaking()
+      ElMessage.warning('考试时间已到，系统将自动提交您的答案')
+      // 自动提交答案
+      autoSubmitOnTimeUp()
     }
   }, 1000)
 }
@@ -276,6 +303,8 @@ const loadExamData = async () => {
         durationMinutes: paperData.durationMinutes,
         startTime: paperData.startTime,
         endTime: paperData.endTime,
+        studentStartTime: paperData.studentStartTime,
+        allowedEndTime: paperData.allowedEndTime,
         isRandomOrder: paperData.isRandomOrder,
         isRandomOptions: paperData.isRandomOptions
       }
@@ -301,8 +330,9 @@ const loadExamData = async () => {
         answers: q.answers || []
       }))
       
-      // 计算剩余时间（基于考试结束时间）
-      const remainingSeconds = Math.max(0, Math.floor((endTime - now) / 1000))
+      // 计算剩余时间（基于个人有效截止时间：窗口截止与个人时长截止的较早者）
+      const allowedEnd = paperData.allowedEndTime ? new Date(paperData.allowedEndTime) : endTime
+      const remainingSeconds = Math.max(0, Math.floor((allowedEnd - now) / 1000))
       timeLeft.value = remainingSeconds
       
       // 开始计时
@@ -403,16 +433,61 @@ const isQuestionAnswered = (questionIndex) => {
   }
 }
 
-// 自动保存（选择题）
+// 组装提交/保存数据
+const buildSubmitPayload = () => {
+  const allAnswers = {}
+  Object.keys(selectedAnswers.value).forEach(key => { allAnswers[key] = selectedAnswers.value[key] })
+  Object.keys(fillBlankAnswers.value).forEach(key => { allAnswers[key] = fillBlankAnswers.value[key] })
+  Object.keys(essayAnswers.value).forEach(key => { allAnswers[key] = essayAnswers.value[key] })
+
+  const paperContent = {
+    questions: questions.value.map(q => ({
+      questionId: q.questionId,
+      questionOrder: q.questionOrder,
+      questionType: q.questionType,
+      questionContent: q.questionText || q.questionContent,
+      points: q.points,
+      options: q.options || []
+    }))
+  }
+
+  return { answers: allAnswers, paperContent }
+}
+
+// 将当前答题保存到服务器（草稿）
+const saveDraftToServer = async (isAuto = false) => {
+  try {
+    // 仅在自动保存时进行并发拦截，手动保存不拦截
+    if (isAuto && (submitting.value || isAutoSaving.value)) return
+    isAutoSaving.value = true
+    const examId = route.params.id
+    const payload = buildSubmitPayload()
+    const resp = await studentExamApi.saveStudentExamDraft(examId, payload)
+    if (resp.code === 200) {
+      saveAnswersToLocal()
+      lastAutoSaveAt.value = new Date()
+      if (!isAuto) {
+        ElMessage.success('保存成功')
+      }
+    }
+  } catch (e) {
+    if (!isAuto) {
+      ElMessage.error('保存失败')
+    }
+    console.error('saveDraftToServer error:', e)
+  } finally {
+    isAutoSaving.value = false
+  }
+}
+
+// 自动保存（选择题）→ 调用后端草稿保存
 const autoSave = () => {
-  // 清除之前的定时器
   if (autoSaveTimer.value) {
     clearTimeout(autoSaveTimer.value)
   }
-  
-  // 设置新的定时器，延迟1秒后保存
   autoSaveTimer.value = setTimeout(() => {
-    saveAnswersToLocal()
+    // 静默自动保存到服务器
+    saveDraftToServer(true)
   }, 1000)
 }
 
@@ -562,6 +637,31 @@ const cleanOldAnswerData = (data) => {
 // 提交试卷
 const submitExam = async () => {
   try {
+    // 检查是否所有题目都已作答，显示不同的提示信息
+    const confirmMessage = isAllAnswered.value 
+      ? '你已完成所有题目，确认交卷吗？' 
+      : `你还有 ${unansweredCount.value} 道未做完的题目，确认提交吗？`
+    
+    // 显示确认对话框
+    try {
+      await ElMessageBox.confirm(
+        confirmMessage,
+        '确认提交',
+        {
+          confirmButtonText: '确认提交',
+          cancelButtonText: '取消',
+          type: isAllAnswered.value ? 'success' : 'warning',
+          distinguishCancelAndClose: true
+        }
+      )
+    } catch (error) {
+      // 用户点击了取消或关闭
+      if (error === 'cancel' || error === 'close') {
+        return
+      }
+      throw error
+    }
+    
     submitting.value = true
     
     const examId = route.params.id
@@ -586,9 +686,29 @@ const submitExam = async () => {
     
     console.log('Submitting answers:', allAnswers)
     
-    const response = await studentExamApi.submitStudentExam(examId, {
-      answers: allAnswers
-    })
+    // 准备试卷内容（包含题目和选项顺序）
+    const paperContent = {
+      questions: questions.value.map(q => ({
+        questionId: q.questionId,
+        questionOrder: q.questionOrder,
+        questionType: q.questionType,
+        questionContent: q.questionText || q.questionContent,  // 题目内容
+        points: q.points,
+        options: q.options || []
+        // 不存储答案（answers），避免重复和格式问题
+      }))
+    }
+    
+    const submitData = {
+      answers: allAnswers,
+      paperContent: paperContent
+    }
+    
+    console.log('Submitting data:', submitData)
+    console.log('Answers count:', Object.keys(allAnswers).length)
+    console.log('Paper content questions count:', paperContent.questions.length)
+    
+    const response = await studentExamApi.submitStudentExam(examId, submitData)
     
     if (response.code === 200) {
       ElMessage.success('试卷提交成功')
@@ -598,8 +718,11 @@ const submitExam = async () => {
       ElMessage.error(response.message || '提交失败')
     }
   } catch (error) {
-    console.error('Submit exam error:', error)
-    ElMessage.error('提交失败')
+    // 如果错误不是用户取消，才显示错误信息
+    if (error !== 'cancel' && error !== 'close') {
+      console.error('Submit exam error:', error)
+      ElMessage.error('提交失败')
+    }
   } finally {
     submitting.value = false
   }
@@ -609,6 +732,83 @@ const submitExam = async () => {
 // 刷新页面
 const refreshPage = () => {
   window.location.reload()
+}
+
+// 保存答卷（草稿，不提交）
+const saveDraft = async () => {
+  try {
+    submitting.value = true
+    await saveDraftToServer(false)
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 时间到了自动提交（不显示确认对话框）
+const autoSubmitOnTimeUp = async () => {
+  try {
+    submitting.value = true
+    
+    const examId = route.params.id
+    
+    // 合并所有答案数据
+    const allAnswers = {}
+    
+    // 添加选择题答案
+    Object.keys(selectedAnswers.value).forEach(key => {
+      allAnswers[key] = selectedAnswers.value[key]
+    })
+    
+    // 添加填空题答案
+    Object.keys(fillBlankAnswers.value).forEach(key => {
+      allAnswers[key] = fillBlankAnswers.value[key]
+    })
+    
+    // 添加主观题答案
+    Object.keys(essayAnswers.value).forEach(key => {
+      allAnswers[key] = essayAnswers.value[key]
+    })
+    
+    // 准备试卷内容（包含题目和选项顺序）
+    const paperContent = {
+      questions: questions.value.map(q => ({
+        questionId: q.questionId,
+        questionOrder: q.questionOrder,
+        questionType: q.questionType,
+        questionContent: q.questionText || q.questionContent,
+        points: q.points,
+        options: q.options || []
+      }))
+    }
+    
+    const submitData = {
+      answers: allAnswers,
+      paperContent: paperContent
+    }
+    
+    const response = await studentExamApi.submitStudentExam(examId, submitData)
+    
+    if (response.code === 200) {
+      ElMessage.success('考试时间已到，答案已自动提交')
+      clearLocalAnswers()
+      router.push('/user/exam')
+    } else {
+      ElMessage.error(response.message || '自动提交失败')
+      // 即使提交失败，也跳转回去，因为后端定时任务会处理状态
+      setTimeout(() => {
+        router.push('/user/exam')
+      }, 2000)
+    }
+  } catch (error) {
+    console.error('Auto submit on time up error:', error)
+    ElMessage.error('自动提交失败，请稍后查看考试结果')
+    // 即使出错也跳转回去
+    setTimeout(() => {
+      router.push('/user/exam')
+    }, 2000)
+  } finally {
+    submitting.value = false
+  }
 }
 
 // 返回上一页

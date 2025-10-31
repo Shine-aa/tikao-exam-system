@@ -51,16 +51,7 @@ public class ExamService {
     private StudentClassRepository studentClassRepository;
     
     @Autowired
-    private PaperQuestionRepository paperQuestionRepository;
-    
-    @Autowired
     private QuestionRepository questionRepository;
-    
-    @Autowired
-    private QuestionOptionRepository questionOptionRepository;
-    
-    @Autowired
-    private QuestionAnswerRepository questionAnswerRepository;
     
     @Autowired
     private StudentAnswerRepository studentAnswerRepository;
@@ -242,6 +233,29 @@ public class ExamService {
         
         exam.setStatus(Exam.ExamStatus.COMPLETED);
         examRepository.save(exam);
+        
+        // 处理未提交的学生考试记录：自动标记为已提交
+        List<StudentExam> studentExams = studentExamRepository.findByExamIdAndIsActiveTrue(examId);
+        LocalDateTime now = LocalDateTime.now();
+        
+        for (StudentExam studentExam : studentExams) {
+            // 只处理进行中的考试记录
+            if (studentExam.getStatus() == StudentExam.StudentExamStatus.IN_PROGRESS) {
+                studentExam.setStatus(StudentExam.StudentExamStatus.SUBMITTED);
+                // 如果还没有提交时间，设置为当前时间或考试结束时间
+                if (studentExam.getSubmitTime() == null) {
+                    studentExam.setSubmitTime(now.isAfter(exam.getEndTime()) ? exam.getEndTime() : now);
+                }
+                
+                // 计算考试用时
+                if (studentExam.getStartTime() != null && studentExam.getSubmitTime() != null) {
+                    long minutes = java.time.Duration.between(studentExam.getStartTime(), studentExam.getSubmitTime()).toMinutes();
+                    studentExam.setTimeSpentMinutes((int) minutes);
+                }
+                
+                studentExamRepository.save(studentExam);
+            }
+        }
     }
     
     /**
@@ -462,6 +476,15 @@ public class ExamService {
                 }
             }
             
+            // 查询判卷结果，判断是否已完成判卷（只有提交后才算完成）
+            Optional<GradingResult> gradingResultOpt = gradingResultRepository.findByStudentExamId(studentExam.getId());
+            String studentGradingStatus;
+            if (gradingResultOpt.isPresent() && gradingResultOpt.get().getIsGradingCompleted()) {
+                studentGradingStatus = "GRADED"; // 已完成判卷（已提交）
+            } else {
+                studentGradingStatus = "NOT_GRADED"; // 未完成判卷（未提交或未开始）
+            }
+            
             Map<String, Object> studentInfo = new HashMap<>();
             studentInfo.put("id", student.getId());
             studentInfo.put("username", student.getUsername());
@@ -475,7 +498,7 @@ public class ExamService {
             studentInfo.put("timeSpentMinutes", studentExam.getTimeSpentMinutes());
             studentInfo.put("totalScore", studentExam.getTotalScore());
             studentInfo.put("attemptNumber", studentExam.getAttemptNumber());
-            studentInfo.put("gradingStatus", studentExam.getTotalScore() != null ? "GRADED" : "NOT_GRADED");
+            studentInfo.put("gradingStatus", studentGradingStatus);
             
             allStudents.add(studentInfo);
         }
@@ -545,19 +568,32 @@ public class ExamService {
         StudentExam studentExam = studentExamRepository.findByExamIdAndStudentIdAndIsActiveTrue(examId, studentId)
                 .orElseThrow(() -> new RuntimeException("学生考试记录不存在"));
         
-        // 获取学生考试时的乱序试卷（用于判卷显示）
-        List<Map<String, Object>> questions = getShuffledQuestionsForGrading(exam, studentId);
-        
-        // 获取学生答案
+        // 获取学生答案和试卷内容
         Optional<StudentAnswer> studentAnswerOpt = studentAnswerRepository.findByStudentExamId(studentExam.getId());
         Map<String, Object> studentAnswers = new HashMap<>();
+        List<Map<String, Object>> questions;
+        
         if (studentAnswerOpt.isPresent()) {
-            Map<String, Object> answerContent = studentAnswerOpt.get().getAnswerContent();
-            if (answerContent.containsKey("answers")) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> studentAnswersMap = (Map<String, Object>) answerContent.get("answers");
-                studentAnswers = studentAnswersMap;
+            StudentAnswer studentAnswer = studentAnswerOpt.get();
+            Map<String, Object> answerContent = studentAnswer.getAnswerContent();
+            if (answerContent != null && !answerContent.isEmpty()) {
+                // answerContent 直接就是答案 Map，不需要再提取 "answers"
+                studentAnswers = answerContent;
             }
+            
+            // 优先从保存的试卷内容读取（包含题目和选项顺序）
+            Map<String, Object> paperContent = studentAnswer.getPaperContent();
+            if (paperContent != null && paperContent.containsKey("questions")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> savedQuestions = (List<Map<String, Object>>) paperContent.get("questions");
+                questions = savedQuestions;
+            } else {
+                // 如果没有保存试卷内容，则获取乱序试卷（兼容旧数据）
+                questions = getShuffledQuestionsForGrading(exam, studentId);
+            }
+        } else {
+            // 没有学生答案，获取乱序试卷
+            questions = getShuffledQuestionsForGrading(exam, studentId);
         }
         
         // 获取判分结果（新设计：每个学生考试一条记录）
@@ -582,16 +618,37 @@ public class ExamService {
             }
         }
         
+        // 补充正确答案信息（从数据库读取）
+        enrichQuestionsWithCorrectAnswers(questions);
+        
         // 将学生答案和判分数据添加到题目中
         for (int i = 0; i < questions.size(); i++) {
             Map<String, Object> question = questions.get(i);
-            Long questionId = Long.valueOf(question.get("id").toString());
+            // 尝试从 "id" 或 "questionId" 获取题目ID（兼容不同数据源）
+            Object idObj = question.get("id");
+            if (idObj == null) {
+                idObj = question.get("questionId");
+            }
+            Long questionId = idObj != null ? Long.valueOf(idObj.toString()) : null;
+            
+            // 确保题目有 id 字段（前端使用 id）
+            if (!question.containsKey("id") && question.containsKey("questionId")) {
+                question.put("id", question.get("questionId"));
+            }
+            
+            // 确保题目文本字段名称统一（前端使用 questionText）
+            if (!question.containsKey("questionText") && question.containsKey("questionContent")) {
+                question.put("questionText", question.get("questionContent"));
+            }
             
             // 学生答案使用题目索引作为键
             question.put("studentAnswers", studentAnswers.get(String.valueOf(i)));
             
-            // 从判分结果中获取已保存的分数
-            Map<String, Object> questionGrading = gradingMap.get(questionId);
+            // 从判分结果中获取已保存的分数（只有当 questionId 不为 null 时才查询）
+            Map<String, Object> questionGrading = null;
+            if (questionId != null) {
+                questionGrading = gradingMap.get(questionId);
+            }
             if (questionGrading != null) {
                 Object givenScoreObj = questionGrading.get("givenScore");
                 if (givenScoreObj != null) {
@@ -599,7 +656,17 @@ public class ExamService {
                 } else {
                     question.put("givenScore", null);
                 }
-                question.put("isGraded", questionGrading.get("isGraded"));
+                // 安全处理 isGraded 字段的类型转换
+                Object isGradedObj = questionGrading.get("isGraded");
+                if (isGradedObj instanceof Boolean) {
+                    question.put("isGraded", isGradedObj);
+                } else if (isGradedObj instanceof Integer) {
+                    question.put("isGraded", ((Integer) isGradedObj) == 1);
+                } else if (isGradedObj instanceof Number) {
+                    question.put("isGraded", ((Number) isGradedObj).intValue() == 1);
+                } else {
+                    question.put("isGraded", false);
+                }
             } else {
                 question.put("givenScore", null);
                 question.put("isGraded", false);
@@ -611,9 +678,131 @@ public class ExamService {
         result.put("studentId", studentId);
         result.put("questions", questions);
         result.put("totalQuestions", questions.size());
-        result.put("totalPoints", questions.stream().mapToInt(q -> (Integer) q.get("points")).sum());
+        result.put("totalPoints", questions.stream()
+            .mapToInt(q -> {
+                Object points = q.get("points");
+                return points instanceof Integer ? (Integer) points : 0;
+            })
+            .sum());
         
         return result;
+    }
+    
+    /**
+     * 补充题目的正确答案信息
+     */
+    private void enrichQuestionsWithCorrectAnswers(List<Map<String, Object>> questions) {
+        if (questions == null || questions.isEmpty()) {
+            return;
+        }
+        
+        // 提取所有题目ID
+        List<Long> questionIds = new ArrayList<>();
+        for (Map<String, Object> question : questions) {
+            Object idObj = question.get("questionId");
+            if (idObj == null) {
+                idObj = question.get("id");
+            }
+            if (idObj != null) {
+                try {
+                    questionIds.add(Long.valueOf(idObj.toString()));
+                } catch (NumberFormatException e) {
+                    // 忽略无效的ID
+                }
+            }
+        }
+        
+        if (questionIds.isEmpty()) {
+            return;
+        }
+        
+        // 从数据库查询题目完整信息
+        List<Question> questionList = questionRepository.findByIdIn(questionIds);
+        Map<Long, Question> questionMap = questionList.stream()
+                .collect(Collectors.toMap(Question::getId, q -> q));
+        
+        // 为每个题目补充正确答案信息
+        for (Map<String, Object> question : questions) {
+            Object idObj = question.get("questionId");
+            if (idObj == null) {
+                idObj = question.get("id");
+            }
+            if (idObj == null) continue;
+            
+            Long questionId;
+            try {
+                questionId = Long.valueOf(idObj.toString());
+            } catch (NumberFormatException e) {
+                continue;
+            }
+            
+            Question fullQuestion = questionMap.get(questionId);
+            if (fullQuestion == null) continue;
+            
+            String questionType = (String) question.get("questionType");
+            if (questionType == null) {
+                questionType = fullQuestion.getType().name();
+                question.put("questionType", questionType);
+            }
+            
+            // 补充题目内容（如果缺失）
+            if (!question.containsKey("questionText") && !question.containsKey("questionContent")) {
+                question.put("questionText", fullQuestion.getContent());
+                question.put("questionContent", fullQuestion.getContent());
+            } else if (!question.containsKey("questionText")) {
+                // 确保有 questionText 字段（前端使用）
+                question.put("questionText", question.get("questionContent"));
+            }
+            
+            // 确保有 id 字段（前端使用，使用 questionId 的值）
+            if (!question.containsKey("id") && question.containsKey("questionId")) {
+                question.put("id", question.get("questionId"));
+            }
+            
+            // 补充选项的正确答案标记（选择题和判断题）
+            if (isChoiceQuestion(questionType)) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> options = (List<Map<String, Object>>) question.get("options");
+                if (options != null && fullQuestion.getOptions() != null) {
+                    Map<String, Boolean> correctMap = new HashMap<>();
+                    for (Map<String, Object> opt : fullQuestion.getOptions()) {
+                        Object key = opt.get("key");
+                        Object correct = opt.get("correct");
+                        if (key != null && correct != null) {
+                            Boolean isCorrect = false;
+                            if (correct instanceof Boolean) {
+                                isCorrect = (Boolean) correct;
+                            } else if (correct instanceof Integer) {
+                                isCorrect = ((Integer) correct) == 1;
+                            } else if (correct instanceof Number) {
+                                isCorrect = ((Number) correct).intValue() == 1;
+                            }
+                            correctMap.put(key.toString(), isCorrect);
+                        }
+                    }
+                    
+                    // 为选项添加 isCorrect 标记
+                    for (Map<String, Object> opt : options) {
+                        Object key = opt.get("optionKey");
+                        if (key != null) {
+                            opt.put("isCorrect", correctMap.getOrDefault(key.toString(), false));
+                        }
+                    }
+                }
+            }
+            
+            // 补充答案（填空题和主观题）
+            if (fullQuestion.getType() == Question.QuestionType.FILL_BLANK || 
+                fullQuestion.getType() == Question.QuestionType.SUBJECTIVE) {
+                if (fullQuestion.getCorrectAnswer() != null && !fullQuestion.getCorrectAnswer().isEmpty()) {
+                    List<Map<String, Object>> answers = new ArrayList<>();
+                    Map<String, Object> answerData = new HashMap<>();
+                    answerData.put("answerContent", fullQuestion.getCorrectAnswer());
+                    answers.add(answerData);
+                    question.put("answers", answers);
+                }
+            }
+        }
     }
     
     /**
@@ -628,25 +817,29 @@ public class ExamService {
         StudentExam studentExam = studentExamRepository.findByExamIdAndStudentIdAndIsActiveTrue(examId, studentId)
                 .orElseThrow(() -> new RuntimeException("学生考试记录不存在"));
         
-        // 获取试卷题目（原始顺序，用于计算分数）
-        List<PaperQuestion> paperQuestions = paperQuestionRepository.findByPaperIdOrderByQuestionOrder(exam.getPaperId());
+        // 获取试卷题目（原始顺序，用于计算分数）- 新版本：从Paper的questions字段读取
+        Paper paper = paperRepository.findById(exam.getPaperId())
+                .orElseThrow(() -> new RuntimeException("试卷不存在"));
+        
+        List<Map<String, Object>> paperQuestions = paper.getQuestions();
+        if (paperQuestions == null || paperQuestions.isEmpty()) {
+            throw new RuntimeException("试卷中没有题目");
+        }
+        
         List<Long> questionIds = paperQuestions.stream()
-                .map(PaperQuestion::getQuestionId)
+                .map(q -> ((Number) q.get("questionId")).longValue())
                 .collect(Collectors.toList());
         
         List<Question> questions = questionRepository.findByIdIn(questionIds);
-        List<QuestionOption> options = questionOptionRepository.findByQuestionIdIn(questionIds);
-        List<QuestionAnswer> answers = questionAnswerRepository.findByQuestionIdIn(questionIds);
         
         // 获取学生答案
         Optional<StudentAnswer> studentAnswerOpt = studentAnswerRepository.findByStudentExamId(studentExam.getId());
         Map<String, Object> studentAnswers = new HashMap<>();
         if (studentAnswerOpt.isPresent()) {
             Map<String, Object> answerContent = studentAnswerOpt.get().getAnswerContent();
-            if (answerContent.containsKey("answers")) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> studentAnswersMap = (Map<String, Object>) answerContent.get("answers");
-                studentAnswers = studentAnswersMap;
+            if (answerContent != null && !answerContent.isEmpty()) {
+                // answerContent 直接就是答案 Map，不需要再提取 "answers"
+                studentAnswers = answerContent;
             }
         }
         
@@ -655,39 +848,34 @@ public class ExamService {
         
         for (int i = 0; i < questions.size(); i++) {
             Question question = questions.get(i);
-            PaperQuestion paperQuestion = paperQuestions.get(i);
+            Map<String, Object> paperQuestion = paperQuestions.get(i);
             
             Map<String, Object> questionData = new HashMap<>();
             questionData.put("id", question.getId());
             questionData.put("questionText", question.getContent());
             questionData.put("questionType", question.getType().name());
-            questionData.put("points", paperQuestion.getPoints());
-            questionData.put("questionOrder", paperQuestion.getQuestionOrder());
+            questionData.put("points", paperQuestion.get("points"));
+            questionData.put("questionOrder", paperQuestion.get("questionOrder"));
             
-            // 获取选项
+            // 获取选项 - 从Question的JSON字段读取
             List<Map<String, Object>> optionList = new ArrayList<>();
-            List<QuestionOption> questionOptions = options.stream()
-                    .filter(opt -> opt.getQuestionId().equals(question.getId()))
-                    .collect(Collectors.toList());
-            
-            for (QuestionOption option : questionOptions) {
-                Map<String, Object> optionData = new HashMap<>();
-                optionData.put("optionKey", option.getOptionKey());
-                optionData.put("optionContent", option.getOptionContent());
-                optionData.put("isCorrect", false);
-                optionList.add(optionData);
-            }
-            
-            // 获取正确答案
-            List<QuestionAnswer> questionAnswers = answers.stream()
-                    .filter(ans -> ans.getQuestionId().equals(question.getId()))
-                    .collect(Collectors.toList());
-            
-            for (QuestionAnswer answer : questionAnswers) {
-                for (Map<String, Object> opt : optionList) {
-                    if (opt.get("optionContent").equals(answer.getAnswerContent())) {
-                        opt.put("isCorrect", true);
+            if (question.getOptions() != null && !question.getOptions().isEmpty()) {
+                for (Map<String, Object> optionMap : question.getOptions()) {
+                    Map<String, Object> optionData = new HashMap<>();
+                    optionData.put("optionKey", optionMap.get("key"));
+                    optionData.put("optionContent", optionMap.get("content"));
+                    // 标记正确答案 - 安全类型转换
+                    Object correctObj = optionMap.get("correct");
+                    Boolean isCorrect = false;
+                    if (correctObj instanceof Boolean) {
+                        isCorrect = (Boolean) correctObj;
+                    } else if (correctObj instanceof Integer) {
+                        isCorrect = ((Integer) correctObj) == 1;
+                    } else if (correctObj instanceof Number) {
+                        isCorrect = ((Number) correctObj).intValue() == 1;
                     }
+                    optionData.put("isCorrect", isCorrect);
+                    optionList.add(optionData);
                 }
             }
             
@@ -702,38 +890,41 @@ public class ExamService {
         result.put("studentId", studentId);
         result.put("questions", questionList);
         result.put("totalQuestions", questions.size());
-        result.put("totalPoints", paperQuestions.stream().mapToInt(PaperQuestion::getPoints).sum());
+        result.put("totalPoints", paperQuestions.stream()
+                .mapToInt(q -> ((Number) q.get("points")).intValue())
+                .sum());
         
         return result;
     }
     
     /**
-     * 获取乱序题目（用于判卷显示）
+     * 获取乱序题目（用于判卷显示）- 新版本：从Paper的questions字段读取
      */
     private List<Map<String, Object>> getShuffledQuestionsForGrading(Exam exam, Long studentId) {
         // 获取试卷题目
-        List<PaperQuestion> paperQuestions = paperQuestionRepository.findByPaperIdOrderByQuestionOrder(exam.getPaperId());
+        Paper paper = paperRepository.findById(exam.getPaperId())
+                .orElseThrow(() -> new RuntimeException("试卷不存在"));
+        
+        List<Map<String, Object>> paperQuestions = paper.getQuestions();
+        if (paperQuestions == null || paperQuestions.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
         List<Long> questionIds = paperQuestions.stream()
-                .map(PaperQuestion::getQuestionId)
+                .map(q -> ((Number) q.get("questionId")).longValue())
                 .collect(Collectors.toList());
         
         List<Question> questions = questionRepository.findByIdIn(questionIds);
-        List<QuestionOption> options = questionOptionRepository.findByQuestionIdIn(questionIds);
-        List<QuestionAnswer> answers = questionAnswerRepository.findByQuestionIdIn(questionIds);
-        
-        // 按题目ID分组
-        Map<Long, List<QuestionOption>> optionsMap = options.stream()
-                .collect(Collectors.groupingBy(QuestionOption::getQuestionId));
-        Map<Long, List<QuestionAnswer>> answersMap = answers.stream()
-                .collect(Collectors.groupingBy(QuestionAnswer::getQuestionId));
         
         // 构建题目数据（按原始顺序）
         List<Map<String, Object>> questionList = new ArrayList<>();
         
         for (int i = 0; i < paperQuestions.size(); i++) {
-            PaperQuestion paperQuestion = paperQuestions.get(i);
+            Map<String, Object> paperQuestion = paperQuestions.get(i);
+            Long questionId = ((Number) paperQuestion.get("questionId")).longValue();
+            
             Question question = questions.stream()
-                    .filter(q -> q.getId().equals(paperQuestion.getQuestionId()))
+                    .filter(q -> q.getId().equals(questionId))
                     .findFirst()
                     .orElse(null);
             
@@ -743,48 +934,29 @@ public class ExamService {
             questionData.put("id", question.getId());
             questionData.put("questionText", question.getContent());
             questionData.put("questionType", question.getType().name());
-            questionData.put("points", paperQuestion.getPoints());
-            questionData.put("questionOrder", i + 1);
+            questionData.put("points", paperQuestion.get("points"));
+            questionData.put("questionOrder", paperQuestion.get("questionOrder"));
             
-            // 处理选项（如果是选择题）
+            // 处理选项（如果是选择题）- 从Question的JSON字段读取
             if (isChoiceQuestion(question.getType().name())) {
-                List<QuestionOption> questionOptions = optionsMap.getOrDefault(question.getId(), new ArrayList<>());
                 List<Map<String, Object>> optionList = new ArrayList<>();
-                
-                for (QuestionOption option : questionOptions) {
-                    Map<String, Object> optionData = new HashMap<>();
-                    optionData.put("optionKey", option.getOptionKey());
-                    optionData.put("optionContent", option.getOptionContent());
-                    optionData.put("isCorrect", false); // 默认不显示正确答案
-                    optionList.add(optionData);
-                }
-                
-                // 获取正确答案
-                List<QuestionAnswer> questionAnswers = answersMap.getOrDefault(question.getId(), new ArrayList<>());
-                System.out.println("Question " + question.getId() + " answers: " + questionAnswers.stream().map(QuestionAnswer::getAnswerContent).collect(Collectors.toList()));
-                for (QuestionAnswer answer : questionAnswers) {
-                    String answerContent = answer.getAnswerContent();
-                    System.out.println("Processing answer: " + answerContent);
-                    
-                    // 处理多选答案（如 "ABCD"）
-                    if (answerContent.length() > 1 && answerContent.matches("[ABCDEFGHIJKLMNOPQRSTUVWXYZ]+")) {
-                        // 多选答案，遍历每个选项键
-                        for (char optionKey : answerContent.toCharArray()) {
-                            for (Map<String, Object> opt : optionList) {
-                                if (opt.get("optionKey").equals(String.valueOf(optionKey))) {
-                                    opt.put("isCorrect", true);
-                                    System.out.println("Marked correct: " + opt.get("optionKey") + " - " + opt.get("optionContent"));
-                                }
-                            }
+                if (question.getOptions() != null && !question.getOptions().isEmpty()) {
+                    for (Map<String, Object> optionMap : question.getOptions()) {
+                        Map<String, Object> optionData = new HashMap<>();
+                        optionData.put("optionKey", optionMap.get("key"));
+                        optionData.put("optionContent", optionMap.get("content"));
+                        // 标记正确答案 - 安全类型转换
+                        Object correctObj = optionMap.get("correct");
+                        Boolean isCorrect = false;
+                        if (correctObj instanceof Boolean) {
+                            isCorrect = (Boolean) correctObj;
+                        } else if (correctObj instanceof Integer) {
+                            isCorrect = ((Integer) correctObj) == 1;
+                        } else if (correctObj instanceof Number) {
+                            isCorrect = ((Number) correctObj).intValue() == 1;
                         }
-                    } else {
-                        // 单选答案，直接比较
-                        for (Map<String, Object> opt : optionList) {
-                            if (opt.get("optionKey").equals(answerContent)) {
-                                opt.put("isCorrect", true);
-                                System.out.println("Marked correct: " + opt.get("optionKey") + " - " + opt.get("optionContent"));
-                            }
-                        }
+                        optionData.put("isCorrect", isCorrect);
+                        optionList.add(optionData);
                     }
                 }
                 
@@ -805,19 +977,14 @@ public class ExamService {
                 questionData.put("options", optionList);
             }
             
-            // 处理答案（如果是填空题或主观题）
-            if (question.getType() == Question.QuestionType.FILL_BLANK || 
-                question.getType() == Question.QuestionType.SUBJECTIVE) {
-                List<QuestionAnswer> questionAnswers = answersMap.getOrDefault(question.getId(), new ArrayList<>());
+            // 处理答案（如果是填空题或主观题）- 从Question的TEXT字段读取
+            if ((question.getType() == Question.QuestionType.FILL_BLANK || 
+                question.getType() == Question.QuestionType.SUBJECTIVE) && 
+                question.getCorrectAnswer() != null) {
                 List<Map<String, Object>> answerList = new ArrayList<>();
-                
-                for (QuestionAnswer answer : questionAnswers) {
-                    Map<String, Object> answerData = new HashMap<>();
-                    answerData.put("answerContent", answer.getAnswerContent());
-                    answerData.put("answerType", answer.getAnswerType());
-                    answerData.put("isPrimary", answer.getIsPrimary());
-                    answerList.add(answerData);
-                }
+                Map<String, Object> answerData = new HashMap<>();
+                answerData.put("answerContent", question.getCorrectAnswer());
+                answerList.add(answerData);
                 
                 questionData.put("answers", answerList);
             }
@@ -906,9 +1073,30 @@ public class ExamService {
             // 构建题目分数映射
             Map<String, Object> questionGrading = new HashMap<>();
             for (Map<String, Object> question : questions) {
-                Long questionId = Long.valueOf(question.get("questionId").toString());
+                // 兼容不同的字段名：优先 "questionId"，其次 "id"
+                Object idObj = question.get("questionId");
+                if (idObj == null) {
+                    idObj = question.get("id");
+                }
+                
+                if (idObj == null) {
+                    System.err.println("警告：题目缺少ID字段，跳过此题");
+                    continue;
+                }
+                
+                Long questionId = Long.valueOf(idObj.toString());
                 Object givenScoreObj = question.get("givenScore");
-                Boolean isGraded = Boolean.valueOf(question.get("isGraded").toString());
+                
+                // 安全处理 isGraded 字段
+                Boolean isGraded = false;
+                Object isGradedObj = question.get("isGraded");
+                if (isGradedObj != null) {
+                    if (isGradedObj instanceof Boolean) {
+                        isGraded = (Boolean) isGradedObj;
+                    } else if (isGradedObj instanceof String) {
+                        isGraded = Boolean.valueOf((String) isGradedObj);
+                    }
+                }
                 
                 Map<String, Object> questionData = new HashMap<>();
                 if (givenScoreObj != null) {
@@ -944,7 +1132,7 @@ public class ExamService {
             gradingResult.setExamStartTime(exam.getStartTime());
         }
         
-        // 更新判分数据
+        // 更新判分数据（保存时标记为未完成，只有提交时才标记为完成）
         gradingResult.setGradingData(gradingDataMap);
         gradingResult.setTotalScore(BigDecimal.valueOf(totalScore));
         gradingResult.setIsGradingCompleted(false); // 保存时标记为未完成
@@ -982,9 +1170,30 @@ public class ExamService {
             // 构建题目分数映射
             Map<String, Object> questionGrading = new HashMap<>();
             for (Map<String, Object> question : questions) {
-                Long questionId = Long.valueOf(question.get("questionId").toString());
+                // 兼容不同的字段名：优先 "questionId"，其次 "id"
+                Object idObj = question.get("questionId");
+                if (idObj == null) {
+                    idObj = question.get("id");
+                }
+                
+                if (idObj == null) {
+                    System.err.println("警告：题目缺少ID字段，跳过此题");
+                    continue;
+                }
+                
+                Long questionId = Long.valueOf(idObj.toString());
                 Object givenScoreObj = question.get("givenScore");
-                Boolean isGraded = Boolean.valueOf(question.get("isGraded").toString());
+                
+                // 安全处理 isGraded 字段
+                Boolean isGraded = false;
+                Object isGradedObj = question.get("isGraded");
+                if (isGradedObj != null) {
+                    if (isGradedObj instanceof Boolean) {
+                        isGraded = (Boolean) isGradedObj;
+                    } else if (isGradedObj instanceof String) {
+                        isGraded = Boolean.valueOf((String) isGradedObj);
+                    }
+                }
                 
                 Map<String, Object> questionData = new HashMap<>();
                 if (givenScoreObj != null) {
@@ -1238,10 +1447,21 @@ public class ExamService {
             @SuppressWarnings("unchecked")
             Map<String, Object> gradingData = (Map<String, Object>) gradingResult.getGradingData();
             
-            // 获取题目信息（不包含题目内容）
-            List<PaperQuestion> paperQuestions = paperQuestionRepository.findByPaperIdOrderByQuestionOrder(exam.getPaperId());
+            // 获取题目信息（不包含题目内容）- 新版本：从Paper的questions字段读取
+            Paper paper = paperRepository.findById(exam.getPaperId())
+                    .orElseThrow(() -> new RuntimeException("试卷不存在"));
+            
+            List<Map<String, Object>> paperQuestions = paper.getQuestions();
+            if (paperQuestions == null || paperQuestions.isEmpty()) {
+                Map<String, Object> result = new HashMap<>();
+                result.put("examInfo", exam);
+                result.put("studentExam", studentExam);
+                result.put("questionScores", questionScores);
+                return result;
+            }
+            
             List<Long> questionIds = paperQuestions.stream()
-                    .map(PaperQuestion::getQuestionId)
+                    .map(q -> ((Number) q.get("questionId")).longValue())
                     .collect(Collectors.toList());
             
             List<Question> questions = questionRepository.findByIdIn(questionIds);
@@ -1250,13 +1470,16 @@ public class ExamService {
             
             // 构建题目分数列表
             for (int i = 0; i < paperQuestions.size(); i++) {
-                PaperQuestion paperQuestion = paperQuestions.get(i);
-                Question question = questionMap.get(paperQuestion.getQuestionId());
+                Map<String, Object> paperQuestion = paperQuestions.get(i);
+                Long questionId = ((Number) paperQuestion.get("questionId")).longValue();
+                Question question = questionMap.get(questionId);
+                
+                if (question == null) continue;
                 
                 Map<String, Object> questionScore = new HashMap<>();
                 questionScore.put("id", question.getId());
                 questionScore.put("questionType", question.getType().name());
-                questionScore.put("points", paperQuestion.getPoints());
+                questionScore.put("points", paperQuestion.get("points"));
                 
                 // 从判分结果中获取分数
                 Map<String, Object> questionGrading = (Map<String, Object>) gradingData.get(question.getId().toString());

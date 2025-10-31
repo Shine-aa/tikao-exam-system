@@ -72,8 +72,12 @@
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="260" fixed="right">
           <template #default="{ row }">
+            <el-button type="success" size="small" @click="handleManageQuestions(row)">
+              <el-icon><Collection /></el-icon>
+              题库
+            </el-button>
             <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
             <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
@@ -138,14 +142,18 @@
         </el-button>
       </template>
     </el-dialog>
+
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import { courseApi } from '@/api/admin'
+
+const router = useRouter()
 
 // 响应式数据
 const loading = ref(false)
@@ -155,6 +163,7 @@ const selectedCourses = ref([])
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
+
 
 // 搜索表单
 const searchForm = reactive({
@@ -350,6 +359,19 @@ const formatDate = (dateString) => {
 onMounted(() => {
   loadCourseList()
 })
+
+// 题目管理相关方法
+const handleManageQuestions = (row) => {
+  // 跳转到课程题库管理页面
+  router.push({
+    name: 'CourseQuestionBank',
+    query: {
+      courseId: row.id,
+      courseName: row.courseName
+    }
+  })
+}
+
 </script>
 
 <style scoped>
@@ -422,5 +444,124 @@ onMounted(() => {
   .search-form .el-form-item {
     margin-bottom: 10px;
   }
+}
+
+.question-stats {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.question-stats .el-tag {
+  font-size: 14px;
+  padding: 5px 10px;
+}
+
+/* 题目详情样式 */
+.question-detail {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.question-header {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e6e6e6;
+}
+
+.question-header h3 {
+  margin: 0 0 10px 0;
+  color: #303133;
+}
+
+.question-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.points {
+  color: #606266;
+  font-size: 14px;
+}
+
+.question-content, .question-options, .question-answers, .question-explanation, .question-images {
+  margin-bottom: 20px;
+}
+
+.question-content h4, .question-options h4, .question-answers h4, .question-explanation h4, .question-images h4 {
+  margin: 0 0 10px 0;
+  color: #303133;
+  font-size: 16px;
+}
+
+.content-text, .explanation-text {
+  line-height: 1.6;
+  color: #606266;
+}
+
+.options-list, .answers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.option-item, .answer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.correct-option {
+  background-color: #f0f9ff;
+  border: 1px solid #409EFF;
+}
+
+.option-key {
+  font-weight: bold;
+  color: #409EFF;
+  min-width: 20px;
+}
+
+.option-content, .answer-content {
+  flex: 1;
+  color: #606266;
+}
+
+/* 题目图片样式 */
+.question-images {
+  margin-bottom: 20px;
+}
+
+.images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.image-item {
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fafafa;
+  transition: all 0.3s;
+}
+
+.image-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.image-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #909399;
+  font-size: 14px;
 }
 </style>

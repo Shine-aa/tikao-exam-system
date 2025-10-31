@@ -3,11 +3,7 @@ package com.example.manger.service;
 import com.example.manger.dto.PaperResponse;
 import com.example.manger.entity.Exam;
 import com.example.manger.entity.Question;
-import com.example.manger.entity.QuestionOption;
-import com.example.manger.entity.QuestionAnswer;
 import com.example.manger.repository.QuestionRepository;
-import com.example.manger.repository.QuestionOptionRepository;
-import com.example.manger.repository.QuestionAnswerRepository;
 import com.example.manger.repository.ExamRepository;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +20,6 @@ public class QuestionShuffleService {
     
     @Autowired
     private QuestionRepository questionRepository;
-    
-    @Autowired
-    private QuestionOptionRepository questionOptionRepository;
-    
-    @Autowired
-    private QuestionAnswerRepository questionAnswerRepository;
     
     @Autowired
     private ExamRepository examRepository;

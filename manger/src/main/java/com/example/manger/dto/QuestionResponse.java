@@ -1,8 +1,6 @@
 package com.example.manger.dto;
 
 import com.example.manger.entity.Question;
-import com.example.manger.entity.QuestionAnswer;
-import com.example.manger.entity.QuestionOption;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -14,6 +12,7 @@ public class QuestionResponse {
     private Long id;
     private String title;
     private String content;
+    private String images; // 题目图片路径，多个路径用分号(;)分隔
     private Question.QuestionType type;
     private String typeDescription;
     private Question.DifficultyLevel difficulty;
@@ -48,9 +47,5 @@ public class QuestionResponse {
     public static class QuestionAnswerResponse {
         private Long id;
         private String answerContent;
-        private QuestionAnswer.AnswerType answerType;
-        private String answerTypeDescription;
-        private Boolean isPrimary;
-        private Integer sortOrder;
     }
 }

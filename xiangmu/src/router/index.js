@@ -154,6 +154,12 @@ const routes = [
         meta: { requiresAuth: true, role: 'TEACHER' }
       },
       {
+        path: 'course-question-bank',
+        name: 'CourseQuestionBank',
+        component: () => import('@/views/teacher/CourseQuestionBank.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
         path: 'major-management',
         name: 'MajorManagement',
         component: () => import('@/views/teacher/MajorManagement.vue'),

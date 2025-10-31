@@ -76,4 +76,17 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     Page<Course> findByTeacherIdAndKeyword(@Param("teacherId") Long teacherId, 
                                           @Param("keyword") String keyword, 
                                           Pageable pageable);
+    
+    /**
+     * 根据课程ID列表查询启用的课程
+     */
+    List<Course> findByIdInAndIsActiveTrue(List<Long> courseIds);
+    
+    /**
+     * 根据课程ID列表和关键词查询课程
+     */
+    @Query("SELECT c FROM Course c WHERE c.id IN :courseIds AND " +
+           "(c.courseName LIKE %:keyword% OR c.courseCode LIKE %:keyword%) AND c.isActive = true")
+    List<Course> findByIdInAndKeyword(@Param("courseIds") List<Long> courseIds, 
+                                      @Param("keyword") String keyword);
 }

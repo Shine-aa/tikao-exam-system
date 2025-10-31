@@ -28,10 +28,7 @@ import java.util.stream.Collectors;
 public class PaperGenerationService {
     
     private final PaperRepository paperRepository;
-    private final PaperQuestionRepository paperQuestionRepository;
     private final QuestionRepository questionRepository;
-    private final QuestionOptionRepository questionOptionRepository;
-    private final QuestionAnswerRepository questionAnswerRepository;
     private final ClassRepository classRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
@@ -224,7 +221,7 @@ public class PaperGenerationService {
     }
     
     /**
-     * 保存试卷题目关联
+     * 保存试卷题目关联 - 新版本：存储到Paper的questions字段
      */
     private void savePaperQuestions(Long paperId, List<Question> questions, PaperGenerationRequest request) {
         int totalPoints = request.getTotalPoints();
@@ -235,43 +232,52 @@ public class PaperGenerationService {
             return;
         }
         
-        // 先删除该试卷的所有题目关联，避免重复
-        paperQuestionRepository.deleteByPaperId(paperId);
+        // 获取试卷
+        Paper paper = paperRepository.findById(paperId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAPER_NOT_FOUND, "试卷不存在"));
         
+        // 构建题目列表
+        List<Map<String, Object>> questionList = new ArrayList<>();
         int basePoints = totalPoints / questionCount;
         int remainingPoints = totalPoints % questionCount;
         
         for (int i = 0; i < questions.size(); i++) {
             Question question = questions.get(i);
-            PaperQuestion paperQuestion = new PaperQuestion();
-            paperQuestion.setPaperId(paperId);
-            paperQuestion.setQuestionId(question.getId());
-            paperQuestion.setQuestionOrder(i + 1);
+            Map<String, Object> questionData = new HashMap<>();
+            questionData.put("questionId", question.getId());
+            questionData.put("questionOrder", i + 1);
             
             // 分配分数，前remainingPoints个题目多分配1分
             int points = basePoints + (i < remainingPoints ? 1 : 0);
-            paperQuestion.setPoints(points);
+            questionData.put("points", points);
             
-            paperQuestionRepository.save(paperQuestion);
+            questionList.add(questionData);
         }
+        
+        // 保存到Paper的questions字段
+        paper.setQuestions(questionList);
+        paperRepository.save(paper);
     }
     
     /**
-     * 更新试卷统计信息
+     * 更新试卷统计信息 - 新版本：从Paper的questions字段计算
      */
     private void updatePaperStatistics(Long paperId) {
         Paper paper = paperRepository.findById(paperId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAPER_NOT_FOUND, "试卷不存在"));
         
-        long questionCount = paperQuestionRepository.countByPaperId(paperId);
-        int totalPoints = paperQuestionRepository.findByPaperIdOrderByQuestionOrder(paperId)
-                .stream()
-                .mapToInt(PaperQuestion::getPoints)
-                .sum();
+        List<Map<String, Object>> questions = paper.getQuestions();
         
-        paper.setTotalQuestions((int) questionCount);
-        paper.setTotalPoints(totalPoints);
-        paperRepository.save(paper);
+        if (questions != null && !questions.isEmpty()) {
+            long questionCount = questions.size();
+            int totalPoints = questions.stream()
+                    .mapToInt(q -> (Integer) q.getOrDefault("points", 0))
+                    .sum();
+            
+            paper.setTotalQuestions((int) questionCount);
+            paper.setTotalPoints(totalPoints);
+            paperRepository.save(paper);
+        }
     }
     
     /**
@@ -326,12 +332,9 @@ public class PaperGenerationService {
         Paper paper = paperRepository.findById(paperId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAPER_NOT_FOUND, "试卷不存在"));
         
-        // 软删除试卷
+        // 软删除试卷（题目信息存储在papers.questions字段中，会自动删除）
         paper.setIsActive(false);
         paperRepository.save(paper);
-        
-        // 删除试卷题目关联
-        paperQuestionRepository.deleteByPaperId(paperId);
     }
     
     /**
@@ -367,13 +370,20 @@ public class PaperGenerationService {
     }
     
     /**
-     * 获取试卷题目详情
+     * 获取试卷题目详情 - 新版本：从Paper的questions字段读取
      */
     private List<PaperResponse.PaperQuestionResponse> getPaperQuestions(Long paperId) {
-        List<PaperQuestion> paperQuestions = paperQuestionRepository.findByPaperIdOrderByQuestionOrder(paperId);
+        Paper paper = paperRepository.findById(paperId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PAPER_NOT_FOUND, "试卷不存在"));
         
-        return paperQuestions.stream().map(pq -> {
-            Question question = questionRepository.findById(pq.getQuestionId()).orElse(null);
+        List<Map<String, Object>> questionList = paper.getQuestions();
+        if (questionList == null || questionList.isEmpty()) {
+            return new ArrayList<>();
+        }
+        
+        return questionList.stream().map(q -> {
+            Long questionId = ((Number) q.get("questionId")).longValue();
+            Question question = questionRepository.findById(questionId).orElse(null);
             if (question == null) {
                 return null;
             }
@@ -384,42 +394,43 @@ public class PaperGenerationService {
             questionResponse.setQuestionContent(question.getContent());
             questionResponse.setQuestionType(question.getType().name());
             questionResponse.setDifficulty(question.getDifficulty().name());
-            questionResponse.setPoints(pq.getPoints());
-            questionResponse.setQuestionOrder(pq.getQuestionOrder());
+            questionResponse.setPoints((Integer) q.get("points"));
+            questionResponse.setQuestionOrder((Integer) q.get("questionOrder"));
             questionResponse.setTags(question.getTags());
             questionResponse.setExplanation(question.getExplanation());
             
-            // 获取题目选项
-            List<QuestionOption> options = questionOptionRepository.findByQuestionIdOrderBySortOrder(question.getId());
-            List<PaperResponse.PaperQuestionResponse.QuestionOptionResponse> optionResponses = options.stream()
-                    .map(option -> {
+            // 从Question的JSON字段读取选项数据（新方式）
+            if (question.getOptions() != null && !question.getOptions().isEmpty()) {
+                List<PaperResponse.PaperQuestionResponse.QuestionOptionResponse> optionResponses = question.getOptions().stream()
+                    .map(optionMap -> {
                         PaperResponse.PaperQuestionResponse.QuestionOptionResponse optionResponse = 
                                 new PaperResponse.PaperQuestionResponse.QuestionOptionResponse();
-                        optionResponse.setId(option.getId());
-                        optionResponse.setOptionKey(option.getOptionKey());
-                        optionResponse.setOptionContent(option.getOptionContent());
-                        optionResponse.setIsCorrect(option.getIsCorrect());
-                        optionResponse.setSortOrder(option.getSortOrder());
+                        optionResponse.setOptionKey(String.valueOf(optionMap.get("key")));
+                        optionResponse.setOptionContent(String.valueOf(optionMap.get("content")));
+                        optionResponse.setIsCorrect(Boolean.valueOf(String.valueOf(optionMap.get("correct"))));
+                        // 注意：新结构中id和sortOrder不存在，设为null
+                        optionResponse.setId(null);
+                        optionResponse.setSortOrder(null);
                         return optionResponse;
                     })
                     .collect(Collectors.toList());
-            questionResponse.setOptions(optionResponses);
+                questionResponse.setOptions(optionResponses);
+            }
             
-            // 获取题目答案
-            List<QuestionAnswer> answers = questionAnswerRepository.findByQuestionIdOrderBySortOrder(question.getId());
-            List<PaperResponse.PaperQuestionResponse.QuestionAnswerResponse> answerResponses = answers.stream()
-                    .map(answer -> {
-                        PaperResponse.PaperQuestionResponse.QuestionAnswerResponse answerResponse = 
-                                new PaperResponse.PaperQuestionResponse.QuestionAnswerResponse();
-                        answerResponse.setId(answer.getId());
-                        answerResponse.setAnswerContent(answer.getAnswerContent());
-                        answerResponse.setAnswerType(answer.getAnswerType().name());
-                        answerResponse.setIsPrimary(answer.getIsPrimary());
-                        answerResponse.setSortOrder(answer.getSortOrder());
-                        return answerResponse;
-                    })
-                    .collect(Collectors.toList());
-            questionResponse.setAnswers(answerResponses);
+            // 从Question的TEXT字段读取答案数据（新方式）
+            if (question.getCorrectAnswer() != null && !question.getCorrectAnswer().isEmpty()) {
+                List<PaperResponse.PaperQuestionResponse.QuestionAnswerResponse> answerResponses = new ArrayList<>();
+                PaperResponse.PaperQuestionResponse.QuestionAnswerResponse answerResponse = 
+                        new PaperResponse.PaperQuestionResponse.QuestionAnswerResponse();
+                answerResponse.setAnswerContent(question.getCorrectAnswer());
+                answerResponse.setAnswerType("STANDARD"); // 默认类型
+                answerResponse.setIsPrimary(true);
+                // 注意：新结构中id和sortOrder不存在，设为null
+                answerResponse.setId(null);
+                answerResponse.setSortOrder(null);
+                answerResponses.add(answerResponse);
+                questionResponse.setAnswers(answerResponses);
+            }
             
             return questionResponse;
         }).filter(Objects::nonNull).collect(Collectors.toList());

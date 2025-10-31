@@ -101,6 +101,10 @@
             <el-icon><Plus /></el-icon>
             新增题目
           </el-button>
+          <el-button type="success" @click="handleImport">
+            <el-icon><Upload /></el-icon>
+            导入题库
+          </el-button>
           <el-button 
             type="danger" 
             :disabled="selectedQuestions.length === 0"
@@ -218,6 +222,26 @@
           <div class="content-text" v-html="formatContent(currentQuestion.content)"></div>
         </div>
 
+        <!-- 题目图片 -->
+        <div v-if="currentQuestion.images && getImageUrls(currentQuestion.images).length > 0" class="question-images">
+          <h4>题目图片:</h4>
+          <div class="images-grid">
+            <div v-for="(imageUrl, index) in getImageUrls(currentQuestion.images)" :key="index" class="image-item">
+              <el-image
+                :src="imageUrl"
+                :preview-src-list="getImageUrls(currentQuestion.images)"
+                :initial-index="index"
+                fit="contain"
+                style="width: 100%; max-height: 400px; cursor: pointer;"
+              >
+                <template #error>
+                  <div class="image-error">图片加载失败</div>
+                </template>
+              </el-image>
+            </div>
+          </div>
+        </div>
+
         <!-- 选择题选项 -->
         <div v-if="currentQuestion.options && currentQuestion.options.length > 0" class="question-options">
           <h4>选项:</h4>
@@ -257,14 +281,65 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 导入题库对话框 -->
+    <el-dialog
+      v-model="importDialogVisible"
+      title="导入题库"
+      width="600px"
+      :close-on-click-modal="false"
+    >
+      <div class="import-content">
+        <el-upload
+          ref="uploadRef"
+          class="upload-demo"
+          :auto-upload="false"
+          :limit="1"
+          accept=".xlsx,.xls"
+          :on-change="handleFileChange"
+          :on-remove="handleFileRemove"
+          :file-list="fileList"
+        >
+          <el-button type="primary">选择Excel文件</el-button>
+          <template #tip>
+            <div class="el-upload__tip">
+              只能上传 .xlsx 或 .xls 格式的文件，请参考格式说明文档
+            </div>
+          </template>
+        </el-upload>
+
+        <el-alert
+          v-if="importResult"
+          :title="`导入完成: 成功 ${importResult.successCount} 条，失败 ${importResult.errorCount} 条`"
+          :type="importResult.errorCount > 0 ? 'warning' : 'success'"
+          :closable="false"
+          style="margin-top: 20px"
+        >
+          <template #default>
+            <div v-if="importResult.errors && importResult.errors.length > 0">
+              <div v-for="(error, index) in importResult.errors" :key="index" style="margin-top: 8px">
+                {{ error }}
+              </div>
+            </div>
+          </template>
+        </el-alert>
+
+        <div v-if="fileList.length > 0" class="upload-actions" style="margin-top: 20px">
+          <el-button type="primary" :loading="uploading" @click="submitUpload">
+            开始导入
+          </el-button>
+          <el-button @click="handleImportCancel">取消</el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Refresh } from '@element-plus/icons-vue'
-import { getQuestions, deleteQuestion, batchDeleteQuestions, getQuestionStatistics } from '../../api/admin'
+import { Plus, Delete, Refresh, Upload } from '@element-plus/icons-vue'
+import { getQuestions, deleteQuestion, batchDeleteQuestions, getQuestionStatistics, importQuestions } from '../../api/admin'
 
 // 响应式数据
 const loading = ref(false)
@@ -273,6 +348,13 @@ const selectedQuestions = ref([])
 const statistics = ref({})
 const detailDialogVisible = ref(false)
 const currentQuestion = ref(null)
+
+// 导入相关
+const importDialogVisible = ref(false)
+const fileList = ref([])
+const uploading = ref(false)
+const importResult = ref(null)
+const uploadRef = ref(null)
 
 // 搜索表单
 const searchForm = reactive({
@@ -394,6 +476,80 @@ const handleAdd = () => {
   // TODO: 实现新增题目功能
 }
 
+// 导入相关函数
+const handleImport = () => {
+  importDialogVisible.value = true
+  importResult.value = null
+  fileList.value = []
+}
+
+const handleFileChange = (file) => {
+  // 文件选择后的处理
+  if (file.raw) {
+    const isExcel = file.raw.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || 
+                    file.raw.type === 'application/vnd.ms-excel' ||
+                    file.name.endsWith('.xlsx') || 
+                    file.name.endsWith('.xls')
+    
+    if (!isExcel) {
+      ElMessage.error('只能上传Excel文件(.xlsx, .xls)')
+      fileList.value = []
+      return
+    }
+    
+    // 添加文件到列表
+    fileList.value = [file]
+  }
+}
+
+const handleFileRemove = () => {
+  fileList.value = []
+  importResult.value = null
+}
+
+const submitUpload = async () => {
+  if (fileList.value.length === 0) {
+    ElMessage.warning('请先选择文件')
+    return
+  }
+
+  const formData = new FormData()
+  formData.append('file', fileList.value[0].raw)
+
+  uploading.value = true
+  try {
+    const response = await importQuestions(formData)
+    
+    if (response.code === 200) {
+      importResult.value = response.data
+      ElMessage.success(`导入完成: 成功 ${response.data.successCount} 条`)
+      
+      // 如果有失败，显示警告
+      if (response.data.errorCount > 0) {
+        ElMessage.warning(`失败 ${response.data.errorCount} 条，请查看详情`)
+      }
+      
+      // 刷新列表
+      if (response.data.successCount > 0) {
+        loadQuestionList()
+      }
+    } else {
+      ElMessage.error(response.message || '导入失败')
+    }
+  } catch (error) {
+    console.error('Import error:', error)
+    ElMessage.error('导入失败: ' + (error.message || '未知错误'))
+  } finally {
+    uploading.value = false
+  }
+}
+
+const handleImportCancel = () => {
+  importDialogVisible.value = false
+  fileList.value = []
+  importResult.value = null
+}
+
 const handleEdit = (row) => {
   ElMessage.info('编辑题目功能开发中...')
   // TODO: 实现编辑题目功能
@@ -483,6 +639,25 @@ const formatDate = (dateString) => {
 const formatContent = (content) => {
   if (!content) return ''
   return content.replace(/\n/g, '<br>')
+}
+
+// 获取图片URL列表
+const getImageUrls = (images) => {
+  if (!images) return []
+  
+  // 如果是数组，直接返回
+  if (Array.isArray(images)) {
+    return images
+  }
+  
+  // 如果是字符串，按分号或逗号分割，并添加后端地址前缀
+  if (typeof images === 'string') {
+    const urls = images.split(/[;,]/).filter(url => url.trim()).map(url => url.trim())
+    // 添加后端地址前缀 (http://localhost:8080)
+    return urls.map(url => url.startsWith('http') ? url : `http://localhost:8080${url}`)
+  }
+  
+  return []
 }
 
 // 生命周期
@@ -694,6 +869,39 @@ onMounted(() => {
 .option-content, .answer-content {
   flex: 1;
   color: #606266;
+}
+
+/* 题目图片样式 */
+.question-images {
+  margin-bottom: 20px;
+}
+
+.images-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.image-item {
+  border: 1px solid #e6e6e6;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #fafafa;
+  transition: all 0.3s;
+}
+
+.image-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.image-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: #909399;
+  font-size: 14px;
 }
 
 @media (max-width: 768px) {

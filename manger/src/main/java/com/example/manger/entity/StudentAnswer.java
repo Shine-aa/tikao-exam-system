@@ -30,6 +30,13 @@ public class StudentAnswer {
     @Column(name = "answer_content", columnDefinition = "JSON")
     private Map<String, Object> answerContent;
     
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "paper_content", columnDefinition = "JSON")
+    private Map<String, Object> paperContent;
+    
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
+    
     @Column(name = "total_score", precision = 5, scale = 2)
     private BigDecimal totalScore;
     

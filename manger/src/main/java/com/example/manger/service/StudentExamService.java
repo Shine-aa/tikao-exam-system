@@ -49,9 +49,6 @@ public class StudentExamService {
     private ClassRepository classRepository;
     
     @Autowired
-    private PaperQuestionRepository paperQuestionRepository;
-    
-    @Autowired
     private JwtUtil jwtUtil;
 
     /**
@@ -210,10 +207,8 @@ public class StudentExamService {
 
         // 如果考试正在进行中，允许重新进入（处理网络中断、浏览器崩溃等情况）
         if (studentExam.getStatus() == StudentExam.StudentExamStatus.IN_PROGRESS) {
-            // 更新开始时间（重新进入考试）
-            studentExam.setStartTime(now);
-            studentExamRepository.save(studentExam);
-            return; // 直接返回，不重复设置状态
+            // 已在进行中，保持原有开始时间，不重置开始计时
+            return; // 直接返回
         }
 
         // 如果考试状态是SCHEDULED，自动更新为ONGOING
@@ -267,21 +262,61 @@ public class StudentExamService {
 
         studentExamRepository.save(studentExam);
 
-        // 保存学生答案
-        saveStudentAnswers(studentExam.getId(), requestData);
+        // 获取试卷内容（从请求中获取）
+        @SuppressWarnings("unchecked")
+        Map<String, Object> paperContent = (Map<String, Object>) requestData.get("paperContent");
+        
+        // 保存学生答案和试卷内容（传递request以获取IP）
+        saveStudentAnswers(studentExam.getId(), requestData, paperContent, request);
 
         // 这里可以添加自动评分的逻辑
         // TODO: 实现自动评分功能
     }
 
     /**
-     * 保存学生答案（整张试卷）
+     * 保存答卷草稿（不改变考试状态）
      */
-    private void saveStudentAnswers(Long studentExamId, Map<String, Object> requestData) {
+    @Transactional
+    public void saveDraftAnswers(Long examId, Map<String, Object> requestData, HttpServletRequest request) {
+        // 获取当前学生ID
+        String authorizationHeader = request.getHeader("Authorization");
+        String token = authorizationHeader != null && authorizationHeader.startsWith("Bearer ")
+            ? authorizationHeader.substring(7)
+            : authorizationHeader;
+        Long studentId = jwtUtil.getUserIdFromToken(token);
+
+        // 验证考试是否存在
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.EXAM_NOT_FOUND, "考试不存在"));
+
+        // 获取学生考试记录（必须处于进行中才能保存草稿）
+        StudentExam studentExam = studentExamRepository.findByExamIdAndStudentIdAndIsActiveTrue(examId, studentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_EXAM_NOT_FOUND, "学生考试记录不存在"));
+
+        if (studentExam.getStatus() != StudentExam.StudentExamStatus.IN_PROGRESS) {
+            throw new BusinessException(ErrorCode.INVALID_OPERATION, "考试未在进行中，无法保存草稿");
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> paperContent = (Map<String, Object>) requestData.get("paperContent");
+
+        // 仅保存答案与试卷快照，不改变StudentExam状态
+        saveStudentAnswers(studentExam.getId(), requestData, paperContent, request);
+    }
+
+    /**
+     * 保存学生答案和试卷内容（整张试卷）
+     */
+    private void saveStudentAnswers(Long studentExamId, Map<String, Object> requestData, Map<String, Object> paperContent, HttpServletRequest request) {
         @SuppressWarnings("unchecked")
         Map<String, Object> answers = (Map<String, Object>) requestData.get("answers");
         
-        if (answers == null || answers.isEmpty()) {
+        // 从请求中获取IP地址
+        String ipAddress = getClientIpAddress(request);
+        
+        // 确保至少有一个不为空
+        if ((answers == null || answers.isEmpty()) && paperContent == null) {
+            System.out.println("Both answers and paperContent are empty, skipping save");
             return;
         }
 
@@ -291,12 +326,65 @@ public class StudentExamService {
         // 创建新的答案记录（整张试卷）
         StudentAnswer studentAnswer = new StudentAnswer();
         studentAnswer.setStudentExamId(studentExamId);
-        studentAnswer.setAnswerContent(answers);  // 直接存储整个答案Map
+        studentAnswer.setAnswerContent(answers);  // 存储学生答案
+        studentAnswer.setPaperContent(paperContent);  // 存储试卷内容（包含题目和选项顺序）
+        studentAnswer.setIpAddress(ipAddress);  // 存储IP地址
         studentAnswer.setIsGraded(false);
         
-        System.out.println("Saving student answers for studentExamId: " + studentExamId + ", answers: " + answers);
+        System.out.println("========== Saving student answers ==========");
+        System.out.println("Student exam ID: " + studentExamId);
+        System.out.println("IP Address: " + ipAddress);
+        System.out.println("Answers is null: " + (answers == null));
+        System.out.println("Answers isEmpty: " + (answers != null ? answers.isEmpty() : "N/A"));
+        System.out.println("PaperContent is null: " + (paperContent == null));
+        if (paperContent != null) {
+            System.out.println("PaperContent isEmpty: " + paperContent.isEmpty());
+            System.out.println("PaperContent keys: " + paperContent.keySet());
+            if (paperContent.containsKey("questions")) {
+                Object questions = paperContent.get("questions");
+                if (questions instanceof java.util.List) {
+                    System.out.println("PaperContent questions count: " + ((java.util.List<?>) questions).size());
+                }
+            }
+        }
+        
         studentAnswerRepository.save(studentAnswer);
-        System.out.println("Student answers saved successfully");
+        System.out.println("Student answers and paper content saved successfully");
+        System.out.println("============================================");
+    }
+    
+    /**
+     * 获取客户端IP地址
+     */
+    private String getClientIpAddress(HttpServletRequest request) {
+        String ip = null;
+        
+        // 按优先级顺序尝试获取IP
+        String[] headerNames = {
+            "X-Forwarded-For",
+            "Proxy-Client-IP",
+            "WL-Proxy-Client-IP",
+            "HTTP_CLIENT_IP",
+            "HTTP_X_FORWARDED_FOR"
+        };
+        
+        for (String headerName : headerNames) {
+            ip = request.getHeader(headerName);
+            if (ip != null && ip.length() != 0 && !"unknown".equalsIgnoreCase(ip)) {
+                // 检查是否包含多个IP（通过逗号分隔）
+                if (ip.contains(",")) {
+                    return "用户IP异常";
+                }
+                break;
+            }
+        }
+        
+        // 如果以上都没获取到，使用RemoteAddr
+        if (ip == null || ip.length() == 0 || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        
+        return ip != null ? ip : "unknown";
     }
 
     /**

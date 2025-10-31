@@ -25,8 +25,9 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
     @Query("SELECT q FROM Question q WHERE q.isActive = true AND q.difficulty = :difficulty")
     Page<Question> findByDifficulty(@Param("difficulty") Question.DifficultyLevel difficulty, Pageable pageable);
     
-    @Query("SELECT q FROM Question q WHERE q.isActive = true AND q.knowledgePointId = :knowledgePointId")
-    Page<Question> findByKnowledgePointId(@Param("knowledgePointId") Long knowledgePointId, Pageable pageable);
+    // knowledge_point_id 字段已删除，改用 question_knowledge_points 关联表
+    // @Query("SELECT q FROM Question q WHERE q.isActive = true AND q.knowledgePointId = :knowledgePointId")
+    // Page<Question> findByKnowledgePointId(@Param("knowledgePointId") Long knowledgePointId, Pageable pageable);
     
     @Query("SELECT q FROM Question q " +
            "WHERE q.isActive = true AND q.createdBy = :createdBy")
@@ -36,12 +37,10 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
            "WHERE q.isActive = true AND " +
            "(:type IS NULL OR q.type = :type) AND " +
            "(:difficulty IS NULL OR q.difficulty = :difficulty) AND " +
-           "(:knowledgePointId IS NULL OR q.knowledgePointId = :knowledgePointId) AND " +
            "(:keyword IS NULL OR q.title LIKE %:keyword% OR q.content LIKE %:keyword% OR q.tags LIKE %:keyword%) AND " +
            "(:createdBy IS NULL OR q.createdBy = :createdBy)")
     Page<Question> findByFilters(@Param("type") Question.QuestionType type,
                                 @Param("difficulty") Question.DifficultyLevel difficulty,
-                                @Param("knowledgePointId") Long knowledgePointId,
                                 @Param("keyword") String keyword,
                                 @Param("createdBy") Long createdBy,
                                 Pageable pageable);

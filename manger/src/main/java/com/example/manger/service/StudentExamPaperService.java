@@ -24,11 +24,9 @@ public class StudentExamPaperService {
     
     private final ExamRepository examRepository;
     private final PaperRepository paperRepository;
-    private final PaperQuestionRepository paperQuestionRepository;
     private final QuestionRepository questionRepository;
-    private final QuestionOptionRepository questionOptionRepository;
-    private final QuestionAnswerRepository questionAnswerRepository;
     private final StudentClassRepository studentClassRepository;
+    private final StudentExamRepository studentExamRepository;
     private final JwtUtil jwtUtil;
     
     /**
@@ -60,38 +58,30 @@ public class StudentExamPaperService {
         Paper paper = paperRepository.findById(exam.getPaperId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PAPER_NOT_FOUND, "试卷不存在"));
         
-        // 获取试卷题目关联
-        List<PaperQuestion> paperQuestions = paperQuestionRepository.findByPaperIdOrderByQuestionOrder(exam.getPaperId());
+        // 获取试卷题目关联 - 新版本：从Paper的questions字段读取
+        List<Map<String, Object>> questionList = paper.getQuestions();
         
-        if (paperQuestions.isEmpty()) {
+        if (questionList == null || questionList.isEmpty()) {
             throw new BusinessException(ErrorCode.PAPER_NOT_FOUND, "试卷中没有题目");
         }
         
         // 获取题目ID列表
-        List<Long> questionIds = paperQuestions.stream()
-                .map(PaperQuestion::getQuestionId)
+        List<Long> questionIds = questionList.stream()
+                .map(q -> ((Number) q.get("questionId")).longValue())
                 .collect(Collectors.toList());
         
         // 获取题目详情
         List<Question> questions = questionRepository.findAllById(questionIds);
         
-        // 获取题目选项和答案
-        List<QuestionOption> allOptions = questionOptionRepository.findByQuestionIdIn(questionIds);
-        List<QuestionAnswer> allAnswers = questionAnswerRepository.findByQuestionIdIn(questionIds);
-        
-        // 按题目ID分组
-        Map<Long, List<QuestionOption>> optionsMap = allOptions.stream()
-                .collect(Collectors.groupingBy(QuestionOption::getQuestionId));
-        Map<Long, List<QuestionAnswer>> answersMap = allAnswers.stream()
-                .collect(Collectors.groupingBy(QuestionAnswer::getQuestionId));
-        
         // 构建题目响应数据
-        List<Map<String, Object>> questionList = new ArrayList<>();
+        List<Map<String, Object>> questionResponseList = new ArrayList<>();
         
-        for (int i = 0; i < paperQuestions.size(); i++) {
-            PaperQuestion paperQuestion = paperQuestions.get(i);
+        for (int i = 0; i < questionList.size(); i++) {
+            Map<String, Object> paperQuestion = questionList.get(i);
+            Long questionId = ((Number) paperQuestion.get("questionId")).longValue();
+            
             Question question = questions.stream()
-                    .filter(q -> q.getId().equals(paperQuestion.getQuestionId()))
+                    .filter(q -> q.getId().equals(questionId))
                     .findFirst()
                     .orElse(null);
             
@@ -99,25 +89,22 @@ public class StudentExamPaperService {
             
             Map<String, Object> questionData = new HashMap<>();
             questionData.put("questionId", question.getId());
-            questionData.put("questionOrder", i + 1);
+            questionData.put("questionOrder", paperQuestion.get("questionOrder"));
             questionData.put("questionType", question.getType().name());
             questionData.put("questionContent", question.getContent());
-            questionData.put("points", paperQuestion.getPoints());
+            questionData.put("points", paperQuestion.get("points"));
             questionData.put("difficulty", question.getDifficulty().name());
             
-            // 处理选项（如果是选择题）
-            if (isChoiceQuestion(question.getType())) {
-                List<QuestionOption> options = optionsMap.getOrDefault(question.getId(), new ArrayList<>());
-                List<Map<String, Object>> optionList = new ArrayList<>();
-                
-                for (QuestionOption option : options) {
-                    Map<String, Object> optionData = new HashMap<>();
-                    optionData.put("optionId", option.getId());
-                    optionData.put("optionKey", option.getOptionKey());
-                    optionData.put("optionContent", option.getOptionContent());
-                    optionData.put("sortOrder", option.getSortOrder());
-                    optionList.add(optionData);
-                }
+            // 处理选项（如果是选择题）- 从Question的JSON字段读取
+            if (isChoiceQuestion(question.getType()) && question.getOptions() != null && !question.getOptions().isEmpty()) {
+                List<Map<String, Object>> optionList = question.getOptions().stream()
+                    .map(optionMap -> {
+                        Map<String, Object> optionData = new HashMap<>();
+                        optionData.put("optionKey", optionMap.get("key"));
+                        optionData.put("optionContent", optionMap.get("content"));
+                        return optionData;
+                    })
+                    .collect(Collectors.toList());
                 
                 // 如果考试设置了选项乱序，则对选项进行乱序（判断题除外）
                 if (exam.getIsRandomOptions() && question.getType() != Question.QuestionType.TRUE_FALSE) {
@@ -127,33 +114,28 @@ public class StudentExamPaperService {
                 questionData.put("options", optionList);
             }
             
-            // 处理答案（如果是填空题或主观题）
-            if (question.getType() == Question.QuestionType.FILL_BLANK || 
-                question.getType() == Question.QuestionType.SUBJECTIVE) {
-                List<QuestionAnswer> answers = answersMap.getOrDefault(question.getId(), new ArrayList<>());
+            // 处理答案（如果是填空题或主观题）- 从Question的TEXT字段读取
+            if ((question.getType() == Question.QuestionType.FILL_BLANK || 
+                question.getType() == Question.QuestionType.SUBJECTIVE) && 
+                question.getCorrectAnswer() != null) {
                 List<Map<String, Object>> answerList = new ArrayList<>();
-                
-                for (QuestionAnswer answer : answers) {
-                    Map<String, Object> answerData = new HashMap<>();
-                    answerData.put("answerId", answer.getId());
-                    answerData.put("answerContent", answer.getAnswerContent());
-                    answerData.put("answerType", answer.getAnswerType());
-                    answerData.put("isPrimary", answer.getIsPrimary());
-                    answerData.put("sortOrder", answer.getSortOrder());
-                    answerList.add(answerData);
-                }
+                Map<String, Object> answerData = new HashMap<>();
+                answerData.put("answerContent", question.getCorrectAnswer());
+                answerList.add(answerData);
                 
                 questionData.put("answers", answerList);
             }
             
-            questionList.add(questionData);
+            questionResponseList.add(questionData);
         }
         
         // 如果考试设置了题目乱序，则对题目进行乱序
         if (exam.getIsRandomOrder()) {
-            questionList = shuffleQuestions(questionList, studentId);
+            questionResponseList = shuffleQuestions(questionResponseList, studentId);
         }
         
+        // 获取学生考试记录以计算个人截止时间
+        Optional<StudentExam> studentExamOpt = studentExamRepository.findByExamIdAndStudentIdAndIsActiveTrue(examId, studentId);
         // 构建响应数据
         Map<String, Object> response = new HashMap<>();
         response.put("examId", exam.getId());
@@ -166,7 +148,21 @@ public class StudentExamPaperService {
         response.put("endTime", exam.getEndTime());
         response.put("isRandomOrder", exam.getIsRandomOrder());
         response.put("isRandomOptions", exam.getIsRandomOptions());
-        response.put("questions", questionList);
+        // 学生个人开始时间与有效截止时间（窗口截止 与 个人时长截止 取较早者）
+        if (studentExamOpt.isPresent()) {
+            StudentExam se = studentExamOpt.get();
+            response.put("studentStartTime", se.getStartTime());
+            if (se.getStartTime() != null && exam.getDurationMinutes() != null) {
+                java.time.LocalDateTime personalDeadline = se.getStartTime().plusMinutes(exam.getDurationMinutes());
+                java.time.LocalDateTime allowedEndTime = personalDeadline.isBefore(exam.getEndTime()) ? personalDeadline : exam.getEndTime();
+                response.put("allowedEndTime", allowedEndTime);
+            } else {
+                response.put("allowedEndTime", exam.getEndTime());
+            }
+        } else {
+            response.put("allowedEndTime", exam.getEndTime());
+        }
+        response.put("questions", questionResponseList);
         
         return response;
     }

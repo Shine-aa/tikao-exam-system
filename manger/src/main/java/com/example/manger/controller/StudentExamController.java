@@ -88,6 +88,20 @@ public class StudentExamController {
     }
 
     /**
+     * 保存答卷草稿（不提交）
+     */
+    @PostMapping("/{examId}/save")
+    @PreAuthorize("hasRole('USER')")
+    public ApiResponse<String> saveStudentExamDraft(@PathVariable Long examId, @RequestBody Map<String, Object> requestData, HttpServletRequest request) {
+        try {
+            studentExamService.saveDraftAnswers(examId, requestData, request);
+            return ApiResponse.success("答卷已保存", null);
+        } catch (Exception e) {
+            return ApiResponse.error("保存答卷失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 获取学生考试统计
      */
     @GetMapping("/stats")
