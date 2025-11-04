@@ -66,6 +66,7 @@ public class AuthController {
      * 获取验证码
      */
     @GetMapping("/captcha")
+    @Operation(summary = "获取验证码", description = "获取图形验证码，用于注册和登录验证")
     public ApiResponse<CaptchaService.CaptchaResult> getCaptcha() {
         try {
             CaptchaService.CaptchaResult captcha = captchaService.generateCaptcha();
@@ -79,6 +80,7 @@ public class AuthController {
      * 退出登录
      */
     @PostMapping("/logout")
+    @Operation(summary = "退出登录", description = "用户退出登录，使Token失效")
     public ApiResponse<Void> logout(@RequestHeader("Authorization") String authorization) {
         try {
             String token = authorization.replace("Bearer ", "");
@@ -93,6 +95,7 @@ public class AuthController {
      * 刷新令牌
      */
     @PostMapping("/refresh")
+    @Operation(summary = "刷新令牌", description = "使用刷新令牌获取新的访问令牌")
     public ApiResponse<String> refreshToken(@RequestParam String refreshToken) {
         try {
             String newToken = userService.refreshToken(refreshToken);
@@ -123,6 +126,7 @@ public class AuthController {
      * 发送短信验证码
      */
     @PostMapping("/sms/send")
+    @Operation(summary = "发送短信验证码", description = "发送短信验证码到指定手机号，支持注册和登录两种类型")
     public ApiResponse<Map<String, Object>> sendSmsCode(@RequestBody Map<String, String> request, HttpServletRequest httpRequest) {
         try {
             String phone = request.get("phone");
@@ -161,6 +165,7 @@ public class AuthController {
      * 验证短信验证码
      */
     @PostMapping("/sms/verify")
+    @Operation(summary = "验证短信验证码", description = "验证短信验证码是否正确且未过期")
     public ApiResponse<Boolean> verifySmsCode(@RequestBody Map<String, String> request) {
         try {
             String phone = request.get("phone");

@@ -49,6 +49,7 @@ public class StudentExamController {
      * 获取学生考试详情
      */
     @GetMapping("/{examId}")
+    @Operation(summary = "获取学生考试详情", description = "获取指定考试的详细信息，包括考试信息、试卷信息等")
     @PreAuthorize("hasRole('USER')")
     public ApiResponse<ExamResponse> getStudentExamDetail(@PathVariable Long examId, HttpServletRequest request) {
         try {
@@ -63,6 +64,7 @@ public class StudentExamController {
      * 开始考试
      */
     @PostMapping("/{examId}/start")
+    @Operation(summary = "开始考试", description = "学生开始考试，创建考试记录并开始计时")
     @PreAuthorize("hasRole('USER')")
     public ApiResponse<String> startStudentExam(@PathVariable Long examId, HttpServletRequest request) {
         try {
@@ -77,6 +79,7 @@ public class StudentExamController {
      * 提交考试答案
      */
     @PostMapping("/{examId}/submit")
+    @Operation(summary = "提交考试答案", description = "学生提交考试答案，完成考试（最终提交）")
     @PreAuthorize("hasRole('USER')")
     public ApiResponse<String> submitStudentExam(@PathVariable Long examId, @RequestBody Map<String, Object> requestData, HttpServletRequest request) {
         try {
@@ -91,6 +94,7 @@ public class StudentExamController {
      * 保存答卷草稿（不提交）
      */
     @PostMapping("/{examId}/save")
+    @Operation(summary = "保存答卷草稿", description = "学生保存答卷草稿（临时保存，不提交）")
     @PreAuthorize("hasRole('USER')")
     public ApiResponse<String> saveStudentExamDraft(@PathVariable Long examId, @RequestBody Map<String, Object> requestData, HttpServletRequest request) {
         try {
@@ -105,6 +109,7 @@ public class StudentExamController {
      * 获取学生考试统计
      */
     @GetMapping("/stats")
+    @Operation(summary = "获取学生考试统计", description = "获取学生的考试统计数据，包括已参加、已完成、待参加等")
     @PreAuthorize("hasRole('USER')")
     public ApiResponse<Map<String, Object>> getStudentExamStats(HttpServletRequest request) {
         try {

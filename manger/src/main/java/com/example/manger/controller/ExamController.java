@@ -80,6 +80,7 @@ public class ExamController {
      * 根据ID获取考试详情
      */
     @GetMapping("/{id}")
+    @Operation(summary = "获取考试详情", description = "根据考试ID获取考试详细信息")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<ExamResponse> getExamById(@PathVariable Long id) {
         try {
@@ -94,6 +95,7 @@ public class ExamController {
      * 更新考试
      */
     @PutMapping("/{id}")
+    @Operation(summary = "更新考试", description = "更新指定考试的信息")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<ExamResponse> updateExam(@PathVariable Long id, @Valid @RequestBody ExamRequest request) {
         try {
@@ -108,6 +110,7 @@ public class ExamController {
      * 删除考试
      */
     @DeleteMapping("/{id}")
+    @Operation(summary = "删除考试", description = "删除指定ID的考试")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<String> deleteExam(@PathVariable Long id) {
         try {
@@ -122,6 +125,7 @@ public class ExamController {
      * 开始考试
      */
     @PostMapping("/{id}/start")
+    @Operation(summary = "开始考试", description = "将考试状态设置为进行中")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<String> startExam(@PathVariable Long id) {
         try {
@@ -136,6 +140,7 @@ public class ExamController {
      * 结束考试
      */
     @PostMapping("/{id}/end")
+    @Operation(summary = "结束考试", description = "将考试状态设置为已结束")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<String> endExam(@PathVariable Long id) {
         try {
@@ -150,6 +155,7 @@ public class ExamController {
      * 获取考试学生列表
      */
     @GetMapping("/{id}/students")
+    @Operation(summary = "获取考试学生列表", description = "获取指定考试的所有学生列表")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<List<Map<String, Object>>> getExamStudents(@PathVariable Long id) {
         try {
@@ -185,6 +191,8 @@ public class ExamController {
      * 获取考试学生列表（用于判卷）
      */
     @GetMapping("/{id}/students/grading")
+    @Operation(summary = "获取考试学生列表（判卷）", description = "获取指定考试的学生列表，用于判卷，支持分页和筛选")
+    @Tag(name = "考试判卷")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<PageResponse<Map<String, Object>>> getExamStudentsForGrading(
             @PathVariable Long id,
@@ -205,6 +213,8 @@ public class ExamController {
      * 获取学生答案
      */
     @GetMapping("/{examId}/students/{studentId}/answers")
+    @Operation(summary = "获取学生答案", description = "获取指定学生在指定考试中的答案，包含题目、学生答案和参考答案")
+    @Tag(name = "考试判卷")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<Map<String, Object>> getStudentAnswers(@PathVariable Long examId, @PathVariable Long studentId, HttpServletRequest request) {
         try {
@@ -219,6 +229,8 @@ public class ExamController {
      * 保存判卷结果
      */
     @PostMapping("/grading/save")
+    @Operation(summary = "保存判卷结果", description = "保存判卷结果（临时保存，不提交）")
+    @Tag(name = "考试判卷")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<String> saveGradingResult(@RequestBody Map<String, Object> gradingData) {
         try {
@@ -233,6 +245,8 @@ public class ExamController {
      * 提交判卷结果
      */
     @PostMapping("/grading/submit")
+    @Operation(summary = "提交判卷结果", description = "提交判卷结果（最终提交，会计算总分并更新学生成绩）")
+    @Tag(name = "考试判卷")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<String> submitGradingResult(@RequestBody Map<String, Object> gradingData, HttpServletRequest request) {
         try {
@@ -266,6 +280,8 @@ public class ExamController {
      * 获取老师端仪表盘统计数据
      */
     @GetMapping("/dashboard/stats")
+    @Operation(summary = "获取老师端仪表盘统计数据", description = "获取老师端仪表盘的各种统计数据（题库数量、考试数量、学生数量等）")
+    @Tag(name = "仪表盘")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<Map<String, Object>> getDashboardStats(HttpServletRequest request) {
         try {
@@ -280,6 +296,8 @@ public class ExamController {
      * 获取老师端最近活动
      */
     @GetMapping("/dashboard/activities")
+    @Operation(summary = "获取老师端最近活动", description = "获取老师端最近的考试活动记录")
+    @Tag(name = "仪表盘")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<List<Map<String, Object>>> getRecentActivities(HttpServletRequest request) {
         try {

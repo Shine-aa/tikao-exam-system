@@ -1,6 +1,8 @@
 package com.example.manger.controller;
 
 import com.example.manger.common.ApiResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,12 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/common")
+@Tag(name = "通用工具", description = "通用工具接口")
 public class CommonController {
 
     /**
      * 获取客户端IP地址
      */
     @GetMapping("/client-ip")
+    @Operation(summary = "获取客户端IP地址", description = "获取请求客户端的真实IP地址，支持代理环境")
     public ApiResponse<String> getClientIP(HttpServletRequest request) {
         String ipAddress = getClientIpAddress(request);
         return ApiResponse.success(ipAddress);
