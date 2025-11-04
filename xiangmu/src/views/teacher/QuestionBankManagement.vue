@@ -7,56 +7,75 @@
     </div>
 
     <!-- 统计卡片 -->
-    <el-row :gutter="20" class="stats-row">
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.totalQuestions || 0 }}</div>
-            <div class="stat-label">题目总数</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.singleChoiceCount || 0 }}</div>
-            <div class="stat-label">单选题</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.multipleChoiceCount || 0 }}</div>
-            <div class="stat-label">多选题</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.trueFalseCount || 0 }}</div>
-            <div class="stat-label">判断题</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.fillBlankCount || 0 }}</div>
-            <div class="stat-label">填空题</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :xs="24" :sm="12" :md="4">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-number">{{ statistics.subjectiveCount || 0 }}</div>
-            <div class="stat-label">主观题</div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <div class="stats-container">
+      <!-- 第一行：题目总数（突出显示） -->
+      <el-row :gutter="20" class="stats-row">
+        <el-col :xs="24" :sm="12" :md="8" :lg="6">
+          <el-card class="stat-card stat-card-primary">
+            <div class="stat-content">
+              <div class="stat-number">{{ statistics.totalQuestions || 0 }}</div>
+              <div class="stat-label">题目总数</div>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+      
+      <!-- 第二行：各题型统计（每行3个） -->
+      <el-row :gutter="20" class="stats-row">
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
+          <el-card class="stat-card">
+            <div class="stat-content">
+              <div class="stat-number">{{ statistics.singleChoiceCount || 0 }}</div>
+              <div class="stat-label">单选题</div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
+          <el-card class="stat-card">
+            <div class="stat-content">
+              <div class="stat-number">{{ statistics.multipleChoiceCount || 0 }}</div>
+              <div class="stat-label">多选题</div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
+          <el-card class="stat-card">
+            <div class="stat-content">
+              <div class="stat-number">{{ statistics.trueFalseCount || 0 }}</div>
+              <div class="stat-label">判断题</div>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+      
+      <!-- 第三行：剩余题型统计（每行3个） -->
+      <el-row :gutter="20" class="stats-row">
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
+          <el-card class="stat-card">
+            <div class="stat-content">
+              <div class="stat-number">{{ statistics.fillBlankCount || 0 }}</div>
+              <div class="stat-label">填空题</div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
+          <el-card class="stat-card">
+            <div class="stat-content">
+              <div class="stat-number">{{ statistics.subjectiveCount || 0 }}</div>
+              <div class="stat-label">主观题</div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="8" :lg="8">
+          <el-card class="stat-card">
+            <div class="stat-content">
+              <div class="stat-number">{{ statistics.programmingCount || 0 }}</div>
+              <div class="stat-label">程序题</div>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+    </div>
 
     <!-- 搜索和筛选 -->
     <el-card class="search-card">
@@ -68,6 +87,7 @@
             <el-option label="判断题" value="TRUE_FALSE" />
             <el-option label="填空题" value="FILL_BLANK" />
             <el-option label="主观题" value="SUBJECTIVE" />
+            <el-option label="程序题" value="PROGRAMMING" />
           </el-select>
         </el-form-item>
         <el-form-item label="难度">
@@ -274,6 +294,14 @@
           </div>
         </div>
 
+        <!-- 程序题答案（代码） -->
+        <div v-if="currentQuestion.type === 'PROGRAMMING' && currentQuestion.correctAnswer" class="question-answers">
+          <h4>参考答案:</h4>
+          <div class="answer-item code-answer">
+            <pre class="code-block"><code>{{ currentQuestion.correctAnswer }}</code></pre>
+          </div>
+        </div>
+
         <!-- 题目解析 -->
         <div v-if="currentQuestion.explanation" class="question-explanation">
           <h4>解析:</h4>
@@ -377,7 +405,8 @@ const getTypeTagType = (type) => {
     'MULTIPLE_CHOICE': 'success',
     'TRUE_FALSE': 'warning',
     'FILL_BLANK': 'info',
-    'SUBJECTIVE': 'danger'
+    'SUBJECTIVE': 'danger',
+    'PROGRAMMING': 'warning'
   }
   return typeMap[type] || 'default'
 }
@@ -397,7 +426,8 @@ const getTypeDescription = (type) => {
     'MULTIPLE_CHOICE': '多选题',
     'TRUE_FALSE': '判断题',
     'FILL_BLANK': '填空题',
-    'SUBJECTIVE': '主观题'
+    'SUBJECTIVE': '主观题',
+    'PROGRAMMING': '程序题'
   }
   return typeMap[type] || type
 }
@@ -445,14 +475,15 @@ const loadStatistics = async () => {
   } catch (error) {
     console.error('Load statistics error:', error)
     // 设置默认值
-    statistics.value = {
-      totalQuestions: 0,
-      singleChoiceCount: 0,
-      multipleChoiceCount: 0,
-      trueFalseCount: 0,
-      fillBlankCount: 0,
-      subjectiveCount: 0
-    }
+      statistics.value = {
+        totalQuestions: 0,
+        singleChoiceCount: 0,
+        multipleChoiceCount: 0,
+        trueFalseCount: 0,
+        fillBlankCount: 0,
+        subjectiveCount: 0,
+        programmingCount: 0
+      }
   }
 }
 
@@ -687,18 +718,47 @@ onMounted(() => {
   font-size: 14px;
 }
 
+.stats-container {
+  margin-bottom: 20px;
+}
+
 .stats-row {
   margin-bottom: 20px;
+}
+
+.stats-row:last-child {
+  margin-bottom: 0;
 }
 
 .stat-card {
   border: none;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.stat-card-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-card-primary .stat-number {
+  color: #ffffff;
+  font-size: 32px;
+}
+
+.stat-card-primary .stat-label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .stat-content {
   text-align: center;
-  padding: 10px;
+  padding: 20px 10px;
 }
 
 .stat-number {

@@ -50,6 +50,10 @@ public class Question {
     @Column(name = "correct_answer", length = 1000)
     private String correctAnswer;
     
+    // 编程语言（仅程序题使用）：JAVA, PYTHON, CPP
+    @Column(name = "programming_language", length = 20)
+    private String programmingLanguage;
+    
     // knowledge_point_id 字段已删除，改用 question_knowledge_points 关联表
     // @Column(name = "knowledge_point_id")
     // private Long knowledgePointId;
@@ -79,7 +83,8 @@ public class Question {
         MULTIPLE_CHOICE("多选题"),
         TRUE_FALSE("判断题"),
         FILL_BLANK("填空题"),
-        SUBJECTIVE("主观题");
+        SUBJECTIVE("主观题"),
+        PROGRAMMING("程序题");
         
         private final String description;
         

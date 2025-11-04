@@ -22,6 +22,10 @@ public class QuestionResponse {
     private String knowledgePointName;
     private String tags;
     private String explanation;
+    
+    // 编程语言（仅程序题使用）：JAVA, PYTHON, CPP
+    private String programmingLanguage;
+    
     private Boolean isActive;
     private Long createdBy;
     private String createdByName;

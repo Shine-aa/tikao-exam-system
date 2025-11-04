@@ -47,6 +47,9 @@ public class PaperResponse {
         private String tags;
         private String explanation;
         
+        // 编程语言（仅程序题使用）：JAVA, PYTHON, CPP
+        private String programmingLanguage;
+        
         // 题目选项
         private List<QuestionOptionResponse> options;
         

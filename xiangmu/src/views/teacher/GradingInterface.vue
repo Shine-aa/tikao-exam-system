@@ -212,9 +212,82 @@
                 <div class="answer-section">
                   <h5 class="answer-title">参考答案：</h5>
                   <div v-if="currentQuestion.answers && currentQuestion.answers[0]" class="answer-content correct-answer">
-                    {{ currentQuestion.answers[0].answerContent }}
+                    <div v-html="formatReferenceAnswer(currentQuestion.answers[0].answerContent)"></div>
                   </div>
                   <div v-else class="no-answer">无标准答案</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 程序题显示 -->
+            <div v-else-if="currentQuestion.questionType === 'PROGRAMMING'" class="programming-answer">
+              <div class="programming-comparison">
+                <!-- 学生代码 -->
+                <div class="code-section">
+                  <div class="code-header">
+                    <h5 class="answer-title">学生代码：</h5>
+                    <el-tag v-if="getStudentProgrammingLanguage()" type="info" size="small">
+                      {{ getLanguageLabel(getStudentProgrammingLanguage()) }}
+                    </el-tag>
+                  </div>
+                  <div v-if="getStudentProgrammingCode()" class="code-content">
+                    <pre class="code-block"><code>{{ getStudentProgrammingCode() }}</code></pre>
+                  </div>
+                  <div v-else class="no-answer">未作答</div>
+                  
+                  <!-- 运行学生代码 -->
+                  <div v-if="getStudentProgrammingCode()" class="code-actions" style="margin-top: 12px;">
+                    <el-input
+                      v-model="studentTestInput"
+                      type="textarea"
+                      :rows="2"
+                      placeholder="测试输入（可选，每行一个输入）"
+                      style="margin-bottom: 8px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace;"
+                    />
+                    <el-button
+                      type="success"
+                      size="small"
+                      @click="runStudentCode"
+                      :loading="studentCodeRunning"
+                    >
+                      <el-icon><Loading v-if="studentCodeRunning" /><CaretRight v-else /></el-icon>
+                      运行学生代码
+                    </el-button>
+                  </div>
+                </div>
+                
+                <!-- 参考答案 -->
+                <div class="code-section">
+                  <div class="code-header">
+                    <h5 class="answer-title">参考答案：</h5>
+                    <el-tag v-if="getReferenceProgrammingLanguage()" type="info" size="small">
+                      {{ getLanguageLabel(getReferenceProgrammingLanguage()) }}
+                    </el-tag>
+                  </div>
+                  <div v-if="getReferenceProgrammingCode()" class="code-content">
+                    <pre class="code-block"><code>{{ getReferenceProgrammingCode() }}</code></pre>
+                  </div>
+                  <div v-else class="no-answer">无标准答案</div>
+                  
+                  <!-- 运行参考答案 -->
+                  <div v-if="getReferenceProgrammingCode()" class="code-actions" style="margin-top: 12px;">
+                    <el-input
+                      v-model="referenceTestInput"
+                      type="textarea"
+                      :rows="2"
+                      placeholder="测试输入（可选，每行一个输入）"
+                      style="margin-bottom: 8px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace;"
+                    />
+                    <el-button
+                      type="primary"
+                      size="small"
+                      @click="runReferenceCode"
+                      :loading="referenceCodeRunning"
+                    >
+                      <el-icon><Loading v-if="referenceCodeRunning" /><CaretRight v-else /></el-icon>
+                      运行参考答案
+                    </el-button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -269,6 +342,54 @@
         <el-button type="primary" @click="confirmSave">确定保存</el-button>
       </template>
     </el-dialog>
+    
+    <!-- 代码执行结果对话框 -->
+    <el-dialog
+      v-model="codeResultDialog.visible"
+      title="代码执行结果"
+      width="60%"
+      :close-on-click-modal="false"
+    >
+      <div class="code-result-content">
+        <div class="result-info">
+          <el-tag :type="codeResultDialog.result.success ? 'success' : 'danger'">
+            {{ codeResultDialog.result.success ? '执行成功' : '执行失败' }}
+          </el-tag>
+          <span style="margin-left: 12px; color: #909399;">
+            执行时间: {{ codeResultDialog.result.executionTimeMs }}ms
+          </span>
+          <span v-if="codeResultDialog.result.exitCode !== undefined" style="margin-left: 12px; color: #909399;">
+            退出码: {{ codeResultDialog.result.exitCode }}
+          </span>
+        </div>
+        
+        <div v-if="codeResultDialog.result.output" class="result-output">
+          <div class="result-label">输出：</div>
+          <el-input
+            type="textarea"
+            :rows="8"
+            :value="codeResultDialog.result.output"
+            readonly
+            class="result-textarea"
+          />
+        </div>
+        
+        <div v-if="codeResultDialog.result.error" class="result-error">
+          <div class="result-label">错误：</div>
+          <el-input
+            type="textarea"
+            :rows="6"
+            :value="codeResultDialog.result.error"
+            readonly
+            class="result-textarea error-textarea"
+          />
+        </div>
+      </div>
+      
+      <template #footer>
+        <el-button @click="codeResultDialog.visible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -276,10 +397,11 @@
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  ArrowLeft, Check, Upload
+  ArrowLeft, Check, Upload, Loading, CaretRight
 } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { examApi } from '@/api/admin'
+import { executeCode } from '@/api/user'
 
 const router = useRouter()
 const route = useRoute()
@@ -296,6 +418,21 @@ const currentQuestionIndex = ref(0)
 const fillBlankAnswers = ref({})
 const subjectiveAnswer = ref('')
 const saveDialogVisible = ref(false)
+// 程序题相关
+const studentTestInput = ref('')
+const referenceTestInput = ref('')
+const studentCodeRunning = ref(false)
+const referenceCodeRunning = ref(false)
+const codeResultDialog = ref({
+  visible: false,
+  result: {
+    success: false,
+    output: '',
+    error: null,
+    executionTimeMs: 0,
+    exitCode: 0
+  }
+})
 
 // 计算属性
 const currentQuestion = computed(() => {
@@ -417,7 +554,7 @@ const isObjectiveQuestion = (questionType) => {
 
 // 判断是否为主观题（手动判分）
 const isSubjectiveQuestion = (questionType) => {
-  return ['FILL_BLANK', 'SUBJECTIVE'].includes(questionType)
+  return ['FILL_BLANK', 'SUBJECTIVE', 'PROGRAMMING'].includes(questionType)
 }
 
 // 获取题目类型标签
@@ -427,7 +564,8 @@ const getQuestionTypeTag = (questionType) => {
     'MULTIPLE_CHOICE': 'success',
     'TRUE_FALSE': 'warning',
     'FILL_BLANK': 'info',
-    'SUBJECTIVE': 'danger'
+    'SUBJECTIVE': 'danger',
+    'PROGRAMMING': 'warning'
   }
   return typeMap[questionType] || 'info'
 }
@@ -439,7 +577,8 @@ const getQuestionTypeLabel = (questionType) => {
     'MULTIPLE_CHOICE': '多选题',
     'TRUE_FALSE': '判断题',
     'FILL_BLANK': '填空题',
-    'SUBJECTIVE': '主观题'
+    'SUBJECTIVE': '主观题',
+    'PROGRAMMING': '程序题'
   }
   return typeMap[questionType] || questionType
 }
@@ -565,7 +704,213 @@ const getStudentSubjectiveAnswer = () => {
   return Array.isArray(studentAnswers) ? studentAnswers.join('') : studentAnswers
 }
 
+// 解析并格式化参考答案（支持 JSON 格式）
+const formatReferenceAnswer = (answerContent) => {
+  if (!answerContent) {
+    return '无标准答案'
+  }
+  
+  // 尝试解析 JSON 格式的参考答案
+  try {
+    // 检查是否是 JSON 字符串格式
+    if (typeof answerContent === 'string' && answerContent.trim().startsWith('[')) {
+      const parsed = JSON.parse(answerContent)
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // 合并所有内容块
+        return parsed.map(item => {
+          if (item.type === 'TEXT') {
+            return item.content || ''
+          } else if (item.type === 'CODE') {
+            return `<pre><code>${item.content || ''}</code></pre>`
+          } else {
+            return item.content || ''
+          }
+        }).join('\n').replace(/\n/g, '<br>')
+      }
+    }
+  } catch (e) {
+    // 如果不是 JSON 格式，直接返回原内容
+    console.warn('Failed to parse reference answer as JSON:', e)
+  }
+  
+  // 如果不是 JSON 格式，直接返回原内容（进行基本的 HTML 转义）
+  return answerContent.replace(/\n/g, '<br>')
+}
 
+// 获取学生程序代码
+const getStudentProgrammingCode = () => {
+  if (!currentQuestion.value || !currentQuestion.value.studentAnswers) {
+    return ''
+  }
+  
+  const answer = currentQuestion.value.studentAnswers
+  // 学生答案格式可能是 "LANGUAGE:code" 或直接是代码
+  if (typeof answer === 'string') {
+    // 检查是否是 "LANGUAGE:code" 格式
+    const colonIndex = answer.indexOf(':')
+    if (colonIndex > 0) {
+      return answer.substring(colonIndex + 1)
+    }
+    return answer
+  } else if (Array.isArray(answer) && answer.length > 0) {
+    const firstAnswer = answer[0]
+    if (typeof firstAnswer === 'string') {
+      const colonIndex = firstAnswer.indexOf(':')
+      if (colonIndex > 0) {
+        return firstAnswer.substring(colonIndex + 1)
+      }
+      return firstAnswer
+    }
+  }
+  
+  return ''
+}
+
+// 获取学生选择的编程语言
+const getStudentProgrammingLanguage = () => {
+  if (!currentQuestion.value || !currentQuestion.value.studentAnswers) {
+    return currentQuestion.value?.programmingLanguage || 'JAVA'
+  }
+  
+  const answer = currentQuestion.value.studentAnswers
+  // 学生答案格式可能是 "LANGUAGE:code"
+  if (typeof answer === 'string') {
+    const colonIndex = answer.indexOf(':')
+    if (colonIndex > 0) {
+      return answer.substring(0, colonIndex)
+    }
+  } else if (Array.isArray(answer) && answer.length > 0) {
+    const firstAnswer = answer[0]
+    if (typeof firstAnswer === 'string') {
+      const colonIndex = firstAnswer.indexOf(':')
+      if (colonIndex > 0) {
+        return firstAnswer.substring(0, colonIndex)
+      }
+    }
+  }
+  
+  return currentQuestion.value?.programmingLanguage || 'JAVA'
+}
+
+// 获取参考答案代码
+const getReferenceProgrammingCode = () => {
+  if (!currentQuestion.value) {
+    return ''
+  }
+  
+  // 优先从 answers 数组获取
+  if (currentQuestion.value.answers && currentQuestion.value.answers.length > 0) {
+    const answerContent = currentQuestion.value.answers[0].answerContent
+    if (answerContent) {
+      return answerContent
+    }
+  }
+  
+  // 如果没有，尝试从 correctAnswer 字段获取
+  if (currentQuestion.value.correctAnswer) {
+    return currentQuestion.value.correctAnswer
+  }
+  
+  return ''
+}
+
+// 获取参考答案的编程语言
+const getReferenceProgrammingLanguage = () => {
+  return currentQuestion.value?.programmingLanguage || 'JAVA'
+}
+
+// 获取语言标签
+const getLanguageLabel = (language) => {
+  const langMap = {
+    'JAVA': 'Java',
+    'PYTHON': 'Python',
+    'CPP': 'C++',
+    'C++': 'C++'
+  }
+  return langMap[language] || language || 'Java'
+}
+
+// 运行学生代码
+const runStudentCode = async () => {
+  const code = getStudentProgrammingCode()
+  if (!code || code.trim() === '') {
+    ElMessage.warning('学生代码为空')
+    return
+  }
+  
+  const language = getStudentProgrammingLanguage()
+  const testInput = studentTestInput.value || ''
+  
+  studentCodeRunning.value = true
+  
+  try {
+    const response = await executeCode({
+      code: code,
+      language: language,
+      input: testInput.trim(),
+      timeoutSeconds: 10
+    })
+    
+    if (response.code === 200 && response.data) {
+      codeResultDialog.value.result = {
+        success: response.data.success || false,
+        output: response.data.output || '',
+        error: response.data.error || null,
+        executionTimeMs: response.data.executionTimeMs || 0,
+        exitCode: response.data.exitCode || 0
+      }
+      codeResultDialog.value.visible = true
+    } else {
+      ElMessage.error('执行失败: ' + (response.message || '未知错误'))
+    }
+  } catch (error) {
+    console.error('Code execution error:', error)
+    ElMessage.error('执行失败: ' + (error.message || '网络错误，请稍后重试'))
+  } finally {
+    studentCodeRunning.value = false
+  }
+}
+
+// 运行参考答案
+const runReferenceCode = async () => {
+  const code = getReferenceProgrammingCode()
+  if (!code || code.trim() === '') {
+    ElMessage.warning('参考答案为空')
+    return
+  }
+  
+  const language = getReferenceProgrammingLanguage()
+  const testInput = referenceTestInput.value || ''
+  
+  referenceCodeRunning.value = true
+  
+  try {
+    const response = await executeCode({
+      code: code,
+      language: language,
+      input: testInput.trim(),
+      timeoutSeconds: 10
+    })
+    
+    if (response.code === 200 && response.data) {
+      codeResultDialog.value.result = {
+        success: response.data.success || false,
+        output: response.data.output || '',
+        error: response.data.error || null,
+        executionTimeMs: response.data.executionTimeMs || 0,
+        exitCode: response.data.exitCode || 0
+      }
+      codeResultDialog.value.visible = true
+    } else {
+      ElMessage.error('执行失败: ' + (response.message || '未知错误'))
+    }
+  } catch (error) {
+    console.error('Code execution error:', error)
+    ElMessage.error('执行失败: ' + (error.message || '网络错误，请稍后重试'))
+  } finally {
+    referenceCodeRunning.value = false
+  }
+}
 
 // 自动判分所有客观题
 const autoGradeObjectiveQuestions = () => {
@@ -1490,5 +1835,92 @@ onMounted(() => {
     background-color: #f78989;
     border-color: #f78989;
   }
+}
+
+/* 程序题样式 */
+.programming-comparison {
+  display: flex;
+  gap: 20px;
+  margin-top: 10px;
+}
+
+.code-section {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  padding: 16px;
+  background-color: #fafafa;
+}
+
+.code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.code-content {
+  background-color: #f5f7fa;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.code-block {
+  margin: 0;
+  padding: 0;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: #303133;
+}
+
+.code-actions {
+  margin-top: 12px;
+}
+
+/* 代码执行结果对话框样式 */
+.code-result-content {
+  padding: 10px 0;
+}
+
+.result-info {
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #ebeef5;
+}
+
+.result-label {
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.result-output,
+.result-error {
+  margin-bottom: 20px;
+}
+
+.result-textarea {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.result-textarea.error-textarea :deep(.el-textarea__inner) {
+  background-color: #fef0f0;
+  border-color: #f56c6c;
+  color: #f56c6c;
+}
+
+.result-textarea :deep(.el-textarea__inner) {
+  background-color: #f5f7fa;
+  color: #303133;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
 }
 </style>
