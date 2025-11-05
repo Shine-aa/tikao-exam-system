@@ -791,9 +791,10 @@ public class ExamService {
                 }
             }
             
-            // 补充答案（填空题和主观题）
+            // 补充答案（填空题、主观题和程序题）
             if (fullQuestion.getType() == Question.QuestionType.FILL_BLANK || 
-                fullQuestion.getType() == Question.QuestionType.SUBJECTIVE) {
+                fullQuestion.getType() == Question.QuestionType.SUBJECTIVE ||
+                fullQuestion.getType() == Question.QuestionType.PROGRAMMING) {
                 if (fullQuestion.getCorrectAnswer() != null && !fullQuestion.getCorrectAnswer().isEmpty()) {
                     List<Map<String, Object>> answers = new ArrayList<>();
                     Map<String, Object> answerData = new HashMap<>();
@@ -801,6 +802,16 @@ public class ExamService {
                     answers.add(answerData);
                     question.put("answers", answers);
                 }
+            }
+            
+            // 补充程序题的特殊字段（编程语言）
+            if (fullQuestion.getType() == Question.QuestionType.PROGRAMMING) {
+                // 从数据库读取编程语言，如果没有则使用默认值 JAVA
+                String programmingLanguage = fullQuestion.getProgrammingLanguage();
+                if (programmingLanguage == null || programmingLanguage.isEmpty()) {
+                    programmingLanguage = "JAVA"; // 默认值
+                }
+                question.put("programmingLanguage", programmingLanguage);
             }
         }
     }

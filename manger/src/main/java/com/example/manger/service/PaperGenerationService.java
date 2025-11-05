@@ -84,13 +84,14 @@ public class PaperGenerationService {
         
         List<Question> selectedQuestions = new ArrayList<>();
         
-        // 定义题型顺序：单选题 → 多选题 → 判断题 → 填空题 → 主观题
+        // 定义题型顺序：单选题 → 多选题 → 判断题 → 填空题 → 主观题 → 程序题
         String[] questionTypeOrder = {
             "SINGLE_CHOICE",    // 单选题
             "MULTIPLE_CHOICE",  // 多选题
             "TRUE_FALSE",       // 判断题
             "FILL_BLANK",       // 填空题
-            "SUBJECTIVE"        // 主观题
+            "SUBJECTIVE",       // 主观题
+            "PROGRAMMING"       // 程序题
         };
         
         // 根据题型分布选题，按照固定顺序
@@ -398,6 +399,14 @@ public class PaperGenerationService {
             questionResponse.setQuestionOrder((Integer) q.get("questionOrder"));
             questionResponse.setTags(question.getTags());
             questionResponse.setExplanation(question.getExplanation());
+            // 设置编程语言（仅程序题）
+            if (question.getType() == Question.QuestionType.PROGRAMMING) {
+                String programmingLanguage = question.getProgrammingLanguage();
+                if (programmingLanguage == null || programmingLanguage.isEmpty()) {
+                    programmingLanguage = "JAVA"; // 默认值
+                }
+                questionResponse.setProgrammingLanguage(programmingLanguage);
+            }
             
             // 从Question的JSON字段读取选项数据（新方式）
             if (question.getOptions() != null && !question.getOptions().isEmpty()) {

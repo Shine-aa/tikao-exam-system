@@ -45,6 +45,15 @@ public class QuestionService {
         // question.setKnowledgePointId(request.getKnowledgePointId());
         question.setTags(request.getTags());
         question.setExplanation(request.getExplanation());
+        // 设置编程语言（仅程序题）
+        if (request.getType() == Question.QuestionType.PROGRAMMING) {
+            // 如果提供了编程语言就使用，否则使用默认值 JAVA
+            String programmingLanguage = request.getProgrammingLanguage();
+            if (programmingLanguage == null || programmingLanguage.isEmpty()) {
+                programmingLanguage = "JAVA"; // 默认值
+            }
+            question.setProgrammingLanguage(programmingLanguage);
+        }
         question.setCreatedBy(userId);
         
         question = questionRepository.save(question);
@@ -102,6 +111,18 @@ public class QuestionService {
         // question.setKnowledgePointId(request.getKnowledgePointId());
         question.setTags(request.getTags());
         question.setExplanation(request.getExplanation());
+        // 设置编程语言（仅程序题）
+        if (request.getType() == Question.QuestionType.PROGRAMMING) {
+            // 如果提供了编程语言就使用，否则使用默认值 JAVA
+            String programmingLanguage = request.getProgrammingLanguage();
+            if (programmingLanguage == null || programmingLanguage.isEmpty()) {
+                programmingLanguage = "JAVA"; // 默认值
+            }
+            question.setProgrammingLanguage(programmingLanguage);
+        } else if (request.getType() != Question.QuestionType.PROGRAMMING) {
+            // 如果不是程序题，清空编程语言字段
+            question.setProgrammingLanguage(null);
+        }
         
         // 保存选择题选项到Question的JSON字段
         if (request.getOptions() != null && !request.getOptions().isEmpty()) {
@@ -228,6 +249,7 @@ public class QuestionService {
         long trueFalseCount = questionRepository.countByType(Question.QuestionType.TRUE_FALSE);
         long fillBlankCount = questionRepository.countByType(Question.QuestionType.FILL_BLANK);
         long subjectiveCount = questionRepository.countByType(Question.QuestionType.SUBJECTIVE);
+        long programmingCount = questionRepository.countByType(Question.QuestionType.PROGRAMMING);
         
         return new QuestionStatistics(
             totalQuestions,
@@ -235,7 +257,8 @@ public class QuestionService {
             multipleChoiceCount,
             trueFalseCount,
             fillBlankCount,
-            subjectiveCount
+            subjectiveCount,
+            programmingCount
         );
     }
     
@@ -249,15 +272,17 @@ public class QuestionService {
         public final long trueFalseCount;
         public final long fillBlankCount;
         public final long subjectiveCount;
+        public final long programmingCount;
         
         public QuestionStatistics(long totalQuestions, long singleChoiceCount, long multipleChoiceCount,
-                                long trueFalseCount, long fillBlankCount, long subjectiveCount) {
+                                long trueFalseCount, long fillBlankCount, long subjectiveCount, long programmingCount) {
             this.totalQuestions = totalQuestions;
             this.singleChoiceCount = singleChoiceCount;
             this.multipleChoiceCount = multipleChoiceCount;
             this.trueFalseCount = trueFalseCount;
             this.fillBlankCount = fillBlankCount;
             this.subjectiveCount = subjectiveCount;
+            this.programmingCount = programmingCount;
         }
     }
     
@@ -279,6 +304,8 @@ public class QuestionService {
         // response.setKnowledgePointId(question.getKnowledgePointId());
         response.setTags(question.getTags());
         response.setExplanation(question.getExplanation());
+        // 设置编程语言（仅程序题）
+        response.setProgrammingLanguage(question.getProgrammingLanguage());
         response.setIsActive(question.getIsActive());
         response.setCreatedBy(question.getCreatedBy());
         response.setCreatedAt(question.getCreatedAt());

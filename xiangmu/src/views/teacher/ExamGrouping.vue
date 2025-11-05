@@ -196,7 +196,7 @@
             <div class="type-section">
               <h4>按题型顺序配置题目数量（试卷将按此顺序组织）</h4>
               <div class="type-order-info">
-                <el-tag type="info" size="small">单选题 → 多选题 → 判断题 → 填空题 → 主观题</el-tag>
+                <el-tag type="info" size="small">单选题 → 多选题 → 判断题 → 填空题 → 主观题 → 程序题</el-tag>
               </div>
             </div>
             <div
@@ -552,7 +552,8 @@ const createForm = reactive({
     'MULTIPLE_CHOICE': 5,
     'TRUE_FALSE': 3,
     'FILL_BLANK': 2,
-    'SUBJECTIVE': 0
+    'SUBJECTIVE': 0,
+    'PROGRAMMING': 0
   },
   difficultyDistribution: {
     'EASY': 5,
@@ -589,7 +590,8 @@ const questionTypes = {
   'MULTIPLE_CHOICE': { label: '多选题' },
   'TRUE_FALSE': { label: '判断题' },
   'FILL_BLANK': { label: '填空题' },
-  'SUBJECTIVE': { label: '主观题' }
+  'SUBJECTIVE': { label: '主观题' },
+  'PROGRAMMING': { label: '程序题' }
 }
 
 // 题型顺序（与后端保持一致）
@@ -598,7 +600,8 @@ const questionTypeOrder = [
   'MULTIPLE_CHOICE',  // 多选题
   'TRUE_FALSE',       // 判断题
   'FILL_BLANK',       // 填空题
-  'SUBJECTIVE'        // 主观题
+  'SUBJECTIVE',       // 主观题
+  'PROGRAMMING'       // 程序题
 ]
 
 // 难度配置

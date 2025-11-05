@@ -70,6 +70,20 @@ sms:
   send:
     limit-seconds: 60
 
+# Docker 代码执行配置
+docker:
+  execution:
+    # 默认执行超时时间（秒）
+    timeout: 5
+    # 内存限制（256MB）
+    memory: 256m
+    # CPU 限制（0.5 核）
+    cpus: 0.5
+    # Docker 主机地址
+    # Linux/Mac: unix:///var/run/docker.sock
+    # Windows Docker Desktop: tcp://localhost:2375 (绕过 WSL)
+    host: tcp://localhost:2375
+
 # Swagger配置
 springdoc:
   api-docs:

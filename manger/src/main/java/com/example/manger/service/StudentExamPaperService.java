@@ -85,7 +85,9 @@ public class StudentExamPaperService {
                     .findFirst()
                     .orElse(null);
             
-            if (question == null) continue;
+            if (question == null) {
+                continue;
+            }
             
             Map<String, Object> questionData = new HashMap<>();
             questionData.put("questionId", question.getId());
@@ -94,6 +96,8 @@ public class StudentExamPaperService {
             questionData.put("questionContent", question.getContent());
             questionData.put("points", paperQuestion.get("points"));
             questionData.put("difficulty", question.getDifficulty().name());
+            // 添加图片字段
+            questionData.put("images", question.getImages());
             
             // 处理选项（如果是选择题）- 从Question的JSON字段读取
             if (isChoiceQuestion(question.getType()) && question.getOptions() != null && !question.getOptions().isEmpty()) {
@@ -114,9 +118,10 @@ public class StudentExamPaperService {
                 questionData.put("options", optionList);
             }
             
-            // 处理答案（如果是填空题或主观题）- 从Question的TEXT字段读取
+            // 处理答案（如果是填空题、主观题或程序题）- 从Question的TEXT字段读取
             if ((question.getType() == Question.QuestionType.FILL_BLANK || 
-                question.getType() == Question.QuestionType.SUBJECTIVE) && 
+                question.getType() == Question.QuestionType.SUBJECTIVE ||
+                question.getType() == Question.QuestionType.PROGRAMMING) && 
                 question.getCorrectAnswer() != null) {
                 List<Map<String, Object>> answerList = new ArrayList<>();
                 Map<String, Object> answerData = new HashMap<>();
@@ -124,6 +129,16 @@ public class StudentExamPaperService {
                 answerList.add(answerData);
                 
                 questionData.put("answers", answerList);
+            }
+            
+            // 处理程序题的特殊字段（编程语言）
+            if (question.getType() == Question.QuestionType.PROGRAMMING) {
+                // 从数据库读取编程语言，如果没有则使用默认值 JAVA
+                String programmingLanguage = question.getProgrammingLanguage();
+                if (programmingLanguage == null || programmingLanguage.isEmpty()) {
+                    programmingLanguage = "JAVA"; // 默认值
+                }
+                questionData.put("programmingLanguage", programmingLanguage);
             }
             
             questionResponseList.add(questionData);
@@ -189,8 +204,8 @@ public class StudentExamPaperService {
         
         List<Map<String, Object>> shuffledQuestions = new ArrayList<>();
         
-        // 按固定顺序处理题型：单选 -> 多选 -> 判断 -> 填空 -> 主观
-        String[] typeOrder = {"SINGLE_CHOICE", "MULTIPLE_CHOICE", "TRUE_FALSE", "FILL_BLANK", "SUBJECTIVE"};
+        // 按固定顺序处理题型：单选 -> 多选 -> 判断 -> 填空 -> 主观 -> 程序题
+        String[] typeOrder = {"SINGLE_CHOICE", "MULTIPLE_CHOICE", "TRUE_FALSE", "FILL_BLANK", "SUBJECTIVE", "PROGRAMMING"};
         
         for (String type : typeOrder) {
             List<Map<String, Object>> typeQuestions = groupedQuestions.get(type);
@@ -198,6 +213,18 @@ public class StudentExamPaperService {
                 // 对同类型题目进行乱序
                 Collections.shuffle(typeQuestions, random);
                 shuffledQuestions.addAll(typeQuestions);
+            }
+        }
+        
+        // 处理未在typeOrder中定义的题型（如果有的话）
+        for (Map.Entry<String, List<Map<String, Object>>> entry : groupedQuestions.entrySet()) {
+            String type = entry.getKey();
+            if (!Arrays.asList(typeOrder).contains(type)) {
+                List<Map<String, Object>> typeQuestions = entry.getValue();
+                if (typeQuestions != null && !typeQuestions.isEmpty()) {
+                    Collections.shuffle(typeQuestions, random);
+                    shuffledQuestions.addAll(typeQuestions);
+                }
             }
         }
         

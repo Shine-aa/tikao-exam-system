@@ -18,5 +18,14 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  // Monaco Editor 配置
+  optimizeDeps: {
+    exclude: ['monaco-editor']
+  },
+  build: {
+    commonjsOptions: {
+      include: [/monaco-editor/, /node_modules/]
+    }
   }
 })

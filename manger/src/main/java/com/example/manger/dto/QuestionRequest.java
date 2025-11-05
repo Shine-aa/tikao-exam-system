@@ -32,6 +32,9 @@ public class QuestionRequest {
     
     private String explanation;
     
+    // 编程语言（仅程序题使用）：JAVA, PYTHON, CPP, C
+    private String programmingLanguage;
+    
     // 选择题选项
     private List<QuestionOptionRequest> options;
     

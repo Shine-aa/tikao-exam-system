@@ -76,3 +76,12 @@ export function getDashboardStats() {
     method: 'get'
   })
 }
+
+// 执行代码（Docker）
+export function executeCode(data) {
+  return request({
+    url: '/api/code/execute',
+    method: 'post',
+    data
+  })
+}

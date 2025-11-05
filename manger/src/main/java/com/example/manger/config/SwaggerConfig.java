@@ -51,7 +51,9 @@ public class SwaggerConfig {
                 new Tag().name("学生考试").description("学生端考试相关接口，包括获取考试列表、开始考试、提交答案等"),
                 new Tag().name("考试判卷").description("老师端判卷相关接口，包括获取学生答案、保存判卷结果等"),
                 new Tag().name("考试结果").description("考试结果查看相关接口，包括学生查看成绩、老师查看统计等"),
-                new Tag().name("仪表盘").description("系统仪表盘统计数据相关接口")
+                new Tag().name("代码执行").description("代码执行相关接口（使用 Docker 安全执行 Java、Python、C++ 代码）"),
+                new Tag().name("仪表盘").description("系统仪表盘统计数据相关接口"),
+                new Tag().name("通用工具").description("通用工具接口，如获取客户端IP等")
             ))
             .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
             .components(new Components()

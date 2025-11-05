@@ -145,6 +145,13 @@ public class QuestionImportService {
                 throw new Exception("参考答案不能为空");
             }
             question.setCorrectAnswer(correctAnswer.trim());
+        } else if (question.getType() == Question.QuestionType.PROGRAMMING) {
+            // 程序题
+            String correctAnswer = getCellValueAsString(row, 7);
+            if (correctAnswer == null || correctAnswer.trim().isEmpty()) {
+                throw new Exception("参考答案（代码）不能为空");
+            }
+            question.setCorrectAnswer(correctAnswer.trim());
         }
         
         // 难度 (可选)
@@ -183,8 +190,36 @@ public class QuestionImportService {
         String explanation = getCellValueAsString(row, 12);
         question.setExplanation(explanation);
         
+        // 检查Excel列数以确定是否有编程语言列（向后兼容）
+        int lastCellNum = row.getLastCellNum();
+        boolean hasProgrammingLanguageColumn = lastCellNum > 14; // 新格式有15列（索引0-14）
+        
+        // 编程语言 (可选，仅程序题使用)
+        String programmingLanguage = null;
+        String images = null;
+        
+        if (hasProgrammingLanguageColumn) {
+            // 新格式：编程语言在第13列，图片路径在第14列
+            programmingLanguage = getCellValueAsString(row, 13);
+            images = getCellValueAsString(row, 14);
+        } else {
+            // 旧格式：没有编程语言列，图片路径在第13列
+            images = getCellValueAsString(row, 13);
+        }
+        
+        // 处理编程语言（仅程序题）
+        if (question.getType() == Question.QuestionType.PROGRAMMING) {
+            // 程序题：如果提供了编程语言就使用，否则使用默认值 JAVA
+            if (programmingLanguage == null || programmingLanguage.trim().isEmpty()) {
+                programmingLanguage = "JAVA"; // 默认值
+            }
+            question.setProgrammingLanguage(programmingLanguage.trim().toUpperCase());
+        } else {
+            // 非程序题：清空编程语言字段
+            question.setProgrammingLanguage(null);
+        }
+        
         // 图片路径 (可选)
-        String images = getCellValueAsString(row, 13);
         question.setImages(images);
         
         // 设置默认值

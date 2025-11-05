@@ -180,12 +180,20 @@
         </div>
 
         <!-- 题目答案 -->
-        <div v-if="currentQuestion.correctAnswer" class="question-answers">
+        <div v-if="currentQuestion.type !== 'PROGRAMMING' && currentQuestion.correctAnswer" class="question-answers">
           <h4>正确答案:</h4>
           <div class="answers-list">
             <div class="answer-item">
               <span class="answer-content">{{ currentQuestion.correctAnswer }}</span>
             </div>
+          </div>
+        </div>
+
+        <!-- 程序题答案（代码） -->
+        <div v-if="currentQuestion.type === 'PROGRAMMING' && currentQuestion.correctAnswer" class="question-answers">
+          <h4>参考答案:</h4>
+          <div class="answer-item code-answer">
+            <pre class="code-block"><code>{{ currentQuestion.correctAnswer }}</code></pre>
           </div>
         </div>
       </div>
@@ -337,7 +345,8 @@ const getQuestionTypeLabel = (type) => {
     'MULTIPLE_CHOICE': '多选题',
     'TRUE_FALSE': '判断题',
     'FILL_BLANK': '填空题',
-    'SUBJECTIVE': '主观题'
+    'SUBJECTIVE': '主观题',
+    'PROGRAMMING': '程序题'
   }
   return typeMap[type] || type
 }
@@ -348,7 +357,8 @@ const getQuestionTypeTagType = (type) => {
     'MULTIPLE_CHOICE': 'success',
     'TRUE_FALSE': 'warning',
     'FILL_BLANK': 'info',
-    'SUBJECTIVE': 'danger'
+    'SUBJECTIVE': 'danger',
+    'PROGRAMMING': 'warning'
   }
   return typeMap[type] || 'default'
 }

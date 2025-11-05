@@ -34,6 +34,7 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(authz -> authz
             .requestMatchers("/api/auth/**", "/api/captcha/**").permitAll()
+            .requestMatchers("/api/code/**").permitAll()  // 暂时允许匿名访问代码执行接口以便测试
             .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
             .requestMatchers("OPTIONS", "/**").permitAll()
             .anyRequest().authenticated()
