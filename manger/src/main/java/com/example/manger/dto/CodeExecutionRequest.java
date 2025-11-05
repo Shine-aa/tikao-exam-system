@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotNull;
 @Data
 public class CodeExecutionRequest {
     /**
-     * 编程语言：JAVA, PYTHON, CPP
+     * 编程语言：JAVA, PYTHON, CPP, C
      */
     @NotBlank(message = "编程语言不能为空")
     private String language;

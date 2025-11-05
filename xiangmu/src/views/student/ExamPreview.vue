@@ -163,6 +163,7 @@
                 <el-option label="Java" value="JAVA" />
                 <el-option label="Python" value="PYTHON" />
                 <el-option label="C++" value="CPP" />
+                <el-option label="C" value="C" />
               </el-select>
               <span style="margin-left: 12px; color: #606266; font-size: 14px;">
                 当前语言：{{ getLanguageLabel(selectedLanguages[index] || question.programmingLanguage || 'JAVA') }}
@@ -696,8 +697,8 @@ const getLanguageLabel = (language) => {
     'JAVA': 'Java',
     'PYTHON': 'Python',
     'CPP': 'C++',
-    'JAVASCRIPT': 'JavaScript',
-    'C': 'C'
+    'C': 'C',
+    'JAVASCRIPT': 'JavaScript'
   }
   return languageMap[language] || language
 }
@@ -711,7 +712,9 @@ const getLanguageExtension = (language) => {
     'python': python(),
     'CPP': cpp(),
     'cpp': cpp(),
-    'c++': cpp()
+    'c++': cpp(),
+    'C': cpp(),  // C 语言使用 cpp 支持（语法相似）
+    'c': cpp()
   }
   return langMap[language] || java() // 默认 Java
 }
@@ -903,6 +906,7 @@ const getDefaultCodeTemplate = (language) => {
     'java': `public class Solution {\n    public static void main(String[] args) {\n        // 在此处编写你的代码\n    }\n}`,
     'python': `# 在此处编写你的代码\ndef solution():\n    pass\n\nif __name__ == '__main__':\n    solution()`,
     'cpp': `#include <iostream>\nusing namespace std;\n\nint main() {\n    // 在此处编写你的代码\n    return 0;\n}`,
+    'c': `#include <stdio.h>\n\nint main() {\n    // 在此处编写你的代码\n    return 0;\n}`,
     'javascript': `// 在此处编写你的代码\nfunction solution() {\n    \n}\n\nsolution();`
   }
   return templates[language] || templates['java']
@@ -1302,7 +1306,7 @@ const cleanOldAnswerData = (data) => {
   if (data.selectedLanguages) {
     Object.keys(data.selectedLanguages).forEach(key => {
       const language = data.selectedLanguages[key]
-      if (typeof language === 'string' && ['JAVA', 'PYTHON', 'CPP'].includes(language)) {
+      if (typeof language === 'string' && ['JAVA', 'PYTHON', 'CPP', 'C'].includes(language)) {
         cleanedData.selectedLanguages[key] = language
       }
     })

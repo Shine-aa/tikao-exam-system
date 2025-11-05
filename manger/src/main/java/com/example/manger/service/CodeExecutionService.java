@@ -171,6 +171,7 @@ public class CodeExecutionService {
             case "JAVA" -> "openjdk:17-jdk-slim";  // Java 17
             case "PYTHON" -> "python:3.11-slim";   // Python 3.11
             case "CPP", "C++" -> "gcc:latest";     // GCC for C++
+            case "C" -> "gcc:latest";              // GCC for C
             default -> throw new IllegalArgumentException("不支持的语言: " + language);
         };
     }
@@ -246,16 +247,56 @@ public class CodeExecutionService {
                 // C++: 编译并运行
                 commands.add("/bin/sh");
                 commands.add("-c");
-                String cppScript = String.format(
-                    "echo '%s' > /tmp/solution.cpp && " +
-                    "g++ -o /tmp/solution /tmp/solution.cpp && " +
-                    "cd /tmp && " +
-                    "echo '%s' | timeout %d ./solution",
-                    escapeCode(code),
-                    escapeInput(input),
-                    defaultTimeoutSeconds
-                );
+                String cppScript;
+                if (input != null && !input.trim().isEmpty()) {
+                    cppScript = String.format(
+                        "echo '%s' > /tmp/solution.cpp && " +
+                        "g++ -o /tmp/solution /tmp/solution.cpp && " +
+                        "cd /tmp && " +
+                        "echo '%s' | timeout %d ./solution",
+                        escapeCode(code),
+                        escapeInput(input),
+                        defaultTimeoutSeconds
+                    );
+                } else {
+                    cppScript = String.format(
+                        "echo '%s' > /tmp/solution.cpp && " +
+                        "g++ -o /tmp/solution /tmp/solution.cpp && " +
+                        "cd /tmp && " +
+                        "timeout %d ./solution",
+                        escapeCode(code),
+                        defaultTimeoutSeconds
+                    );
+                }
                 commands.add(cppScript);
+                break;
+                
+            case "C":
+                // C: 编译并运行
+                commands.add("/bin/sh");
+                commands.add("-c");
+                String cScript;
+                if (input != null && !input.trim().isEmpty()) {
+                    cScript = String.format(
+                        "echo '%s' > /tmp/solution.c && " +
+                        "gcc -o /tmp/solution /tmp/solution.c && " +
+                        "cd /tmp && " +
+                        "echo '%s' | timeout %d ./solution",
+                        escapeCode(code),
+                        escapeInput(input),
+                        defaultTimeoutSeconds
+                    );
+                } else {
+                    cScript = String.format(
+                        "echo '%s' > /tmp/solution.c && " +
+                        "gcc -o /tmp/solution /tmp/solution.c && " +
+                        "cd /tmp && " +
+                        "timeout %d ./solution",
+                        escapeCode(code),
+                        defaultTimeoutSeconds
+                    );
+                }
+                commands.add(cScript);
                 break;
                 
             default:

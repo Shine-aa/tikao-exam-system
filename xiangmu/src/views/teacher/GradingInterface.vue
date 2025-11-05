@@ -825,7 +825,8 @@ const getLanguageLabel = (language) => {
     'JAVA': 'Java',
     'PYTHON': 'Python',
     'CPP': 'C++',
-    'C++': 'C++'
+    'C++': 'C++',  // 兼容性：后端支持两种格式，保留以防万一
+    'C': 'C'
   }
   return langMap[language] || language || 'Java'
 }

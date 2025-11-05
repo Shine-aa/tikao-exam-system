@@ -50,7 +50,7 @@ public class Question {
     @Column(name = "correct_answer", length = 1000)
     private String correctAnswer;
     
-    // 编程语言（仅程序题使用）：JAVA, PYTHON, CPP
+    // 编程语言（仅程序题使用）：JAVA, PYTHON, CPP, C
     @Column(name = "programming_language", length = 20)
     private String programmingLanguage;
     

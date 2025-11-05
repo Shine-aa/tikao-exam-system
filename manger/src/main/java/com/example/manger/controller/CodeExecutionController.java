@@ -32,7 +32,7 @@ public class CodeExecutionController {
             // 验证语言支持
             String language = request.getLanguage().toUpperCase();
             if (!isLanguageSupported(language)) {
-                return ApiResponse.error("不支持的语言: " + language + "，支持的语言: JAVA, PYTHON, CPP");
+                return ApiResponse.error("不支持的语言: " + language + "，支持的语言: JAVA, PYTHON, CPP, C");
             }
             
             // 执行代码
@@ -50,7 +50,8 @@ public class CodeExecutionController {
         return "JAVA".equals(language) || 
                "PYTHON".equals(language) || 
                "CPP".equals(language) || 
-               "C++".equals(language);
+               "C++".equals(language) ||
+               "C".equals(language);
     }
 }
 
