@@ -14,7 +14,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/user_auth_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
-    password: 123456
+    password: root
   
   # JPA配置
   jpa:
@@ -40,6 +40,30 @@ spring:
           max-wait: -1ms
           max-idle: 8
           min-idle: 0
+
+  # Spring AI (通义) 配置 -- 放到顶级 spring 下
+  ai:
+    dashscope:
+      # 把下面的值改为你的通义千问 API Key
+      api-key: sk-0f7845312d5a47e79e5b13650079b67d
+    memory:
+      # 可选值: in-memory, redis
+      type: in-memory
+      redis:
+        host: localhost
+        port: 6379
+        password: ""
+        timeout: 5000
+    chat:
+      memory:
+        repository:
+          jdbc:
+            mysql:
+              enabled: true
+              jdbc-url: jdbc:mysql://127.0.0.1:3306/chatMemory?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+              username: root
+              password: 'root'
+              driver-class-name: com.mysql.cj.jdbc.Driver
 
 # JWT配置
 jwt:

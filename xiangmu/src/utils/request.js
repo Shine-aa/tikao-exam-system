@@ -5,7 +5,7 @@ import { refreshToken } from '../api/user'
 // 创建axios实例
 const request = axios.create({
   baseURL: '',
-  timeout: 10000
+  timeout: 60000 // 将默认超时从 10000 提高到 60000 毫秒
 })
 
 // 是否正在刷新token

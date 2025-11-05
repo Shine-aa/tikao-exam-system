@@ -108,9 +108,10 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
-        log.error("未知异常: {}", e.getMessage(), e);
-        
-        ApiResponse<Void> response = ApiResponse.error(500, "系统异常，请联系管理员");
+        log.error("未知异常，堆栈信息: ", e); // 关键改动：打印完整堆栈
+
+        // 关键改动：返回更具体的错误信息
+        ApiResponse<Void> response = ApiResponse.error(500, "系统内部错误: " + e.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 }

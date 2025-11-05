@@ -32,6 +32,9 @@
         <router-view />
       </el-main>
     </el-container>
+
+    <!-- 引入 AI 助手组件 -->
+    <AiAssistant />
   </div>
 </template>
 
@@ -41,6 +44,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { User, ArrowDown } from '@element-plus/icons-vue'
 import { logout } from '../api/user'
+import AiAssistant from '@/components/AiAssistant.vue'
 
 const router = useRouter()
 

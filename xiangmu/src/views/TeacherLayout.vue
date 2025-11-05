@@ -92,6 +92,8 @@
       <!-- 内容区域 -->
       <div class="main-content">
         <router-view />
+        <!-- 引入 AI 助手组件 -->
+        <AiAssistant />
       </div>
     </div>
   </div>
@@ -115,6 +117,7 @@ import {
   ArrowDown
 } from '@element-plus/icons-vue'
 import { logout } from '../api/user'
+import AiAssistant from '@/components/AiAssistant.vue'
 
 const router = useRouter()
 const route = useRoute()
