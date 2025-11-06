@@ -804,7 +804,7 @@ public class ExamService {
                 }
             }
             
-            // 补充程序题的特殊字段（编程语言）
+            // 补充程序题的特殊字段（编程语言和测试用例）
             if (fullQuestion.getType() == Question.QuestionType.PROGRAMMING) {
                 // 从数据库读取编程语言，如果没有则使用默认值 JAVA
                 String programmingLanguage = fullQuestion.getProgrammingLanguage();
@@ -812,6 +812,19 @@ public class ExamService {
                     programmingLanguage = "JAVA"; // 默认值
                 }
                 question.put("programmingLanguage", programmingLanguage);
+                
+                // 添加测试用例（仅程序题）
+                if (fullQuestion.getTestCases() != null && !fullQuestion.getTestCases().isEmpty()) {
+                    List<Map<String, Object>> testCases = fullQuestion.getTestCases().stream()
+                        .map(testCaseMap -> {
+                            Map<String, Object> testCase = new HashMap<>();
+                            testCase.put("input", testCaseMap.get("input"));
+                            testCase.put("output", testCaseMap.get("output"));
+                            return testCase;
+                        })
+                        .collect(Collectors.toList());
+                    question.put("testCases", testCases);
+                }
             }
         }
     }
@@ -998,6 +1011,29 @@ public class ExamService {
                 answerList.add(answerData);
                 
                 questionData.put("answers", answerList);
+            }
+            
+            // 处理程序题的特殊字段（编程语言和测试用例）
+            if (question.getType() == Question.QuestionType.PROGRAMMING) {
+                // 从数据库读取编程语言
+                String programmingLanguage = question.getProgrammingLanguage();
+                if (programmingLanguage == null || programmingLanguage.isEmpty()) {
+                    programmingLanguage = "JAVA"; // 默认值
+                }
+                questionData.put("programmingLanguage", programmingLanguage);
+                
+                // 添加测试用例（仅程序题）
+                if (question.getTestCases() != null && !question.getTestCases().isEmpty()) {
+                    List<Map<String, Object>> testCases = question.getTestCases().stream()
+                        .map(testCaseMap -> {
+                            Map<String, Object> testCase = new HashMap<>();
+                            testCase.put("input", testCaseMap.get("input"));
+                            testCase.put("output", testCaseMap.get("output"));
+                            return testCase;
+                        })
+                        .collect(Collectors.toList());
+                    questionData.put("testCases", testCases);
+                }
             }
             
             questionList.add(questionData);

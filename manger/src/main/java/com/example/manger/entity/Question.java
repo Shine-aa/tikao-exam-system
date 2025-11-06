@@ -54,6 +54,12 @@ public class Question {
     @Column(name = "programming_language", length = 20)
     private String programmingLanguage;
     
+    // 测试用例（仅程序题使用，JSON格式存储）
+    // 格式：[{"input": "1\n2", "output": "3"}, {"input": "5\n7", "output": "12"}]
+    @Column(name = "test_cases", columnDefinition = "JSON")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private List<Map<String, Object>> testCases;
+    
     // knowledge_point_id 字段已删除，改用 question_knowledge_points 关联表
     // @Column(name = "knowledge_point_id")
     // private Long knowledgePointId;

@@ -35,11 +35,28 @@ public class QuestionRequest {
     // 编程语言（仅程序题使用）：JAVA, PYTHON, CPP, C
     private String programmingLanguage;
     
+    // 测试用例（仅程序题使用）
+    // 格式：[{"input": "1\n2", "output": "3"}, {"input": "5\n7", "output": "12"}]
+    private List<TestCaseRequest> testCases;
+    
     // 选择题选项
     private List<QuestionOptionRequest> options;
     
     // 题目答案
     private List<QuestionAnswerRequest> answers;
+    
+    @Data
+    public static class TestCaseRequest {
+        /**
+         * 测试输入
+         */
+        private String input;
+        
+        /**
+         * 期望输出
+         */
+        private String output;
+    }
     
     @Data
     public static class QuestionOptionRequest {

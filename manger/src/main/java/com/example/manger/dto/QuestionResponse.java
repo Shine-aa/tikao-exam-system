@@ -26,6 +26,9 @@ public class QuestionResponse {
     // 编程语言（仅程序题使用）：JAVA, PYTHON, CPP, C
     private String programmingLanguage;
     
+    // 测试用例（仅程序题使用）
+    private List<TestCaseResponse> testCases;
+    
     private Boolean isActive;
     private Long createdBy;
     private String createdByName;
@@ -51,5 +54,18 @@ public class QuestionResponse {
     public static class QuestionAnswerResponse {
         private Long id;
         private String answerContent;
+    }
+    
+    @Data
+    public static class TestCaseResponse {
+        /**
+         * 测试输入
+         */
+        private String input;
+        
+        /**
+         * 期望输出
+         */
+        private String output;
     }
 }

@@ -43,7 +43,12 @@
       >
         <el-table-column prop="paperCode" label="试卷代码" width="140" show-overflow-tooltip />
         <el-table-column prop="paperName" label="试卷名称" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="className" label="班级" width="100" show-overflow-tooltip />
+        <el-table-column prop="className" label="班级" width="100" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.className">{{ row.className }}</span>
+            <el-tag v-else type="info" size="small">通用</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="courseName" label="课程" width="120" show-overflow-tooltip />
         <el-table-column prop="totalQuestions" label="题目数" width="70" align="center" />
         <el-table-column prop="totalPoints" label="总分" width="60" align="center" />
@@ -119,21 +124,6 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="班级" prop="classId">
-              <el-select v-model="createForm.classId" placeholder="请选择班级" @change="handleClassChange">
-                <el-option
-                  v-for="classItem in classList"
-                  :key="classItem.id"
-                  :label="classItem.className"
-                  :value="classItem.id"
-                />
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-row :gutter="20">
-          <el-col :span="12">
             <el-form-item label="课程" prop="courseId">
               <el-select v-model="createForm.courseId" placeholder="请选择课程">
                 <el-option
@@ -145,6 +135,9 @@
               </el-select>
             </el-form-item>
           </el-col>
+        </el-row>
+
+        <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="考试时长" prop="durationMinutes">
               <el-input-number
@@ -311,6 +304,17 @@
             :rows="3"
             placeholder="请输入考试描述"
           />
+        </el-form-item>
+        
+        <el-form-item label="班级" prop="classId">
+          <el-select v-model="createExamForm.classId" placeholder="请选择班级" style="width: 100%">
+            <el-option
+              v-for="classItem in classList"
+              :key="classItem.id"
+              :label="classItem.className"
+              :value="classItem.id"
+            />
+          </el-select>
         </el-form-item>
         
         <el-row :gutter="20">
@@ -515,6 +519,9 @@ const createExamFormRules = {
   examName: [
     { required: true, message: '请输入考试名称', trigger: 'blur' }
   ],
+  classId: [
+    { required: true, message: '请选择班级', trigger: 'change' }
+  ],
   startTime: [
     { required: true, message: '请选择开始时间', trigger: 'change' }
   ],
@@ -542,7 +549,6 @@ const pagination = reactive({
 const createForm = reactive({
   paperName: '',
   description: '',
-  classId: null,
   courseId: null,
   durationMinutes: 120,
   totalQuestions: 20,
@@ -566,9 +572,6 @@ const createForm = reactive({
 const createFormRules = {
   paperName: [
     { required: true, message: '请输入试卷名称', trigger: 'blur' }
-  ],
-  classId: [
-    { required: true, message: '请选择班级', trigger: 'change' }
   ],
   courseId: [
     { required: true, message: '请选择课程', trigger: 'change' }
@@ -665,15 +668,6 @@ const handleCreatePaper = () => {
   resetCreateForm()
 }
 
-const handleClassChange = (classId) => {
-  // 根据班级加载对应的课程
-  const selectedClass = classList.value.find(c => c.id === classId)
-  if (selectedClass) {
-    // 这里可以根据班级筛选课程
-    loadCourseList()
-  }
-  createForm.courseId = null
-}
 
 const handleConfirmCreate = async () => {
   try {
@@ -722,7 +716,7 @@ const handleViewQuestions = async (row) => {
 const handleCreateExam = (row) => {
   currentPaperForExam.value = row
   createExamForm.paperId = row.id
-  createExamForm.classId = row.classId
+  createExamForm.classId = null // 不再从试卷继承，需要手动选择班级
   createExamForm.examName = `${row.paperName} - 考试`
   createExamForm.durationMinutes = row.durationMinutes
   createExamDialogVisible.value = true
@@ -782,7 +776,6 @@ const resetCreateForm = () => {
   Object.assign(createForm, {
     paperName: '',
     description: '',
-    classId: null,
     courseId: null,
     durationMinutes: 120,
     totalQuestions: 20,

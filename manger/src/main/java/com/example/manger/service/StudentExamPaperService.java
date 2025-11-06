@@ -131,7 +131,7 @@ public class StudentExamPaperService {
                 questionData.put("answers", answerList);
             }
             
-            // 处理程序题的特殊字段（编程语言）
+            // 处理程序题的特殊字段（编程语言和测试用例）
             if (question.getType() == Question.QuestionType.PROGRAMMING) {
                 // 从数据库读取编程语言，如果没有则使用默认值 JAVA
                 String programmingLanguage = question.getProgrammingLanguage();
@@ -139,6 +139,19 @@ public class StudentExamPaperService {
                     programmingLanguage = "JAVA"; // 默认值
                 }
                 questionData.put("programmingLanguage", programmingLanguage);
+                
+                // 添加测试用例（仅程序题）
+                if (question.getTestCases() != null && !question.getTestCases().isEmpty()) {
+                    List<Map<String, Object>> testCases = question.getTestCases().stream()
+                        .map(testCaseMap -> {
+                            Map<String, Object> testCase = new HashMap<>();
+                            testCase.put("input", testCaseMap.get("input"));
+                            testCase.put("output", testCaseMap.get("output"));
+                            return testCase;
+                        })
+                        .collect(Collectors.toList());
+                    questionData.put("testCases", testCases);
+                }
             }
             
             questionResponseList.add(questionData);

@@ -53,6 +53,19 @@ public class QuestionService {
                 programmingLanguage = "JAVA"; // 默认值
             }
             question.setProgrammingLanguage(programmingLanguage);
+            
+            // 保存测试用例到Question的JSON字段（仅程序题）
+            if (request.getTestCases() != null && !request.getTestCases().isEmpty()) {
+                List<Map<String, Object>> testCases = request.getTestCases().stream()
+                    .map(testCaseRequest -> {
+                        Map<String, Object> testCase = new java.util.HashMap<>();
+                        testCase.put("input", testCaseRequest.getInput() != null ? testCaseRequest.getInput() : "");
+                        testCase.put("output", testCaseRequest.getOutput() != null ? testCaseRequest.getOutput() : "");
+                        return testCase;
+                    })
+                    .collect(Collectors.toList());
+                question.setTestCases(testCases);
+            }
         }
         question.setCreatedBy(userId);
         
@@ -119,9 +132,26 @@ public class QuestionService {
                 programmingLanguage = "JAVA"; // 默认值
             }
             question.setProgrammingLanguage(programmingLanguage);
+            
+            // 保存测试用例到Question的JSON字段（仅程序题）
+            if (request.getTestCases() != null && !request.getTestCases().isEmpty()) {
+                List<Map<String, Object>> testCases = request.getTestCases().stream()
+                    .map(testCaseRequest -> {
+                        Map<String, Object> testCase = new java.util.HashMap<>();
+                        testCase.put("input", testCaseRequest.getInput() != null ? testCaseRequest.getInput() : "");
+                        testCase.put("output", testCaseRequest.getOutput() != null ? testCaseRequest.getOutput() : "");
+                        return testCase;
+                    })
+                    .collect(Collectors.toList());
+                question.setTestCases(testCases);
+            } else {
+                // 如果没有提供测试用例，清空测试用例
+                question.setTestCases(null);
+            }
         } else if (request.getType() != Question.QuestionType.PROGRAMMING) {
-            // 如果不是程序题，清空编程语言字段
+            // 如果不是程序题，清空编程语言和测试用例字段
             question.setProgrammingLanguage(null);
+            question.setTestCases(null);
         }
         
         // 保存选择题选项到Question的JSON字段
@@ -306,6 +336,20 @@ public class QuestionService {
         response.setExplanation(question.getExplanation());
         // 设置编程语言（仅程序题）
         response.setProgrammingLanguage(question.getProgrammingLanguage());
+        
+        // 从JSON字段读取测试用例数据（仅程序题）
+        if (question.getTestCases() != null && !question.getTestCases().isEmpty()) {
+            List<QuestionResponse.TestCaseResponse> testCaseResponses = question.getTestCases().stream()
+                .map(testCaseMap -> {
+                    QuestionResponse.TestCaseResponse testCaseResponse = new QuestionResponse.TestCaseResponse();
+                    testCaseResponse.setInput(String.valueOf(testCaseMap.get("input")));
+                    testCaseResponse.setOutput(String.valueOf(testCaseMap.get("output")));
+                    return testCaseResponse;
+                })
+                .collect(Collectors.toList());
+            response.setTestCases(testCaseResponses);
+        }
+        
         response.setIsActive(question.getIsActive());
         response.setCreatedBy(question.getCreatedBy());
         response.setCreatedAt(question.getCreatedAt());
