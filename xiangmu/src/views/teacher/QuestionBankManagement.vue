@@ -364,7 +364,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Refresh, Upload } from '@element-plus/icons-vue'
 import { getQuestions, deleteQuestion, batchDeleteQuestions, getQuestionStatistics, importQuestions } from '../../api/admin'
@@ -390,6 +390,34 @@ const searchForm = reactive({
   difficulty: '',
   keyword: ''
 })
+
+// 防抖函数
+const debounce = (func, wait) => {
+  let timeout
+  return function executedFunction(...args) {
+    const later = () => {
+      clearTimeout(timeout)
+      func(...args)
+    }
+    clearTimeout(timeout)
+    timeout = setTimeout(later, wait)
+  }
+}
+
+// 防抖搜索函数
+const debouncedSearch = debounce(() => {
+  pagination.page = 1
+  loadQuestionList()
+}, 500)
+
+// 监听搜索表单变化
+watch(
+  () => [searchForm.type, searchForm.difficulty, searchForm.keyword],
+  () => {
+    debouncedSearch()
+  },
+  { deep: true }
+)
 
 // 分页信息
 const pagination = reactive({
