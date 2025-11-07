@@ -175,34 +175,53 @@
               <div :id="'code-editor-' + index" class="code-editor"></div>
             </div>
             
-            <!-- 测试输入框 -->
-            <div class="test-input-container" style="margin-top: 12px; margin-bottom: 12px;">
+            <!-- 测试用例列表 -->
+            <div v-if="questions[index].testCases && questions[index].testCases.length > 0" class="test-cases-container" style="margin-top: 12px; margin-bottom: 12px;">
               <div style="margin-bottom: 8px; font-size: 14px; color: #606266; font-weight: 500;">
-                测试输入（可选，用于程序题测试，每行一个输入）：
+                测试用例（{{ questions[index].testCases.length }} 个）：
               </div>
-              <el-input
-                v-model="testInputs[index]"
-                type="textarea"
-                :rows="3"
-                placeholder="例如输入两个整数：&#10;5&#10;3"
-                style="font-family: 'Consolas', 'Monaco', 'Courier New', monospace;"
-              />
-              <div style="margin-top: 6px; font-size: 12px; color: #909399;">
-                提示：对于需要从标准输入读取数据的程序，在此输入测试数据（每行一个值）
+              <div v-for="(testCase, testCaseIndex) in questions[index].testCases" :key="testCaseIndex" 
+                   class="test-case-item" 
+                   style="margin-bottom: 12px; padding: 12px; background: #f5f7fa; border-radius: 4px; border: 1px solid #e4e7ed;">
+                <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                  <span style="font-weight: 500; color: #303133;">用例 {{ testCaseIndex + 1 }}：</span>
+                  <el-tag 
+                    v-if="testCaseResults[index] && testCaseResults[index][testCaseIndex]"
+                    :type="testCaseResults[index][testCaseIndex].passed ? 'success' : 'danger'"
+                    size="small"
+                    style="margin-left: 8px;"
+                  >
+                    {{ testCaseResults[index][testCaseIndex].passed ? '通过' : '失败' }}
+                  </el-tag>
+                </div>
+                <div style="margin-bottom: 6px;">
+                  <span style="color: #909399; font-size: 12px;">输入：</span>
+                  <pre style="display: inline-block; margin: 0; padding: 4px 8px; background: #fff; border-radius: 2px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 12px;">{{ testCase.input || '(无)' }}</pre>
+                </div>
+                <div>
+                  <span style="color: #909399; font-size: 12px;">期望输出：</span>
+                  <pre style="display: inline-block; margin: 0; padding: 4px 8px; background: #fff; border-radius: 2px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 12px;">{{ testCase.output || '(无)' }}</pre>
+                </div>
+                <div v-if="testCaseResults[index] && testCaseResults[index][testCaseIndex] && !testCaseResults[index][testCaseIndex].passed" 
+                     style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #e4e7ed;">
+                  <span style="color: #f56c6c; font-size: 12px;">实际输出：</span>
+                  <pre style="display: inline-block; margin: 0; padding: 4px 8px; background: #fef0f0; border-radius: 2px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 12px; color: #f56c6c;">{{ testCaseResults[index][testCaseIndex].actualOutput || '(无)' }}</pre>
+                </div>
               </div>
             </div>
             
             <div class="save-button-container">
               <el-button 
+                v-if="questions[index].testCases && questions[index].testCases.length > 0"
                 type="success" 
                 size="small" 
-                @click="runCode(index)"
+                @click="runAllTestCases(index)"
                 :loading="codeRunning[index]"
                 :disabled="!programmingAnswers[index] || programmingAnswers[index].trim() === ''"
                 style="margin-right: 12px;"
               >
                 <el-icon><Loading v-if="codeRunning[index]" /><CaretRight v-else /></el-icon>
-                运行代码
+                运行所有测试用例
               </el-button>
               <el-button 
                 type="primary" 
@@ -307,6 +326,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Edit, View, Check, Refresh, Loading, CaretRight } from '@element-plus/icons-vue'
 import { studentExamApi } from '@/api/admin'
 import { executeCode } from '@/api/user'
+import serverTimeSync from '@/utils/serverTime'
 
 // 导入 CodeMirror 6（轻量级、易配置、性能好，无需 worker 配置）
 import { EditorView, lineNumbers, keymap } from '@codemirror/view'
@@ -335,7 +355,7 @@ const lastSaveTime = ref(null)
 const isAutoSaving = ref(false)
 const lastAutoSaveAt = ref(null)
 const codeRunning = ref({}) // 每个程序题的运行状态
-const testInputs = ref({}) // 每个程序题的测试输入数据
+const testCaseResults = ref({}) // 每个程序题的测试用例执行结果 { [questionIndex]: { [testCaseIndex]: { passed, actualOutput } } }
 const codeResultDialog = ref({ // 代码执行结果对话框
   visible: false,
   result: {
@@ -387,8 +407,8 @@ const formatTime = (seconds) => {
 const formatSaveTime = (saveTime) => {
   if (!saveTime) return ''
   
-  const now = new Date()
-  const diff = now - saveTime
+  const now = serverTimeSync.getServerTime()
+  const diff = now - (saveTime instanceof Date ? saveTime : new Date(saveTime))
   const minutes = Math.floor(diff / 60000)
   
   if (minutes < 1) {
@@ -455,8 +475,8 @@ const getQuestionTypeLabel = (questionType) => {
 // 开始计时器
 const startTimer = () => {
   timer = setInterval(() => {
-    // 重新计算剩余时间（基于个人有效截止时间）
-    const now = new Date()
+    // 重新计算剩余时间（基于个人有效截止时间，使用服务器时间）
+    const now = serverTimeSync.getServerTime()
     const windowEnd = new Date(examInfo.value.endTime)
     let effectiveEnd = windowEnd
     if (examInfo.value.allowedEndTime) {
@@ -522,8 +542,8 @@ const loadExamData = async () => {
         isRandomOptions: paperData.isRandomOptions
       }
       
-      // 检查考试是否已结束
-      const now = new Date()
+      // 检查考试是否已结束（使用服务器时间）
+      const now = serverTimeSync.getServerTime()
       const endTime = new Date(examInfo.value.endTime)
       if (now > endTime) {
         ElMessage.error('考试已结束')
@@ -550,11 +570,19 @@ const loadExamData = async () => {
           options: q.options || [],
           answers: q.answers || [],
           images: q.images || null,
-          programmingLanguage: q.programmingLanguage || 'JAVA'
+          programmingLanguage: q.programmingLanguage || 'JAVA',
+          testCases: q.testCases || [] // 添加测试用例
         }
       })
       
-      // 计算剩余时间（基于个人有效截止时间：窗口截止与个人时长截止的较早者）
+      // 初始化测试用例结果
+      questions.value.forEach((q, idx) => {
+        if (q.questionType === 'PROGRAMMING' && q.testCases && q.testCases.length > 0) {
+          testCaseResults.value[idx] = {}
+        }
+      })
+      
+      // 计算剩余时间（基于个人有效截止时间：窗口截止与个人时长截止的较早者，使用服务器时间）
       const allowedEnd = paperData.allowedEndTime ? new Date(paperData.allowedEndTime) : endTime
       const remainingSeconds = Math.max(0, Math.floor((allowedEnd - now) / 1000))
       timeLeft.value = remainingSeconds
@@ -728,6 +756,11 @@ const onLanguageChange = (questionIndex, newLanguage) => {
   
   // 更新选择的语言
   selectedLanguages.value[questionIndex] = newLanguage
+  
+  // 清除该题目的测试用例结果（切换语言后，之前的测试结果不准确）
+  if (testCaseResults.value[questionIndex]) {
+    testCaseResults.value[questionIndex] = {}
+  }
   
   // CodeMirror 6 切换语言：保存代码、销毁旧编辑器、重新初始化
   const editor = codeEditors.value[questionIndex]
@@ -935,11 +968,22 @@ const saveProgrammingCode = (questionIndex) => {
   ElMessage.success('代码已保存')
 }
 
-// 运行代码
-const runCode = async (questionIndex) => {
+// 比较输出（去除末尾空白字符和换行符）
+const normalizeOutput = (output) => {
+  if (!output) return ''
+  return output.trimEnd().replace(/\r\n/g, '\n')
+}
+
+// 运行所有测试用例
+const runAllTestCases = async (questionIndex) => {
   const question = questions.value[questionIndex]
   if (!question || question.questionType !== 'PROGRAMMING') {
     ElMessage.warning('该题目不是程序题')
+    return
+  }
+  
+  if (!question.testCases || question.testCases.length === 0) {
+    ElMessage.warning('该题目没有测试用例')
     return
   }
   
@@ -951,33 +995,58 @@ const runCode = async (questionIndex) => {
   
   const language = selectedLanguages.value[questionIndex] || question.programmingLanguage || 'JAVA'
   
-  // 获取测试输入数据
-  const testInput = testInputs.value[questionIndex] || ''
-  
   // 设置运行状态
   codeRunning.value[questionIndex] = true
   
+  // 初始化测试用例结果
+  if (!testCaseResults.value[questionIndex]) {
+    testCaseResults.value[questionIndex] = {}
+  }
+  
   try {
-    // 调用代码执行 API
-    const response = await executeCode({
-      code: code,
-      language: language,
-      input: testInput.trim(), // 使用用户输入的测试数据
-      timeoutSeconds: 10 // 超时时间（秒）
-    })
-    
-    // 显示执行结果
-    if (response.code === 200 && response.data) {
-      codeResultDialog.value.result = {
-        success: response.data.success || false,
-        output: response.data.output || '',
-        error: response.data.error || null,
-        executionTimeMs: response.data.executionTimeMs || 0,
-        exitCode: response.data.exitCode || 0
+    // 逐个执行测试用例
+    for (let i = 0; i < question.testCases.length; i++) {
+      const testCase = question.testCases[i]
+      const testInput = testCase.input || ''
+      
+      // 调用代码执行 API
+      const response = await executeCode({
+        code: code,
+        language: language,
+        input: testInput.trim(),
+        timeoutSeconds: 10
+      })
+      
+      // 比较实际输出和期望输出
+      if (response.code === 200 && response.data) {
+        const actualOutput = normalizeOutput(response.data.output || '')
+        const expectedOutput = normalizeOutput(testCase.output || '')
+        const passed = actualOutput === expectedOutput && response.data.success
+        
+        testCaseResults.value[questionIndex][i] = {
+          passed: passed,
+          actualOutput: response.data.output || '',
+          error: response.data.error || null,
+          executionTimeMs: response.data.executionTimeMs || 0
+        }
+      } else {
+        testCaseResults.value[questionIndex][i] = {
+          passed: false,
+          actualOutput: '',
+          error: response.message || '执行失败',
+          executionTimeMs: 0
+        }
       }
-      codeResultDialog.value.visible = true
+    }
+    
+    // 统计通过数量
+    const passedCount = Object.values(testCaseResults.value[questionIndex]).filter(r => r.passed).length
+    const totalCount = question.testCases.length
+    
+    if (passedCount === totalCount) {
+      ElMessage.success(`所有测试用例通过！(${passedCount}/${totalCount})`)
     } else {
-      ElMessage.error('执行失败: ' + (response.message || '未知错误'))
+      ElMessage.warning(`部分测试用例未通过：${passedCount}/${totalCount}`)
     }
   } catch (error) {
     console.error('Code execution error:', error)
@@ -1039,7 +1108,7 @@ const saveDraftToServer = async (isAuto = false) => {
     const resp = await studentExamApi.saveStudentExamDraft(examId, payload)
     if (resp.code === 200) {
       saveAnswersToLocal()
-      lastAutoSaveAt.value = new Date()
+      lastAutoSaveAt.value = serverTimeSync.getServerTime()
       if (!isAuto) {
         ElMessage.success('保存成功')
       }
@@ -1089,13 +1158,13 @@ const saveAnswersToLocal = () => {
       essayAnswers: essayAnswers.value,
       programmingAnswers: programmingAnswers.value, // 包含程序题答案
       selectedLanguages: selectedLanguages.value, // 包含选择的编程语言
-      saveTime: new Date().toISOString()
+      saveTime: serverTimeSync.getServerTime().toISOString()
     }
     
     console.log('ExamPreview - Saving to local storage for exam:', examId, 'Data:', saveData)
     
     localStorage.setItem(`exam_${examId}_answers`, JSON.stringify(saveData))
-    lastSaveTime.value = new Date()
+    lastSaveTime.value = serverTimeSync.getServerTime()
   } catch (error) {
     console.error('Save to local storage error:', error)
   }
@@ -1569,6 +1638,9 @@ watch(() => route.path, (newPath, oldPath) => {
 
 onMounted(async () => {
   try {
+    // 初始化服务器时间同步（在加载考试数据之前）
+    await serverTimeSync.init()
+    
     // 先加载考试数据
     await loadExamData()
     
@@ -1619,6 +1691,9 @@ onBeforeUnmount(() => {
   
   // 移除事件监听器
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  
+  // 停止服务器时间同步
+  serverTimeSync.stop()
 })
 
 // onUnmounted 已经移到 onBeforeUnmount，这里保留作为备份

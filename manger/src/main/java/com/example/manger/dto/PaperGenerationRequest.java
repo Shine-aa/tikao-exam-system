@@ -19,7 +19,7 @@ public class PaperGenerationRequest {
     
     private String description;
     
-    @NotNull(message = "班级ID不能为空")
+    // 班级ID可选，试卷可以被多个班级使用
     private Long classId;
     
     @NotNull(message = "课程ID不能为空")

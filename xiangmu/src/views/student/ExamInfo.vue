@@ -112,6 +112,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Warning, ArrowLeft, VideoPlay, View, Clock } from '@element-plus/icons-vue'
 import { studentExamApi } from '@/api/admin'
+import serverTimeSync from '@/utils/serverTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -120,13 +121,13 @@ const examInfo = ref({})
 const agreedToTerms = ref(false)
 const loading = ref(false)
 
-// 计算是否可以开始考试
+// 计算是否可以开始考试（使用服务器时间）
 const canStartExam = computed(() => {
   if (!examInfo.value) return false
   
   const status = examInfo.value.status
   const studentStatus = examInfo.value.studentExamStatus
-  const now = new Date()
+  const now = serverTimeSync.isSynced() ? serverTimeSync.getServerTime() : new Date()
   const startTime = new Date(examInfo.value.startTime)
   const endTime = new Date(examInfo.value.endTime)
   
@@ -178,7 +179,7 @@ const handleButtonClick = async () => {
   
   const status = examInfo.value.status
   const studentStatus = examInfo.value.studentExamStatus
-  const now = new Date()
+  const now = serverTimeSync.isSynced() ? serverTimeSync.getServerTime() : new Date()
   const startTime = new Date(examInfo.value.startTime)
   const endTime = new Date(examInfo.value.endTime)
   
@@ -231,7 +232,7 @@ const getButtonText = () => {
   
   const status = examInfo.value.status
   const studentStatus = examInfo.value.studentExamStatus
-  const now = new Date()
+  const now = serverTimeSync.isSynced() ? serverTimeSync.getServerTime() : new Date()
   const startTime = new Date(examInfo.value.startTime)
   const endTime = new Date(examInfo.value.endTime)
   
@@ -277,7 +278,11 @@ const viewResults = () => {
   router.push(`/user/exam/${examId}/result`)
 }
 
-onMounted(() => {
+onMounted(async () => {
+  // 初始化服务器时间同步
+  await serverTimeSync.init().catch(error => {
+    console.error('服务器时间同步初始化失败:', error)
+  })
   loadExamInfo()
 })
 </script>

@@ -8,6 +8,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * 通用API控制器
  */
@@ -24,6 +29,22 @@ public class CommonController {
     public ApiResponse<String> getClientIP(HttpServletRequest request) {
         String ipAddress = getClientIpAddress(request);
         return ApiResponse.success(ipAddress);
+    }
+
+    /**
+     * 获取服务器当前时间
+     */
+    @GetMapping("/server-time")
+    @Operation(summary = "获取服务器时间", description = "获取服务器当前时间，用于客户端时间同步，防止客户端时间被修改")
+    public ApiResponse<Map<String, Object>> getServerTime() {
+        LocalDateTime serverTime = LocalDateTime.now();
+        long timestamp = System.currentTimeMillis();
+        
+        Map<String, Object> timeData = new HashMap<>();
+        timeData.put("serverTime", serverTime.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        timeData.put("timestamp", timestamp);
+        
+        return ApiResponse.success(timeData);
     }
 
     /**

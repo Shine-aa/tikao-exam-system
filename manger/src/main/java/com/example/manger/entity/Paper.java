@@ -36,7 +36,7 @@ public class Paper {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
     
-    @Column(name = "class_id", nullable = false)
+    @Column(name = "class_id", nullable = true)
     private Long classId;
     
     @Column(name = "course_id", nullable = false)

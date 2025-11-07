@@ -38,19 +38,22 @@ public class PaperGenerationService {
      */
     @Transactional
     public PaperResponse generatePaper(PaperGenerationRequest request, Long teacherId) {
-        // 验证班级和课程是否存在
-        com.example.manger.entity.Class classEntity = classRepository.findById(request.getClassId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
-        
+        // 验证课程是否存在
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在"));
+        
+        // 如果提供了班级ID，验证班级是否存在
+        if (request.getClassId() != null) {
+            classRepository.findById(request.getClassId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
+        }
         
         // 创建试卷
         Paper paper = new Paper();
         paper.setPaperCode(generatePaperCode());
         paper.setPaperName(request.getPaperName());
         paper.setDescription(request.getDescription());
-        paper.setClassId(request.getClassId());
+        paper.setClassId(request.getClassId()); // 可以为null，试卷可以被多个班级使用
         paper.setCourseId(request.getCourseId());
         paper.setTeacherId(teacherId);
         paper.setDurationMinutes(request.getDurationMinutes());
@@ -345,9 +348,11 @@ public class PaperGenerationService {
         PaperResponse response = new PaperResponse();
         BeanUtils.copyProperties(paper, response);
         
-        // 设置班级名称
-        classRepository.findById(paper.getClassId())
-                .ifPresent(clazz -> response.setClassName(clazz.getClassName()));
+        // 设置班级名称（如果试卷绑定了班级）
+        if (paper.getClassId() != null) {
+            classRepository.findById(paper.getClassId())
+                    .ifPresent(clazz -> response.setClassName(clazz.getClassName()));
+        }
         
         // 设置课程信息
         courseRepository.findById(paper.getCourseId())

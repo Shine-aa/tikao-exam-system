@@ -85,3 +85,11 @@ export function executeCode(data) {
     data
   })
 }
+
+// 获取服务器时间
+export function getServerTime() {
+  return request({
+    url: '/api/common/server-time',
+    method: 'get'
+  })
+}
