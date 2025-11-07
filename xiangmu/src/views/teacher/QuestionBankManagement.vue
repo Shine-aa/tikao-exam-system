@@ -360,14 +360,153 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- 新增/编辑题目对话框 -->
+    <el-dialog
+      v-model="editDialogVisible"
+      :title="editDialogTitle"
+      width="70%"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        v-if="editingQuestion"
+        :model="editingQuestion"
+        :rules="rules"
+        ref="editFormRef"
+        label-width="100px"
+      >
+        <el-form-item label="题目标题" prop="title">
+          <el-input v-model="editingQuestion.title" placeholder="请输入题目标题" />
+        </el-form-item>
+
+        <el-form-item label="题目内容" prop="content">
+          <el-input
+            v-model="editingQuestion.content"
+            type="textarea"
+            rows="4"
+            placeholder="请输入题目内容"
+          />
+        </el-form-item>
+
+        <el-form-item label="题目类型" prop="type">
+          <el-select v-model="editingQuestion.type" placeholder="请选择题目类型">
+            <el-option label="单选题" value="SINGLE_CHOICE" />
+            <el-option label="多选题" value="MULTIPLE_CHOICE" />
+            <el-option label="判断题" value="TRUE_FALSE" />
+            <el-option label="填空题" value="FILL_BLANK" />
+            <el-option label="主观题" value="SUBJECTIVE" />
+            <el-option label="程序题" value="PROGRAMMING" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="难度" prop="difficulty">
+          <el-select v-model="editingQuestion.difficulty" placeholder="请选择难度">
+            <el-option label="简单" value="EASY" />
+            <el-option label="中等" value="MEDIUM" />
+            <el-option label="困难" value="HARD" />
+          </el-select>
+        </el-form-item>
+
+        <el-form-item label="分值" prop="points">
+          <el-input-number v-model="editingQuestion.points" :min="1" :max="100" />
+        </el-form-item>
+
+        <!-- 选择题选项 -->
+        <template v-if="editingQuestion.type === 'SINGLE_CHOICE' || editingQuestion.type === 'MULTIPLE_CHOICE'">
+          <el-form-item label="选项">
+            <div v-for="(option, index) in editingQuestion.options" :key="index" class="option-input-group">
+              <el-checkbox
+                v-model="option.isCorrect"
+                @change="(val) => handleOptionChange(option, index, val)"
+                style="margin-right: 10px"
+              >{{ option.optionKey }}.</el-checkbox>
+              <el-input
+                v-model="option.optionContent"
+                placeholder="请输入选项内容"
+                style="width: calc(100% - 50px)"
+              />
+            </div>
+            <el-button type="primary" plain @click="addOption" size="small" style="margin-top: 10px">
+              添加选项
+            </el-button>
+          </el-form-item>
+        </template>
+
+        <!-- 判断题选项 -->
+        <template v-else-if="editingQuestion.type === 'TRUE_FALSE'">
+          <el-form-item label="选项">
+            <div class="option-input-group">
+              <el-checkbox
+                v-model="editingQuestion.options[0].isCorrect"
+                @change="(val) => handleOptionChange(editingQuestion.options[0], 0, val)"
+                style="margin-right: 10px"
+              >正确</el-checkbox>
+            </div>
+            <div class="option-input-group">
+              <el-checkbox
+                v-model="editingQuestion.options[1].isCorrect"
+                @change="(val) => handleOptionChange(editingQuestion.options[1], 1, val)"
+                style="margin-right: 10px"
+              >错误</el-checkbox>
+            </div>
+          </el-form-item>
+        </template>
+
+        <!-- 程序题特有字段 -->
+        <template v-if="editingQuestion.type === 'PROGRAMMING'">
+          <el-form-item label="编程语言">
+            <el-select v-model="editingQuestion.programmingLanguage" placeholder="请选择编程语言">
+              <el-option label="Java" value="JAVA" />
+              <el-option label="Python" value="PYTHON" />
+              <el-option label="C++" value="CPP" />
+              <el-option label="C" value="C" />
+            </el-select>
+          </el-form-item>
+        </template>
+
+        <!-- 正确答案 - 仅在填空题、主观题和程序题时显示并必填 -->
+        <template v-if="editingQuestion.type === 'FILL_BLANK' || editingQuestion.type === 'SUBJECTIVE' || editingQuestion.type === 'PROGRAMMING'">
+          <el-form-item label="正确答案" :prop="'correctAnswer'">
+            <el-input
+              v-model="editingQuestion.correctAnswer"
+              type="textarea"
+              rows="2"
+              placeholder="请输入正确答案"
+            />
+          </el-form-item>
+        </template>
+
+        <el-form-item label="标签">
+          <el-input v-model="editingQuestion.tags" placeholder="多个标签用逗号分隔" />
+        </el-form-item>
+
+        <el-form-item label="答案解析">
+          <el-input
+            v-model="editingQuestion.explanation"
+            type="textarea"
+            rows="3"
+            placeholder="请输入答案解析"
+          />
+        </el-form-item>
+
+        <el-form-item label="图片路径">
+          <el-input v-model="editingQuestion.images" placeholder="多个图片路径用分号分隔" />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitQuestion">提交</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Refresh, Upload } from '@element-plus/icons-vue'
-import { getQuestions, deleteQuestion, batchDeleteQuestions, getQuestionStatistics, importQuestions } from '../../api/admin'
+import { Plus, Delete, Refresh, Upload, Check } from '@element-plus/icons-vue'
+import { getQuestions, deleteQuestion, batchDeleteQuestions, getQuestionStatistics, importQuestions, createQuestion, updateQuestion } from '../../api/admin'
 
 // 响应式数据
 const loading = ref(false)
@@ -376,6 +515,8 @@ const selectedQuestions = ref([])
 const statistics = ref({})
 const detailDialogVisible = ref(false)
 const currentQuestion = ref(null)
+const editingQuestion = ref(null)
+
 
 // 导入相关
 const importDialogVisible = ref(false)
@@ -417,6 +558,32 @@ watch(
     debouncedSearch()
   },
   { deep: true }
+)
+
+// 监听题目类型变化，自动更新选项
+watch(
+  () => editingQuestion.value?.type,
+  (newType, oldType) => {
+    // 确保editingQuestion.value存在再进行操作
+    if (!editingQuestion.value) return
+    
+    // 当类型从非判断题变为判断题时，更新选项
+    if (newType === 'TRUE_FALSE' && newType !== oldType) {
+      editingQuestion.value.options = [
+        { optionKey: 'A', optionContent: '正确', isCorrect: false },
+        { optionKey: 'B', optionContent: '错误', isCorrect: false }
+      ]
+    } 
+    // 当类型从判断题变为其他选择题类型时，重置为默认选项
+    else if (newType !== 'TRUE_FALSE' && oldType === 'TRUE_FALSE' && ['SINGLE_CHOICE', 'MULTIPLE_CHOICE'].includes(newType)) {
+      editingQuestion.value.options = [
+        { optionKey: 'A', optionContent: '', isCorrect: false },
+        { optionKey: 'B', optionContent: '', isCorrect: false },
+        { optionKey: 'C', optionContent: '', isCorrect: false },
+        { optionKey: 'D', optionContent: '', isCorrect: false }
+      ]
+    }
+  }
 )
 
 // 分页信息
@@ -467,6 +634,182 @@ const getDifficultyDescription = (difficulty) => {
     'HARD': '困难'
   }
   return difficultyMap[difficulty] || difficulty
+}
+
+// 提交新增/编辑题目
+const submitQuestion = async () => {
+  try {
+    let response
+    // 准备提交数据
+    const submitData = {
+      title: editingQuestion.value.title,
+      content: editingQuestion.value.content,
+      type: editingQuestion.value.type,
+      difficulty: editingQuestion.value.difficulty,
+      points: editingQuestion.value.points,
+      tags: editingQuestion.value.tags,
+      explanation: editingQuestion.value.explanation,
+      programmingLanguage: editingQuestion.value.programmingLanguage,
+      images: editingQuestion.value.images
+    }
+    
+    // 根据题型处理不同的数据格式
+    if (['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'].includes(editingQuestion.value.type)) {
+      // 处理选项
+      if (editingQuestion.value.options) {
+        // 对于判断题，确保有正确的选项内容
+        if (editingQuestion.value.type === 'TRUE_FALSE') {
+          // 确保判断题有两个选项，并且内容正确
+          if (editingQuestion.value.options.length < 2) {
+            editingQuestion.value.options = [
+              { optionKey: 'A', optionContent: '正确', isCorrect: false },
+              { optionKey: 'B', optionContent: '错误', isCorrect: false }
+            ]
+          } else {
+            // 确保选项内容正确
+            editingQuestion.value.options[0].optionKey = 'A'
+            editingQuestion.value.options[0].optionContent = '正确'
+            editingQuestion.value.options[1].optionKey = 'B'
+            editingQuestion.value.options[1].optionContent = '错误'
+          }
+        }
+        
+        submitData.options = editingQuestion.value.options
+          .filter(opt => opt.optionContent && opt.optionContent.trim())
+          .map((opt) => ({
+            optionKey: opt.optionKey,
+            optionContent: opt.optionContent.trim(),
+            isCorrect: opt.isCorrect ? 1 : 0
+          }))
+      }
+      
+      // 构建答案列表 - 确保至少有一个正确答案
+      const correctOptions = editingQuestion.value.options
+        .filter(option => option.isCorrect)
+        .map(option => ({
+          answerContent: option.optionKey
+        }))
+        
+      if (correctOptions.length === 0) {
+        ElMessage.warning('请至少选择一个正确答案')
+        return
+      }
+      
+      submitData.answers = correctOptions
+      // 清空非选择题的correctAnswer字段
+      delete submitData.correctAnswer
+    } else if (editingQuestion.value.type === 'PROGRAMMING') {
+      // 程序题处理
+      // 构建答案列表
+      if (!editingQuestion.value.correctAnswer || editingQuestion.value.correctAnswer.trim() === '') {
+        ElMessage.warning('请输入正确答案')
+        return
+      }
+      submitData.answers = [{ answerContent: editingQuestion.value.correctAnswer.trim() }]
+      
+      // 如果有测试用例
+      if (editingQuestion.value.testCases && editingQuestion.value.testCases.length > 0) {
+        submitData.testCases = editingQuestion.value.testCases
+          .filter(testCase => testCase.input && testCase.input.trim() && testCase.output && testCase.output.trim())
+          .map(testCase => ({
+            input: testCase.input.trim(),
+            output: testCase.output.trim()
+          }))
+      }
+      // 清空非选择题的correctAnswer字段
+      delete submitData.correctAnswer
+    } else {
+      // 填空题和主观题
+      if (!editingQuestion.value.correctAnswer || editingQuestion.value.correctAnswer.trim() === '') {
+        ElMessage.warning('请输入正确答案')
+        return
+      }
+      // 构建答案列表
+      submitData.answers = [{ answerContent: editingQuestion.value.correctAnswer.trim() }]
+      // 清空非选择题的correctAnswer字段
+      delete submitData.correctAnswer
+    }
+    
+    console.log('提交的数据:', submitData)
+    
+    if (isEditMode.value) {
+      // 编辑模式
+      response = await updateQuestion(editingQuestion.value.id, submitData)
+    } else {
+      // 新增模式
+      response = await createQuestion(submitData)
+    }
+    
+    if (response.code === 200) {
+      ElMessage.success(isEditMode.value ? '题目更新成功' : '题目创建成功')
+      editDialogVisible.value = false
+      loadQuestionList()
+      loadStatistics()
+      // 重置表单
+      resetQuestionForm()
+    } else {
+      ElMessage.error(response.message || (isEditMode.value ? '题目更新失败' : '题目创建失败'))
+    }
+  } catch (error) {
+    console.error('Submit question error:', error)
+    ElMessage.error('操作失败: ' + (error.message || '未知错误'))
+  }
+}
+
+// 重置题目表单
+const resetQuestionForm = () => {
+  editingQuestion.value = {
+    title: '',
+    content: '',
+    type: 'SINGLE_CHOICE',
+    difficulty: 'MEDIUM',
+    points: 5,
+    tags: '',
+    explanation: '',
+    images: '',
+    programmingLanguage: 'JAVA',
+    correctAnswer: '',
+    options: [
+      { optionKey: 'A', optionContent: '', isCorrect: false },
+      { optionKey: 'B', optionContent: '', isCorrect: false },
+      { optionKey: 'C', optionContent: '', isCorrect: false },
+      { optionKey: 'D', optionContent: '', isCorrect: false }
+    ],
+    testCases: []
+  }
+}
+
+// 处理选项变化
+const handleOptionChange = (option, index, checked) => {
+  // 单选题只能有一个正确选项
+  if (editingQuestion.value.type === 'SINGLE_CHOICE') {
+    // 如果当前选项被选中
+    if (checked) {
+      // 先重置所有选项
+      editingQuestion.value.options.forEach(opt => {
+        opt.isCorrect = false
+      })
+      // 再将当前点击的选项设为正确
+      option.isCorrect = true
+    } else {
+      // 如果取消选中，直接设置为false
+      option.isCorrect = false
+    }
+  } else {
+    // 多选题和判断题可以有多个正确选项，直接使用v-model的值
+    option.isCorrect = checked
+  }
+}
+
+// 添加选项
+const addOption = () => {
+  const lastOption = editingQuestion.value.options[editingQuestion.value.options.length - 1]
+  const nextKey = String.fromCharCode(lastOption.optionKey.charCodeAt(0) + 1)
+  editingQuestion.value.options.push({
+    optionKey: nextKey,
+    optionContent: '',
+    isCorrect: false
+  })
 }
 
 // 方法
@@ -530,9 +873,68 @@ const handleReset = () => {
   loadQuestionList()
 }
 
+// 新增/编辑题目对话框相关
+const editDialogVisible = ref(false)
+const editDialogTitle = ref('新增题目')
+const isEditMode = ref(false)
+
+// 表单验证规则
+const rules = {
+  title: [
+    { required: true, message: '请输入题目标题', trigger: 'blur' }
+  ],
+  content: [
+    { required: true, message: '请输入题目内容', trigger: 'blur' }
+  ],
+  type: [
+    { required: true, message: '请选择题目类型', trigger: 'change' }
+  ],
+  difficulty: [
+    { required: true, message: '请选择难度', trigger: 'change' }
+  ],
+  points: [
+    { required: true, message: '请输入分值', trigger: 'blur' },
+    { type: 'number', min: 1, message: '分值必须大于0', trigger: 'blur' }
+  ],
+  correctAnswer: [
+    { 
+      required: (rule, value, callback) => {
+        const questionType = editingQuestion.value?.type;
+        // 只有在填空题、主观题和程序题时才必填
+        if (['FILL_BLANK', 'SUBJECTIVE', 'PROGRAMMING'].includes(questionType)) {
+          return value && value.trim() ? callback() : callback(new Error('请输入正确答案'));
+        }
+        return callback();
+      }, 
+      trigger: 'blur' 
+    }
+  ]
+}
+
 const handleAdd = () => {
-  ElMessage.info('新增题目功能开发中...')
-  // TODO: 实现新增题目功能
+  isEditMode.value = false
+  editDialogTitle.value = '新增题目'
+  const defaultQuestion = {
+    title: '',
+    content: '',
+    type: 'SINGLE_CHOICE',
+    difficulty: 'MEDIUM',
+    points: 3,
+    correctAnswer: '',
+    tags: '',
+    explanation: '',
+    programmingLanguage: '',
+    images: '',
+    options: [
+      { optionKey: 'A', optionContent: '', isCorrect: false },
+      { optionKey: 'B', optionContent: '', isCorrect: false },
+      { optionKey: 'C', optionContent: '', isCorrect: false },
+      { optionKey: 'D', optionContent: '', isCorrect: false }
+    ]
+  }
+  
+  editingQuestion.value = defaultQuestion
+  editDialogVisible.value = true
 }
 
 // 导入相关函数
@@ -610,12 +1012,153 @@ const handleImportCancel = () => {
 }
 
 const handleEdit = (row) => {
-  ElMessage.info('编辑题目功能开发中...')
-  // TODO: 实现编辑题目功能
+  isEditMode.value = true
+  editDialogTitle.value = '编辑题目'
+  // 深拷贝题目数据
+  editingQuestion.value = JSON.parse(JSON.stringify(row))
+  
+  // 转换选项格式：从数据库格式（key/content/correct）转换为前端格式（optionKey/optionContent/isCorrect）
+  if (editingQuestion.value.options && editingQuestion.value.options.length > 0) {
+    editingQuestion.value.options = editingQuestion.value.options.map(opt => {
+      // 如果已经是前端格式（有optionKey），直接使用，但需要处理 isCorrect 的值
+      if (opt.optionKey !== undefined) {
+        return {
+          optionKey: opt.optionKey,
+          optionContent: opt.optionContent || opt.content || '',
+          isCorrect: opt.isCorrect === 1 || opt.isCorrect === true || opt.isCorrect === '1'
+        }
+      }
+      // 如果是数据库格式（有key），转换为前端格式
+      return {
+        optionKey: opt.key || '',
+        optionContent: opt.content || '',
+        isCorrect: opt.correct === 1 || opt.correct === true || opt.correct === '1'
+      }
+    })
+  }
+  
+  // 确保选项格式正确
+  if (!editingQuestion.value.options || editingQuestion.value.options.length === 0) {
+    if (editingQuestion.value.type === 'TRUE_FALSE') {
+      // 判断题特殊处理
+      editingQuestion.value.options = [
+        { optionKey: 'A', optionContent: '正确', isCorrect: false },
+        { optionKey: 'B', optionContent: '错误', isCorrect: false }
+      ]
+    } else {
+      // 其他选择题类型
+      editingQuestion.value.options = [
+        { optionKey: 'A', optionContent: '', isCorrect: false },
+        { optionKey: 'B', optionContent: '', isCorrect: false },
+        { optionKey: 'C', optionContent: '', isCorrect: false },
+        { optionKey: 'D', optionContent: '', isCorrect: false }
+      ]
+    }
+  } else if (editingQuestion.value.type === 'TRUE_FALSE') {
+    // 如果是判断题且已有选项，确保选项内容正确
+    if (editingQuestion.value.options.length < 2) {
+      editingQuestion.value.options = [
+        { optionKey: 'A', optionContent: '正确', isCorrect: editingQuestion.value.options[0]?.isCorrect || false },
+        { optionKey: 'B', optionContent: '错误', isCorrect: false }
+      ]
+    } else {
+      editingQuestion.value.options[0].optionKey = 'A'
+      editingQuestion.value.options[0].optionContent = '正确'
+      editingQuestion.value.options[1].optionKey = 'B'
+      editingQuestion.value.options[1].optionContent = '错误'
+    }
+  }
+  
+  // 恢复选择题和判断题的正确答案回显
+  if (['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE'].includes(editingQuestion.value.type) && editingQuestion.value.options) {
+    // 先检查后端是否已经设置了isCorrect字段（在重置之前检查）
+    const hasBackendIsCorrect = editingQuestion.value.options.some(option => option.isCorrect === true)
+    
+    if (!hasBackendIsCorrect) {
+      // 如果后端没有设置isCorrect，才需要从answers数组中提取
+      // 先重置所有选项的isCorrect状态
+      editingQuestion.value.options.forEach(option => {
+        option.isCorrect = false
+      })
+      
+      // 从answers数组中提取正确答案
+      if (editingQuestion.value.answers && editingQuestion.value.answers.length > 0) {
+        // 判断题和选择题统一处理：通过匹配选项键来设置isCorrect
+        editingQuestion.value.answers.forEach(answer => {
+          if (!answer.answerContent) return
+          
+          const answerContent = answer.answerContent.trim()
+          const answerUpper = answerContent.toUpperCase()
+          
+          if (editingQuestion.value.type === 'TRUE_FALSE') {
+            // 判断题特殊处理：支持多种答案格式
+            // 匹配 "A"、"正确"、"TRUE"、"T" 等 -> 选项A（正确）
+            if (answerUpper === 'A' || 
+                answerContent.includes('正确') || 
+                answerUpper === 'TRUE' || 
+                answerUpper === 'T' ||
+                answerContent === '正确') {
+              const option = editingQuestion.value.options.find(opt => opt.optionKey.toUpperCase() === 'A')
+              if (option) {
+                option.isCorrect = true
+              }
+            }
+            // 匹配 "B"、"错误"、"FALSE"、"F" 等 -> 选项B（错误）
+            else if (answerUpper === 'B' || 
+                     answerContent.includes('错误') || 
+                     answerUpper === 'FALSE' || 
+                     answerUpper === 'F' ||
+                     answerContent === '错误') {
+              const option = editingQuestion.value.options.find(opt => opt.optionKey.toUpperCase() === 'B')
+              if (option) {
+                option.isCorrect = true
+              }
+            }
+          } else {
+            // 单选题和多选题：直接匹配选项键（如 "A", "B", "A,B" 等）
+            // 处理多个答案用逗号分隔的情况（如 "A,B"）
+            const keys = answerUpper.split(/[,，\s]+/).map(k => k.trim())
+            
+            keys.forEach(key => {
+              const option = editingQuestion.value.options.find(opt => opt.optionKey.toUpperCase() === key)
+              if (option) {
+                option.isCorrect = true
+              }
+            })
+          }
+        })
+      }
+    }
+    // 如果后端已经设置了isCorrect，直接使用，不需要做任何处理
+  }
+  
+  editDialogVisible.value = true
 }
 
 const handleView = (row) => {
-  currentQuestion.value = row
+  // 深拷贝题目数据
+  currentQuestion.value = JSON.parse(JSON.stringify(row))
+  
+  // 转换选项格式：从数据库格式（key/content/correct）转换为前端格式（optionKey/optionContent/isCorrect）
+  if (currentQuestion.value.options && currentQuestion.value.options.length > 0) {
+    currentQuestion.value.options = currentQuestion.value.options.map(opt => {
+      // 如果已经是前端格式（有optionKey），直接使用，但需要处理 isCorrect 的值
+      if (opt.optionKey !== undefined) {
+        return {
+          ...opt,
+          isCorrect: opt.isCorrect === 1 || opt.isCorrect === true || opt.isCorrect === '1'
+        }
+      }
+      // 如果是数据库格式（有key），转换为前端格式
+      return {
+        optionKey: opt.key || '',
+        optionContent: opt.content || '',
+        isCorrect: opt.correct === 1 || opt.correct === true || opt.correct === '1',
+        id: opt.id
+      }
+    })
+  }
+  
   detailDialogVisible.value = true
 }
 
@@ -990,6 +1533,28 @@ onMounted(() => {
   height: 200px;
   color: #909399;
   font-size: 14px;
+}
+
+/* 选项输入组样式 */
+.option-input-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.option-input-group .el-checkbox {
+  font-weight: bold;
+}
+
+.option-input-group .el-input {
+  flex: 1;
+}
+
+/* 编辑对话框样式 */
+.el-dialog__body {
+  max-height: 600px;
+  overflow-y: auto;
+  padding-bottom: 0;
 }
 
 @media (max-width: 768px) {
