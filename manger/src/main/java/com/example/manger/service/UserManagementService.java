@@ -30,10 +30,7 @@ import jakarta.persistence.criteria.Predicate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -584,44 +581,26 @@ public class UserManagementService {
 
         List<ExcelUserRow> rows;
         try {
-            int headRows = 1;          // 表头占 1 行，想防重复就写 2
             rows = EasyExcel.read(file.getInputStream(), ExcelUserRow.class, null)
-                    .registerReadListener(new ReadListener<Object>() {
-                        @Override
-                        public void invokeHead(Map<Integer, ReadCellData<?>> headMap, AnalysisContext context) {
-                            System.out.println("========== 实际表头内容 ==========");
-                            headMap.forEach((key, cell) -> {
-                                System.out.println(key + " -> [" + cell.getStringValue() + "]");
-                            });
-                            System.out.println("========== 结束 ==========");
-                        }
-
-                        @Override public void invoke(Object data, AnalysisContext context) {}
-                        @Override public void doAfterAllAnalysed(AnalysisContext context) {}
-                    })
                     .sheet()
                     .headRowNumber(1)
                     .doReadSync();
-
         } catch (Exception e) {
-            e.printStackTrace();  // 临时打印异常，方便调试
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "Excel 文件读取失败: " + e.getMessage());
         }
 
         int success = 0;
-        int fail = 0;
-        List<String> errors = new ArrayList<>();
+        List<Map<String, Object>> failedRecords = new ArrayList<>();
 
-        // 预先查询默认角色对象，避免循环里重复查询
+        // 获取默认角色
         Role defaultRole = roleRepository.findById(6L)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND, "默认角色不存在，ID=6"));
 
         for (int i = 0; i < rows.size(); i++) {
             ExcelUserRow row = rows.get(i);
-            int rowIndex = i + 2; // Excel 第二行数据开始
-            System.out.println(rows);
+            int rowIndex = i + 2; // Excel 第二行开始
             try {
-                // ----------------- 基础校验 -----------------
+                // 基础校验
                 if (row.getUsername() == null || row.getUsername().isBlank()) {
                     throw new BusinessException(ErrorCode.INVALID_OPERATION, "用户名不能为空");
                 }
@@ -635,7 +614,7 @@ public class UserManagementService {
                     throw new BusinessException(ErrorCode.PHONE_EXISTS, "手机号已存在");
                 }
 
-                // ----------------- 创建用户对象 -----------------
+                // 创建用户
                 User user = new User();
                 user.setUsername(row.getUsername());
                 user.setEmail(row.getEmail());
@@ -644,36 +623,43 @@ public class UserManagementService {
                 user.setCreateTime(LocalDateTime.now());
                 user.setUpdateTime(LocalDateTime.now());
 
-                // ----------------- 密码加盐加密 -----------------
+                // 密码加盐加密
                 String salt = passwordUtil.generateSalt();
-                String defaultPwd = "123456";  // 默认密码
                 user.setSalt(salt);
-                user.setPassword(passwordUtil.hashPassword(defaultPwd, salt));
+                user.setPassword(passwordUtil.hashPassword("123456", salt));
 
-                // ----------------- 班级处理 -----------------
+                // 班级处理
                 if (row.getClassId() != null) {
-                    Class classEntity = classRepository.findById(row.getClassId())
+                    classRepository.findById(row.getClassId())
                             .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
                     user.setClassId(row.getClassId());
                 }
 
-                // ----------------- 给用户分配默认角色 -----------------
+                // 分配角色
                 user.setRoles(Set.of(defaultRole));
 
-                // ----------------- 保存用户 -----------------
+                // 保存用户
                 userRepository.save(user);
                 success++;
 
             } catch (Exception e) {
-                fail++;
-                errors.add("第 " + rowIndex + " 行导入失败：" + e.getMessage());
+                // 收集失败记录
+                Map<String, Object> failedRecord = new HashMap<>();
+                failedRecord.put("row", rowIndex);
+                failedRecord.put("username", row.getUsername());
+                failedRecord.put("email", row.getEmail());
+                failedRecord.put("phone", row.getPhone());
+                failedRecord.put("classId", row.getClassId());
+                failedRecord.put("error", e.getMessage());
+                failedRecords.add(failedRecord);
             }
         }
 
         return Map.of(
                 "success", success,
-                "fail", fail,
-                "errors", errors
+                "fail", failedRecords.size(),
+                "failedRecords", failedRecords
         );
     }
+
 }
