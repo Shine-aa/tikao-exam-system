@@ -1,5 +1,9 @@
 package com.example.manger.service;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.context.AnalysisContext;
+import com.alibaba.excel.metadata.data.ReadCellData;
+import com.alibaba.excel.read.listener.ReadListener;
 import com.example.manger.dto.*;
 import com.example.manger.entity.Class;
 import com.example.manger.entity.Role;
@@ -23,9 +27,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -567,5 +574,106 @@ public class UserManagementService {
         response.setCreateTime(role.getCreateTime());
         response.setUpdateTime(role.getUpdateTime());
         return response;
+    }
+
+    /**
+     * 从 Excel 导入用户
+     */
+    @Transactional
+    public Map<String, Object> importUsersFromExcel(MultipartFile file) {
+
+        List<ExcelUserRow> rows;
+        try {
+            int headRows = 1;          // 表头占 1 行，想防重复就写 2
+            rows = EasyExcel.read(file.getInputStream(), ExcelUserRow.class, null)
+                    .registerReadListener(new ReadListener<Object>() {
+                        @Override
+                        public void invokeHead(Map<Integer, ReadCellData<?>> headMap, AnalysisContext context) {
+                            System.out.println("========== 实际表头内容 ==========");
+                            headMap.forEach((key, cell) -> {
+                                System.out.println(key + " -> [" + cell.getStringValue() + "]");
+                            });
+                            System.out.println("========== 结束 ==========");
+                        }
+
+                        @Override public void invoke(Object data, AnalysisContext context) {}
+                        @Override public void doAfterAllAnalysed(AnalysisContext context) {}
+                    })
+                    .sheet()
+                    .headRowNumber(1)
+                    .doReadSync();
+
+        } catch (Exception e) {
+            e.printStackTrace();  // 临时打印异常，方便调试
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "Excel 文件读取失败: " + e.getMessage());
+        }
+
+        int success = 0;
+        int fail = 0;
+        List<String> errors = new ArrayList<>();
+
+        // 预先查询默认角色对象，避免循环里重复查询
+        Role defaultRole = roleRepository.findById(6L)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND, "默认角色不存在，ID=6"));
+
+        for (int i = 0; i < rows.size(); i++) {
+            ExcelUserRow row = rows.get(i);
+            int rowIndex = i + 2; // Excel 第二行数据开始
+            System.out.println(rows);
+            try {
+                // ----------------- 基础校验 -----------------
+                if (row.getUsername() == null || row.getUsername().isBlank()) {
+                    throw new BusinessException(ErrorCode.INVALID_OPERATION, "用户名不能为空");
+                }
+                if (userRepository.existsByUsername(row.getUsername())) {
+                    throw new BusinessException(ErrorCode.USERNAME_EXISTS, "用户名已存在");
+                }
+                if (row.getEmail() != null && userRepository.existsByEmail(row.getEmail())) {
+                    throw new BusinessException(ErrorCode.EMAIL_EXISTS, "邮箱已存在");
+                }
+                if (row.getPhone() != null && userRepository.existsByPhone(row.getPhone())) {
+                    throw new BusinessException(ErrorCode.PHONE_EXISTS, "手机号已存在");
+                }
+
+                // ----------------- 创建用户对象 -----------------
+                User user = new User();
+                user.setUsername(row.getUsername());
+                user.setEmail(row.getEmail());
+                user.setPhone(row.getPhone());
+                user.setIsActive(true);
+                user.setCreateTime(LocalDateTime.now());
+                user.setUpdateTime(LocalDateTime.now());
+
+                // ----------------- 密码加盐加密 -----------------
+                String salt = passwordUtil.generateSalt();
+                String defaultPwd = "123456";  // 默认密码
+                user.setSalt(salt);
+                user.setPassword(passwordUtil.hashPassword(defaultPwd, salt));
+
+                // ----------------- 班级处理 -----------------
+                if (row.getClassId() != null) {
+                    Class classEntity = classRepository.findById(row.getClassId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
+                    user.setClassId(row.getClassId());
+                }
+
+                // ----------------- 给用户分配默认角色 -----------------
+                user.setRoles(Set.of(defaultRole));
+
+                // ----------------- 保存用户 -----------------
+                userRepository.save(user);
+                success++;
+
+            } catch (Exception e) {
+                fail++;
+                errors.add("第 " + rowIndex + " 行导入失败：" + e.getMessage());
+            }
+        }
+
+        return Map.of(
+                "success", success,
+                "fail", fail,
+                "errors", errors
+        );
     }
 }
