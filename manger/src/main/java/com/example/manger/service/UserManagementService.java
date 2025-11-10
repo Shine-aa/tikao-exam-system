@@ -1,5 +1,9 @@
 package com.example.manger.service;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.context.AnalysisContext;
+import com.alibaba.excel.metadata.data.ReadCellData;
+import com.alibaba.excel.read.listener.ReadListener;
 import com.example.manger.dto.*;
 import com.example.manger.entity.Class;
 import com.example.manger.entity.Role;
@@ -23,10 +27,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -568,4 +572,94 @@ public class UserManagementService {
         response.setUpdateTime(role.getUpdateTime());
         return response;
     }
+
+    /**
+     * 从 Excel 导入用户
+     */
+    @Transactional
+    public Map<String, Object> importUsersFromExcel(MultipartFile file) {
+
+        List<ExcelUserRow> rows;
+        try {
+            rows = EasyExcel.read(file.getInputStream(), ExcelUserRow.class, null)
+                    .sheet()
+                    .headRowNumber(1)
+                    .doReadSync();
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "Excel 文件读取失败: " + e.getMessage());
+        }
+
+        int success = 0;
+        List<Map<String, Object>> failedRecords = new ArrayList<>();
+
+        // 获取默认角色
+        Role defaultRole = roleRepository.findById(6L)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND, "默认角色不存在，ID=6"));
+
+        for (int i = 0; i < rows.size(); i++) {
+            ExcelUserRow row = rows.get(i);
+            int rowIndex = i + 2; // Excel 第二行开始
+            try {
+                // 基础校验
+                if (row.getUsername() == null || row.getUsername().isBlank()) {
+                    throw new BusinessException(ErrorCode.INVALID_OPERATION, "用户名不能为空");
+                }
+                if (userRepository.existsByUsername(row.getUsername())) {
+                    throw new BusinessException(ErrorCode.USERNAME_EXISTS, "用户名已存在");
+                }
+                if (row.getEmail() != null && userRepository.existsByEmail(row.getEmail())) {
+                    throw new BusinessException(ErrorCode.EMAIL_EXISTS, "邮箱已存在");
+                }
+                if (row.getPhone() != null && userRepository.existsByPhone(row.getPhone())) {
+                    throw new BusinessException(ErrorCode.PHONE_EXISTS, "手机号已存在");
+                }
+
+                // 创建用户
+                User user = new User();
+                user.setUsername(row.getUsername());
+                user.setEmail(row.getEmail());
+                user.setPhone(row.getPhone());
+                user.setIsActive(true);
+                user.setCreateTime(LocalDateTime.now());
+                user.setUpdateTime(LocalDateTime.now());
+
+                // 密码加盐加密
+                String salt = passwordUtil.generateSalt();
+                user.setSalt(salt);
+                user.setPassword(passwordUtil.hashPassword("123456", salt));
+
+                // 班级处理
+                if (row.getClassId() != null) {
+                    classRepository.findById(row.getClassId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
+                    user.setClassId(row.getClassId());
+                }
+
+                // 分配角色
+                user.setRoles(Set.of(defaultRole));
+
+                // 保存用户
+                userRepository.save(user);
+                success++;
+
+            } catch (Exception e) {
+                // 收集失败记录
+                Map<String, Object> failedRecord = new HashMap<>();
+                failedRecord.put("row", rowIndex);
+                failedRecord.put("username", row.getUsername());
+                failedRecord.put("email", row.getEmail());
+                failedRecord.put("phone", row.getPhone());
+                failedRecord.put("classId", row.getClassId());
+                failedRecord.put("error", e.getMessage());
+                failedRecords.add(failedRecord);
+            }
+        }
+
+        return Map.of(
+                "success", success,
+                "fail", failedRecords.size(),
+                "failedRecords", failedRecords
+        );
+    }
+
 }

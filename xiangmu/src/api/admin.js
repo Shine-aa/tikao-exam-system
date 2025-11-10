@@ -28,7 +28,17 @@ export function createUser(data) {
     data
   })
 }
-
+// 导入用户（Excel 文件）
+export function importUsers(formData) {
+    return request({
+        url: '/api/admin/users/import',
+        method: 'post',
+        data: formData,
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+    })
+}
 // 更新用户
 export function updateUser(id, data) {
   return request({

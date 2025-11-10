@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -40,7 +41,15 @@ public class UserManagementController {
             return ApiResponse.error(e.getMessage());
         }
     }
-    
+
+    /**
+     * 一键导入创建用户
+     */
+    @PostMapping("/import")
+    public ApiResponse<Map<String, Object>> importUsers(@RequestPart("file") MultipartFile file) {
+        return ApiResponse.success("导入完成", userManagementService.importUsersFromExcel(file));
+    }
+
     /**
      * 更新用户
      */
