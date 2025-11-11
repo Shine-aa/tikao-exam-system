@@ -18,6 +18,11 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
      * 根据角色代码查找角色
      */
     Optional<Role> findByRoleCode(String roleCode);
+
+    /**
+     * 根据角色代码查找角色
+     */
+    Optional<Role> findByRoleName(String roleName);
     
     /**
      * 检查角色代码是否存在

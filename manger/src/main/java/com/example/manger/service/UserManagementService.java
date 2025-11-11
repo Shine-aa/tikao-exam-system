@@ -60,6 +60,7 @@ public class UserManagementService {
         }
         
         User user = new User();
+        user.setName(request.getName());
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         
@@ -100,7 +101,10 @@ public class UserManagementService {
             userRepository.existsByEmailAndIdNot(request.getEmail(), userId)) {
             throw new RuntimeException("邮箱已被其他用户使用");
         }
-        
+        // 更新基本信息
+        if (request.getName() != null) {
+            user.setName(request.getName());
+        }
         // 更新基本信息
         if (request.getUsername() != null) {
             user.setUsername(request.getUsername());
@@ -207,7 +211,7 @@ public class UserManagementService {
      * 分页查询用户
      */
     @Transactional(readOnly = true)
-    public PageResponse<UserResponse> getUsersWithPagination(String username, String email, Boolean isActive, 
+    public PageResponse<UserResponse> getUsersWithPagination(String name,String username, String email, Boolean isActive,
                                                            Integer page, Integer size, String sortBy, String sortOrder) {
         // 构建查询条件
         Pageable pageable = PageRequest.of(page - 1, size);
@@ -223,6 +227,7 @@ public class UserManagementService {
         
         // 应用搜索过滤条件
         List<UserResponse> filteredUsers = userPage.getContent().stream()
+                .filter(user -> name == null || user.getName().contains(name))
                 .filter(user -> username == null || user.getUsername().contains(username))
                 .filter(user -> email == null || user.getEmail().contains(email))
                 .filter(user -> isActive == null || user.getIsActive().equals(isActive))
@@ -309,6 +314,7 @@ public class UserManagementService {
     private UserResponse convertToResponse(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
+        response.setName(user.getName());
         response.setUsername(user.getUsername());
         response.setEmail(user.getEmail());
         response.setIsActive(user.getIsActive());
@@ -591,21 +597,22 @@ public class UserManagementService {
 
         int success = 0;
         List<Map<String, Object>> failedRecords = new ArrayList<>();
-
-        // 获取默认角色
-        Role defaultRole = roleRepository.findById(6L)
-                .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND, "默认角色不存在，ID=6"));
-
         for (int i = 0; i < rows.size(); i++) {
             ExcelUserRow row = rows.get(i);
             int rowIndex = i + 2; // Excel 第二行开始
             try {
                 // 基础校验
+                if (row.getName() == null || row.getName().isBlank()) {
+                    throw new BusinessException(ErrorCode.INVALID_OPERATION, "用户姓名不能为空");
+                }
                 if (row.getUsername() == null || row.getUsername().isBlank()) {
                     throw new BusinessException(ErrorCode.INVALID_OPERATION, "用户名不能为空");
                 }
                 if (userRepository.existsByUsername(row.getUsername())) {
                     throw new BusinessException(ErrorCode.USERNAME_EXISTS, "用户名已存在");
+                }
+                if (row.getPassword() == null || row.getPassword().isBlank()) {
+                    throw new BusinessException(ErrorCode.PASSWORD_BLANK, "密码不能为空");
                 }
                 if (row.getEmail() != null && userRepository.existsByEmail(row.getEmail())) {
                     throw new BusinessException(ErrorCode.EMAIL_EXISTS, "邮箱已存在");
@@ -613,20 +620,24 @@ public class UserManagementService {
                 if (row.getPhone() != null && userRepository.existsByPhone(row.getPhone())) {
                     throw new BusinessException(ErrorCode.PHONE_EXISTS, "手机号已存在");
                 }
+                if (row.getRoleName() == null || row.getRoleName().isBlank()) {
+                    throw new BusinessException(ErrorCode.ROLE_BLANK, "用户角色不能为空");
+                }
 
                 // 创建用户
                 User user = new User();
+                user.setName(row.getName());
                 user.setUsername(row.getUsername());
                 user.setEmail(row.getEmail());
                 user.setPhone(row.getPhone());
                 user.setIsActive(true);
                 user.setCreateTime(LocalDateTime.now());
                 user.setUpdateTime(LocalDateTime.now());
-
+                String password = row.getPassword();
                 // 密码加盐加密
                 String salt = passwordUtil.generateSalt();
                 user.setSalt(salt);
-                user.setPassword(passwordUtil.hashPassword("123456", salt));
+                user.setPassword(passwordUtil.hashPassword(password, salt));
 
                 // 班级处理
                 if (row.getClassId() != null) {
@@ -634,6 +645,14 @@ public class UserManagementService {
                             .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
                     user.setClassId(row.getClassId());
                 }
+
+                // 获取默认角色
+                //Role defaultRole = roleRepository.findById(6L)
+                //        .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND, "默认角色不存在，ID=6"));
+                String roleName = row.getRoleName();
+                Role defaultRole = roleRepository.findByRoleName(roleName)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND, "默认角色不存在，ID=6"));
+
 
                 // 分配角色
                 user.setRoles(Set.of(defaultRole));
@@ -646,10 +665,12 @@ public class UserManagementService {
                 // 收集失败记录
                 Map<String, Object> failedRecord = new HashMap<>();
                 failedRecord.put("row", rowIndex);
+                failedRecord.put("name", row.getName());
                 failedRecord.put("username", row.getUsername());
                 failedRecord.put("email", row.getEmail());
                 failedRecord.put("phone", row.getPhone());
                 failedRecord.put("classId", row.getClassId());
+                failedRecord.put("roleName", row.getRoleName());
                 failedRecord.put("error", e.getMessage());
                 failedRecords.add(failedRecord);
             }

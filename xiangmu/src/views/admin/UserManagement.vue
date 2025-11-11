@@ -23,6 +23,7 @@
 
       <!-- 搜索栏 -->
       <div class="search-bar">
+        <el-input v-model="searchForm.name" placeholder="请输入用户姓名" style="width: 200px; margin-right: 10px;" clearable />
         <el-input v-model="searchForm.username" placeholder="请输入用户名" style="width: 200px; margin-right: 10px;"
                   clearable />
         <el-input v-model="searchForm.email" placeholder="请输入邮箱" style="width: 200px; margin-right: 10px;" clearable />
@@ -58,8 +59,9 @@
       <el-table :data="users" style="width: 100%" v-loading="loading" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column prop="name" label="用户姓名" />
         <el-table-column prop="username" label="用户名" />
-        <el-table-column prop="email" label="邮箱" />
+        <el-table-column prop="email" label="邮箱" width="180" />
         <el-table-column prop="isActive" label="状态" width="100">
           <template #default="scope">
             <el-tag :type="scope.row.isActive ? 'success' : 'danger'">
@@ -98,6 +100,9 @@
     <!-- 创建/编辑用户对话框 -->
     <el-dialog v-model="showCreateDialog" :title="editingUser ? '编辑用户' : '新增用户'" width="600px">
       <el-form ref="userFormRef" :model="userForm" :rules="userFormRules" label-width="80px">
+        <el-form-item label="用户姓名" prop="name">
+          <el-input v-model="userForm.name" placeholder="请输入用户姓名" />
+        </el-form-item>
         <el-form-item label="用户名" prop="username">
           <el-input v-model="userForm.username" placeholder="请输入用户名" />
         </el-form-item>
@@ -136,10 +141,12 @@
     </el-dialog>
     <el-dialog v-model="showErrorDialog" title="导入失败详情" width="700px">
       <el-table :data="importErrors" style="width: 100%">
+        <el-table-column prop="name" label="姓名" min-width="120" />
         <el-table-column prop="username" label="用户名" min-width="120" />
         <el-table-column prop="email" label="邮箱" min-width="180" />
         <el-table-column prop="phone" label="手机号" min-width="120" />
         <el-table-column prop="classId" label="班级" min-width="80" />
+        <el-table-column prop="roleName" label="角色" min-width="80" />
         <el-table-column prop="message" label="错误信息" min-width="200" />
       </el-table>
 
@@ -151,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search, Refresh, Delete, Upload } from '@element-plus/icons-vue'
 import {
@@ -181,6 +188,7 @@ const showErrorDialog = ref(false)
 const importErrors = ref([])
 
 const searchForm = reactive({
+  name: '',
   username: '',
   email: '',
   isActive: null
@@ -200,6 +208,10 @@ const pagination = reactive({
 })
 
 const userFormRules = {
+  name: [
+    { required: true, message: '请输入用户姓名', trigger: 'blur' },
+    { min: 2, max: 10, message: '用户姓名长度在 2 到 10 个字符', trigger: 'blur' }
+  ],
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 50, message: '用户名长度在 3 到 50 个字符', trigger: 'blur' }
@@ -244,22 +256,47 @@ const loadRoles = async () => {
   }
 }
 
+// 防抖函数
+let searchTimer = null
+const debounceSearch = () => {
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+  searchTimer = setTimeout(() => {
+    pagination.page = 1 // 搜索时重置到第一页
+    loadUsers()
+  }, 500) // 500ms 防抖延迟
+}
+
 // 搜索用户
 const searchUsers = () => {
+  pagination.page = 1
   loadUsers()
 }
 
 // 重置搜索
 const resetSearch = () => {
+  searchForm.name = ''
   searchForm.username = ''
   searchForm.email = ''
   searchForm.isActive = null
+  pagination.page = 1
   loadUsers()
 }
+
+// 监听搜索表单变化，自动搜索
+watch(
+  () => [searchForm.name, searchForm.username, searchForm.email, searchForm.isActive],
+  () => {
+    debounceSearch()
+  },
+  { deep: true }
+)
 
 // 编辑用户
 const editUser = (user) => {
   editingUser.value = user
+  userForm.name = user.name
   userForm.username = user.username
   userForm.password = ''
   userForm.email = user.email
@@ -414,10 +451,12 @@ const submitUpload = async () => {
       // 如果有失败记录，处理并弹出对话框
       if (response.data.failedRecords && response.data.failedRecords.length > 0) {
         importErrors.value = response.data.failedRecords.map(item => ({
+          name: item.name,
           username: item.username,
           email: item.email,
           phone: item.phone,
           classId: item.classId,
+          roleName: item.roleName,
           message: item.error
         }))
         showErrorDialog.value = true

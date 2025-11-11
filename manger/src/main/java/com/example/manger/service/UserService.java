@@ -7,6 +7,7 @@ import com.example.manger.entity.Role;
 import com.example.manger.entity.User;
 import com.example.manger.entity.UserSession;
 import com.example.manger.exception.BusinessException;
+import com.example.manger.exception.ErrorCode;
 import com.example.manger.repository.RoleRepository;
 import com.example.manger.repository.UserRepository;
 import com.example.manger.repository.UserSessionRepository;
@@ -39,6 +40,10 @@ public class UserService {
      */
     @Transactional
     public void register(RegisterRequest request) {
+        // 检查用户姓名是否为空
+        if (request.getName()==null||request.getName().isBlank()) {
+            throw new BusinessException(ErrorCode.PASSWORD_BLANK, "姓名不能为空");
+        }
         // 检查用户名是否已存在
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new BusinessException(1001, "用户名已存在");
@@ -62,6 +67,7 @@ public class UserService {
         
         // 创建用户
         User user = new User();
+        user.setName(request.getName());
         user.setUsername(request.getUsername());
         user.setPassword(hashedPassword);
         user.setEmail(request.getEmail());

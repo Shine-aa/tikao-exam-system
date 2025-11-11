@@ -30,6 +30,7 @@
         class="register-form"
         @submit.prevent="handleRegister"
       >
+      
         <el-form-item prop="username">
           <el-input
             v-model="registerForm.username"
@@ -38,7 +39,14 @@
             size="large"
           />
         </el-form-item>
-        
+        <el-form-item prop="name">
+          <el-input
+            v-model="registerForm.name"
+            placeholder="请输入您的真实姓名"
+            prefix-icon="User"
+            size="large"
+          />
+        </el-form-item>
         <el-form-item prop="password">
           <el-input
             v-model="registerForm.password"
@@ -141,6 +149,7 @@ const isPhoneValid = computed(() => {
 
 const registerForm = reactive({
   username: '',
+  name: '',
   password: '',
   confirmPassword: '',
   phone: '',
@@ -150,6 +159,10 @@ const registerForm = reactive({
 
 // 表单验证规则
 const registerRules = {
+  name: [
+    { required: true, message: '请输入您的真实姓名', trigger: 'blur' },
+    { min: 2, max: 10, message: '用户姓名长度在 2 到 10 个字符', trigger: 'blur' }
+  ],
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
@@ -243,8 +256,8 @@ const handleRegister = async () => {
     await registerFormRef.value.validate()
     loading.value = true
     
-    const { username, password, phone, email, smsCode } = registerForm
-    const response = await register({ username, password, phone, email, smsCode })
+    const { name,username, password, phone, email, smsCode } = registerForm
+    const response = await register({ name, username, password, phone, email, smsCode })
     
     ElMessage.success('注册成功！')
     router.push('/login')
