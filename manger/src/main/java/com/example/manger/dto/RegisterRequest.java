@@ -9,6 +9,10 @@ import lombok.Data;
 @Data
 @Schema(description = "注册请求")
 public class RegisterRequest {
+    @Schema(description = "用户姓名", example = "张三", required = true)
+    @NotBlank(message = "用户名不能为空")
+    @Size(min = 2, max = 10, message = "用户姓名长度必须在2-10个字符之间")
+    private String name;
     
     @Schema(description = "用户名", example = "admin", required = true)
     @NotBlank(message = "用户名不能为空")
