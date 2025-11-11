@@ -3,11 +3,11 @@ import request from '../utils/request'
 // ==================== 用户管理 API ====================
 
 // 获取用户列表
-export function getUserList(username, email, isActive, role) {
+export function getUserList(name, username, email, isActive, role) {
   return request({
     url: '/api/admin/users',
     method: 'get',
-    params: { username, email, isActive, role }
+    params: { name,username, email, isActive, role }
   })
 }
 
