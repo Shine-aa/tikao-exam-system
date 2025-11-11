@@ -144,6 +144,7 @@ public class UserManagementController {
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "权限不足")
     })
     public ApiResponse<PageResponse<UserResponse>> getUsersWithPagination(
+            @Parameter(description = "用户姓名（模糊查询）") @RequestParam(required = false) String name,
             @Parameter(description = "用户名（模糊查询）") @RequestParam(required = false) String username,
             @Parameter(description = "邮箱（模糊查询）") @RequestParam(required = false) String email,
             @Parameter(description = "用户状态") @RequestParam(required = false) Boolean isActive,
@@ -153,7 +154,7 @@ public class UserManagementController {
             @Parameter(description = "排序顺序，asc或desc") @RequestParam(defaultValue = "asc") String sortOrder) {
         try {
             PageResponse<UserResponse> users = userManagementService.getUsersWithPagination(
-                    username, email, isActive, page, size, sortBy, sortOrder);
+                    name,username, email, isActive, page, size, sortBy, sortOrder);
             return ApiResponse.success(users);
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
