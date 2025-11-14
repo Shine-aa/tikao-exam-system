@@ -6,76 +6,49 @@
       <p>管理题目、知识点和标签</p>
     </div>
 
-    <!-- 统计卡片 -->
-    <div class="stats-container">
-      <!-- 第一行：题目总数（突出显示） -->
-      <el-row :gutter="20" class="stats-row">
-        <el-col :xs="24" :sm="12" :md="8" :lg="6">
-          <el-card class="stat-card stat-card-primary">
-            <div class="stat-content">
-              <div class="stat-number">{{ statistics.totalQuestions || 0 }}</div>
-              <div class="stat-label">题目总数</div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
+    <!-- 统计信息 -->
+    <el-card class="stats-card" shadow="hover" style="margin-bottom: 20px;">
+      <div class="stats-header">
+        <h3 style="margin: 0; font-size: 16px;">题库概览</h3>
+      </div>
+      <div class="stats-content">
+        <!-- 统一网格布局展示所有统计项 -->
+        <div class="stats-grid">
+          <!-- 题目总数（仍然突出显示，但放在网格中） -->
+          <div class="stat-item total-stats">
+            <div class="stat-number">{{ statistics.totalQuestions || 0 }}</div>
+            <div class="stat-label">题目总数</div>
+          </div>
+          <!-- 各题型统计 -->
+          <div class="stat-item">
+            <div class="stat-number">{{ statistics.singleChoiceCount || 0 }}</div>
+            <div class="stat-label">单选题</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ statistics.multipleChoiceCount || 0 }}</div>
+            <div class="stat-label">多选题</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ statistics.trueFalseCount || 0 }}</div>
+            <div class="stat-label">判断题</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ statistics.fillBlankCount || 0 }}</div>
+            <div class="stat-label">填空题</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ statistics.subjectiveCount || 0 }}</div>
+            <div class="stat-label">主观题</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-number">{{ statistics.programmingCount || 0 }}</div>
+            <div class="stat-label">程序题</div>
+          </div>
+        </div>
+      </div>
       
-      <!-- 第二行：各题型统计（每行3个） -->
-      <el-row :gutter="20" class="stats-row">
-        <el-col :xs="24" :sm="12" :md="8" :lg="8">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-number">{{ statistics.singleChoiceCount || 0 }}</div>
-              <div class="stat-label">单选题</div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="8" :lg="8">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-number">{{ statistics.multipleChoiceCount || 0 }}</div>
-              <div class="stat-label">多选题</div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="8" :lg="8">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-number">{{ statistics.trueFalseCount || 0 }}</div>
-              <div class="stat-label">判断题</div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-      
-      <!-- 第三行：剩余题型统计（每行3个） -->
-      <el-row :gutter="20" class="stats-row">
-        <el-col :xs="24" :sm="12" :md="8" :lg="8">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-number">{{ statistics.fillBlankCount || 0 }}</div>
-              <div class="stat-label">填空题</div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="8" :lg="8">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-number">{{ statistics.subjectiveCount || 0 }}</div>
-              <div class="stat-label">主观题</div>
-            </div>
-          </el-card>
-        </el-col>
-        <el-col :xs="24" :sm="12" :md="8" :lg="8">
-          <el-card class="stat-card">
-            <div class="stat-content">
-              <div class="stat-number">{{ statistics.programmingCount || 0 }}</div>
-              <div class="stat-label">程序题</div>
-            </div>
-          </el-card>
-        </el-col>
-      </el-row>
-    </div>
+
+    </el-card>
 
     <!-- 搜索和筛选 -->
     <el-card class="search-card">
@@ -160,6 +133,7 @@
             <el-tag :type="getTypeTagType(row.type)">
               {{ getTypeDescription(row.type) }}
             </el-tag>
+
           </template>
         </el-table-column>
         <el-table-column prop="difficulty" label="难度" width="80">
@@ -411,6 +385,17 @@
           <el-input-number v-model="editingQuestion.points" :min="1" :max="100" />
         </el-form-item>
 
+        <el-form-item label="所属课程" prop="courseId" required>
+          <el-select v-model="editingQuestion.courseId" placeholder="请选择课程" :loading="coursesLoading">
+            <el-option 
+              v-for="course in courseList" 
+              :key="course.id" 
+              :label="course.courseName" 
+              :value="course.id" 
+            />
+          </el-select>
+        </el-form-item>
+
         <!-- 选择题选项 -->
         <template v-if="editingQuestion.type === 'SINGLE_CHOICE' || editingQuestion.type === 'MULTIPLE_CHOICE'">
           <el-form-item label="选项">
@@ -506,7 +491,7 @@
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Refresh, Upload, Check } from '@element-plus/icons-vue'
-import { getQuestions, deleteQuestion, batchDeleteQuestions, getQuestionStatistics, importQuestions, createQuestion, updateQuestion } from '../../api/admin'
+import { getQuestions, deleteQuestion, batchDeleteQuestions, getQuestionStatistics, importQuestions, createQuestion, updateQuestion, getCourses } from '../../api/admin'
 
 // 响应式数据
 const loading = ref(false)
@@ -516,6 +501,29 @@ const statistics = ref({})
 const detailDialogVisible = ref(false)
 const currentQuestion = ref(null)
 const editingQuestion = ref(null)
+// 课程相关
+const courseList = ref([]) // 课程列表
+const coursesLoading = ref(false) // 课程加载状态
+
+// 加载课程列表
+const loadCourseList = async () => {
+  try {
+    coursesLoading.value = true
+    const response = await getCourses()
+    if (response.code === 200 && response.data) {
+      courseList.value = response.data
+    } else {
+      ElMessage.error('获取课程列表失败')
+      courseList.value = []
+    }
+  } catch (error) {
+    console.error('加载课程列表失败:', error)
+    ElMessage.error('加载课程列表失败')
+    courseList.value = []
+  } finally {
+    coursesLoading.value = false
+  }
+}
 
 
 // 导入相关
@@ -650,7 +658,8 @@ const submitQuestion = async () => {
       tags: editingQuestion.value.tags,
       explanation: editingQuestion.value.explanation,
       programmingLanguage: editingQuestion.value.programmingLanguage,
-      images: editingQuestion.value.images
+      images: editingQuestion.value.images,
+      courseId: editingQuestion.value.courseId // 添加课程ID字段
     }
     
     // 根据题型处理不同的数据格式
@@ -896,6 +905,9 @@ const rules = {
     { required: true, message: '请输入分值', trigger: 'blur' },
     { type: 'number', min: 1, message: '分值必须大于0', trigger: 'blur' }
   ],
+  courseId: [
+    { required: true, message: '请选择所属课程', trigger: 'change' }
+  ],
   correctAnswer: [
     { 
       required: (rule, value, callback) => {
@@ -911,7 +923,7 @@ const rules = {
   ]
 }
 
-const handleAdd = () => {
+const handleAdd = async () => {
   isEditMode.value = false
   editDialogTitle.value = '新增题目'
   const defaultQuestion = {
@@ -925,6 +937,7 @@ const handleAdd = () => {
     explanation: '',
     programmingLanguage: '',
     images: '',
+    courseId: '', // 添加课程ID字段
     options: [
       { optionKey: 'A', optionContent: '', isCorrect: false },
       { optionKey: 'B', optionContent: '', isCorrect: false },
@@ -934,6 +947,7 @@ const handleAdd = () => {
   }
   
   editingQuestion.value = defaultQuestion
+  await loadCourseList() // 加载课程列表
   editDialogVisible.value = true
 }
 
@@ -1011,7 +1025,7 @@ const handleImportCancel = () => {
   importResult.value = null
 }
 
-const handleEdit = (row) => {
+const handleEdit = async (row) => {
   isEditMode.value = true
   editDialogTitle.value = '编辑题目'
   // 深拷贝题目数据
@@ -1132,6 +1146,7 @@ const handleEdit = (row) => {
     // 如果后端已经设置了isCorrect，直接使用，不需要做任何处理
   }
   
+  await loadCourseList() // 加载课程列表
   editDialogVisible.value = true
 }
 
@@ -1456,6 +1471,56 @@ onMounted(() => {
   font-size: 14px;
 }
 
+  .stats-header {
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ebeef5;
+    margin-bottom: 15px;
+  }
+  .stats-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+  .total-stats {
+    text-align: center;
+    padding: 10px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    margin-bottom: 5px;
+  }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+  }
+  .stat-item {
+    text-align: center;
+    padding: 10px;
+    background-color: #f5f7fa;
+    border-radius: 6px;
+    transition: all 0.3s ease;
+  }
+  .stat-item:hover {
+    background-color: #e4e7ed;
+    transform: translateY(-2px);
+  }
+  .stat-number {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  .stat-number.large {
+    font-size: 24px;
+  }
+  .stat-label {
+    font-size: 12px;
+    color: #606266;
+  }
+  .total-stats .stat-label {
+    color: rgba(255, 255, 255, 0.9);
+  }
+
 .question-content, .question-options, .question-answers, .question-explanation {
   margin-bottom: 20px;
 }
@@ -1556,6 +1621,13 @@ onMounted(() => {
   overflow-y: auto;
   padding-bottom: 0;
 }
+    .stat-label {
+      font-size: 12px;
+      color: #606266;
+    }
+    .total-stats .stat-label {
+      color: rgba(255, 255, 255, 0.9);
+    }
 
 @media (max-width: 768px) {
   .question-bank-container {
@@ -1570,6 +1642,70 @@ onMounted(() => {
   .action-left, .action-right {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* 统计卡片样式 */
+.stats-card {
+  border-radius: 8px;
+}
+.stats-header {
+  padding-bottom: 10px;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 15px;
+}
+.stats-content {
+  display: flex;
+  flex-direction: column;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 10px;
+}
+.stat-item {
+  text-align: center;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+.stat-item:hover {
+  background-color: #e4e7ed;
+  transform: translateY(-2px);
+}
+/* 题目总数特殊样式 */
+.stat-item.total-stats {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+.stat-number {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.stat-label {
+  font-size: 12px;
+  color: #606266;
+}
+.total-stats .stat-label {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px;
+  }
+  .stat-item {
+    padding: 8px;
+  }
+  .stat-number {
+    font-size: 16px;
+  }
+  .stat-label {
+    font-size: 11px;
   }
 }
 </style>

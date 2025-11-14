@@ -4,6 +4,7 @@ import com.example.manger.dto.PageResponse;
 import com.example.manger.dto.QuestionRequest;
 import com.example.manger.dto.QuestionResponse;
 import com.example.manger.entity.Question;
+import com.example.manger.entity.QuestionCourse;
 import com.example.manger.exception.BusinessException;
 import com.example.manger.exception.ErrorCode;
 import com.example.manger.repository.QuestionRepository;
@@ -16,10 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -97,6 +95,11 @@ public class QuestionService {
         
         // 保存更新后的question
         question = questionRepository.save(question);
+
+        QuestionCourse questionCourse = new QuestionCourse();
+        questionCourse.setQuestionId(questionId);
+        questionCourse.setCourseId(request.getCourseId());
+        questionCourseRepository.save(questionCourse);
         
         return convertToResponse(question);
     }
@@ -184,6 +187,14 @@ public class QuestionService {
         }
         
         question = questionRepository.save(question);
+
+        // 保存更新后的question
+        question = questionRepository.save(question);
+
+        QuestionCourse questionCourse = new QuestionCourse();
+        questionCourse.setQuestionId(question.getId());
+        questionCourse.setCourseId(request.getCourseId());
+        questionCourseRepository.save(questionCourse);
         
         return convertToResponse(question);
     }

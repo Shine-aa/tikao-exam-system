@@ -5,6 +5,8 @@ import com.example.manger.dto.PageResponse;
 import com.example.manger.dto.QuestionRequest;
 import com.example.manger.dto.QuestionResponse;
 import com.example.manger.entity.Question;
+import com.example.manger.entity.QuestionCourse;
+import com.example.manger.repository.QuestionCourseRepository;
 import com.example.manger.service.QuestionImportService;
 import com.example.manger.service.QuestionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +29,7 @@ public class QuestionController {
     
     private final QuestionService questionService;
     private final QuestionImportService questionImportService;
+    private final QuestionCourseRepository questionCourseRepository;
     
     @PostMapping
     @Operation(summary = "创建题目", description = "创建新的题目")
