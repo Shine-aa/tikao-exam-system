@@ -480,7 +480,7 @@ const loadMajorOptions = async () => {
 // 加载教师选项
 const loadTeacherOptions = async () => {
   try {
-    const response = await userApi.getUserList(null, null, null, 'TEACHER')
+    const response = await userApi.getUserList(null, null, null, null, 'TEACHER')
     // response.data 直接就是用户列表数组
     teacherOptions.value = response.data || []
   } catch (error) {

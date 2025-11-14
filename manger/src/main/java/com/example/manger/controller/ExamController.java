@@ -67,9 +67,11 @@ public class ExamController {
             @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "搜索关键词") 
             @RequestParam(required = false) String keyword,
+            @Parameter(description = "考试状态")
+            @RequestParam(required = false) String status,
             HttpServletRequest httpRequest) {
         try {
-            PageResponse<ExamResponse> exams = examService.getExamsWithPagination(page, size, keyword, httpRequest);
+            PageResponse<ExamResponse> exams = examService.getExamsWithPagination(page, size, keyword,status, httpRequest);
             return ApiResponse.success("获取考试列表成功", exams);
         } catch (Exception e) {
             return ApiResponse.error("获取考试列表失败: " + e.getMessage());

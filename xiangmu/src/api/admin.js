@@ -848,11 +848,11 @@ export function createExam(data) {
 }
 
 // 分页获取考试列表
-export function getExamsWithPagination(page, size, keyword) {
+export function getExamsWithPagination(page, size, keyword, status) {
   return request({
     url: '/api/exams/page',
     method: 'get',
-    params: { page, size, keyword }
+    params: { page, size, keyword, status } 
   })
 }
 

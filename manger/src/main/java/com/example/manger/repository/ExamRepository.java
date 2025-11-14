@@ -18,7 +18,18 @@ import java.util.Optional;
  */
 @Repository
 public interface ExamRepository extends JpaRepository<Exam, Long>, JpaSpecificationExecutor<Exam> {
-    
+    // 原关键词查询（增加status参数）
+    Page<Exam> findByTeacherIdAndIsActiveTrueAndStatusAndExamNameContainingIgnoreCase(
+            Long teacherId, Exam.ExamStatus status, String keyword, Pageable pageable);
+
+    // 原关键词查询（无status参数，保持兼容）
+    Page<Exam> findByTeacherIdAndIsActiveTrueAndExamNameContainingIgnoreCase(
+            Long teacherId, String keyword, Pageable pageable);
+
+    // 无关键词但有status的查询
+    Page<Exam> findByTeacherIdAndIsActiveTrueAndStatus(
+            Long teacherId, Exam.ExamStatus status, Pageable pageable);
+
     /**
      * 根据教师ID分页查询考试
      */
