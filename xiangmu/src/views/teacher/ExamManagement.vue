@@ -502,7 +502,8 @@ const loadExamList = async () => {
     const response = await examApi.getExamsWithPagination(
       pagination.page,
       pagination.size,
-      searchForm.keyword
+      searchForm.keyword,
+      searchForm.status
     )
     
     if (response.code === 200) {

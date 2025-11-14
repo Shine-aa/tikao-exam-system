@@ -155,28 +155,53 @@ public class ExamService {
             examRepository.save(exam);
         }
     }
-    
-    /**
-     * 分页查询考试列表
-     */
-    public PageResponse<ExamResponse> getExamsWithPagination(int page, int size, String keyword, HttpServletRequest httpRequest) {
+
+    public PageResponse<ExamResponse> getExamsWithPagination(int page, int size, String keyword, String status, HttpServletRequest httpRequest) {
         Long teacherId = getCurrentUserId(httpRequest);
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        
+
+        // 处理status参数（转换为枚举，空字符串或无效值视为null）
+        Exam.ExamStatus examStatus = null;
+        if (status != null && !status.trim().isEmpty()) {
+            try {
+                examStatus = Exam.ExamStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // 若传入无效status，可抛异常或忽略（这里选择忽略，视为无status条件）
+                examStatus = null;
+            }
+        }
+
+        // 处理keyword（去除首尾空格，空字符串视为null）
+        String trimmedKeyword = (keyword != null) ? keyword.trim() : null;
+        if (trimmedKeyword != null && trimmedKeyword.isEmpty()) {
+            trimmedKeyword = null;
+        }
+
         Page<Exam> examPage;
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            examPage = examRepository.findByKeyword(teacherId, keyword.trim(), pageable);
+        // 分四种情况组合查询条件
+        if (trimmedKeyword != null && examStatus != null) {
+            // 既有关键词也有status
+            examPage = examRepository.findByTeacherIdAndIsActiveTrueAndStatusAndExamNameContainingIgnoreCase(
+                    teacherId, examStatus, trimmedKeyword, pageable);
+        } else if (trimmedKeyword != null) {
+            // 只有关键词
+            examPage = examRepository.findByTeacherIdAndIsActiveTrueAndExamNameContainingIgnoreCase(
+                    teacherId, trimmedKeyword, pageable);
+        } else if (examStatus != null) {
+            // 只有status
+            examPage = examRepository.findByTeacherIdAndIsActiveTrueAndStatus(
+                    teacherId, examStatus, pageable);
         } else {
+            // 既无关键词也无status（原逻辑）
             examPage = examRepository.findByTeacherIdAndIsActiveTrueOrderByCreatedAtDesc(teacherId, pageable);
         }
-        
+
         List<ExamResponse> examResponses = examPage.getContent().stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
-        
+
         return PageResponse.of(examResponses, page, size, examPage.getTotalElements());
     }
-    
     /**
      * 根据ID获取考试详情
      */
