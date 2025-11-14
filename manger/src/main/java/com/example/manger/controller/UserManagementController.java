@@ -2,6 +2,7 @@ package com.example.manger.controller;
 
 import com.example.manger.common.ApiResponse;
 import com.example.manger.dto.*;
+import com.example.manger.entity.User;
 import com.example.manger.service.UserManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -60,6 +61,21 @@ public class UserManagementController {
         try {
             UserResponse user = userManagementService.updateUser(userId, request);
             return ApiResponse.success("用户更新成功", user);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 更新用户密码
+     */
+    @PutMapping("/{userId}/change-password")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ApiResponse<String> updatePassword(@PathVariable Long userId,
+                                              @Valid @RequestBody User user) {
+        try {
+            userManagementService.resetUserPassword(userId, user.getPassword());
+            return ApiResponse.success("用户更新成功");
         } catch (Exception e) {
             return ApiResponse.error(e.getMessage());
         }
