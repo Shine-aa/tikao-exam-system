@@ -290,8 +290,26 @@
       title="导入题库"
       width="600px"
       :close-on-click-modal="false"
+      @open="handleImportDialogOpen"
     >
       <div class="import-content">
+        <!-- 课程选择 -->
+        <el-form-item label="选择课程" style="margin-bottom: 20px;">
+          <el-select
+            v-model="selectedCourseId"
+            placeholder="请选择要导入的课程"
+            style="width: 100%;"
+            :loading="coursesLoading"
+          >
+            <el-option
+              v-for="course in courseList"
+              :key="course.id"
+              :label="course.name"
+              :value="course.id"
+            />
+          </el-select>
+        </el-form-item>
+        
         <el-upload
           ref="uploadRef"
           class="upload-demo"
@@ -532,6 +550,7 @@ const fileList = ref([])
 const uploading = ref(false)
 const importResult = ref(null)
 const uploadRef = ref(null)
+const selectedCourseId = ref('') // 选中的课程ID
 
 // 搜索表单
 const searchForm = reactive({
@@ -952,10 +971,14 @@ const handleAdd = async () => {
 }
 
 // 导入相关函数
+// 处理导入对话框打开
+const handleImportDialogOpen = async () => {
+  selectedCourseId.value = '' // 重置选中的课程
+  await loadCourseList() // 加载课程列表
+}
+
 const handleImport = () => {
   importDialogVisible.value = true
-  importResult.value = null
-  fileList.value = []
 }
 
 const handleFileChange = (file) => {
@@ -988,12 +1011,18 @@ const submitUpload = async () => {
     return
   }
 
+  if (!selectedCourseId.value) {
+    ElMessage.warning('请选择要导入的课程')
+    return
+  }
+
   const formData = new FormData()
   formData.append('file', fileList.value[0].raw)
+  formData.append('courseId', selectedCourseId.value)
 
   uploading.value = true
   try {
-    const response = await importQuestions(formData)
+    const response = await importQuestions(formData, selectedCourseId.value)
     
     if (response.code === 200) {
       importResult.value = response.data
@@ -1023,6 +1052,7 @@ const handleImportCancel = () => {
   importDialogVisible.value = false
   fileList.value = []
   importResult.value = null
+  selectedCourseId.value = ''
 }
 
 const handleEdit = async (row) => {

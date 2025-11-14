@@ -1,6 +1,8 @@
 package com.example.manger.service;
 
 import com.example.manger.entity.Question;
+import com.example.manger.entity.QuestionCourse;
+import com.example.manger.repository.QuestionCourseRepository;
 import com.example.manger.repository.QuestionRepository;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
@@ -20,12 +22,13 @@ import java.util.*;
 public class QuestionImportService {
     
     private final QuestionRepository questionRepository;
+    private final QuestionCourseRepository questionCourseRepository;
     
     /**
      * 导入Excel文件中的题目
      */
     @Transactional
-    public Map<String, Object> importQuestions(MultipartFile file, Long userId) throws IOException {
+    public Map<String, Object> importQuestions(MultipartFile file, Long courseId,Long userId) throws IOException {
         List<Question> questions = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         
@@ -58,6 +61,13 @@ public class QuestionImportService {
         if (!questions.isEmpty()) {
             questionRepository.saveAll(questions);
         }
+        for(Question question:questions){
+            QuestionCourse questionCourse = new QuestionCourse();
+            questionCourse.setQuestionId(question.getId());
+            questionCourse.setCourseId(courseId);
+            questionCourseRepository.save(questionCourse);
+        }
+
         
         Map<String, Object> result = new HashMap<>();
         result.put("successCount", questions.size());

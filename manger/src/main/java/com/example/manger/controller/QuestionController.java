@@ -116,6 +116,7 @@ public class QuestionController {
     @Operation(summary = "导入题库", description = "从Excel文件导入题目")
     public ApiResponse<Map<String, Object>> importQuestions(
             @RequestParam("file") MultipartFile file,
+            @Parameter(description = "课程id") @RequestParam(defaultValue = "1") Long courseId,
             Authentication authentication) {
         try {
             if (file.isEmpty()) {
@@ -127,7 +128,7 @@ public class QuestionController {
             }
             
             Long userId = getCurrentUserId(authentication);
-            Map<String, Object> result = questionImportService.importQuestions(file, userId);
+            Map<String, Object> result = questionImportService.importQuestions(file,courseId, userId);
             
             return ApiResponse.success("导入完成", result);
             
