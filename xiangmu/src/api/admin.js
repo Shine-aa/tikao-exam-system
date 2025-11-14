@@ -82,6 +82,15 @@ export function resetUserPassword(id, data) {
   })
 }
 
+// 修改用户密码
+export function changeUserPassword(id, data) {
+  return request({
+    url: `/api/admin/users/${id}/change-password`,
+    method: 'put',
+    data
+  })
+}
+
 // 为用户分配角色
 export function assignUserRoles(id, data) {
   return request({
@@ -602,6 +611,7 @@ export const userApi = {
   batchDeleteUsers,
   toggleUserStatus,
   resetUserPassword,
+  changeUserPassword,
   assignUserRoles,
   getStudents,
   getStudentsWithPagination,
