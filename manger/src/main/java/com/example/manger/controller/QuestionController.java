@@ -5,6 +5,8 @@ import com.example.manger.dto.PageResponse;
 import com.example.manger.dto.QuestionRequest;
 import com.example.manger.dto.QuestionResponse;
 import com.example.manger.entity.Question;
+import com.example.manger.entity.QuestionCourse;
+import com.example.manger.repository.QuestionCourseRepository;
 import com.example.manger.service.QuestionImportService;
 import com.example.manger.service.QuestionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +29,7 @@ public class QuestionController {
     
     private final QuestionService questionService;
     private final QuestionImportService questionImportService;
+    private final QuestionCourseRepository questionCourseRepository;
     
     @PostMapping
     @Operation(summary = "创建题目", description = "创建新的题目")
@@ -113,6 +116,7 @@ public class QuestionController {
     @Operation(summary = "导入题库", description = "从Excel文件导入题目")
     public ApiResponse<Map<String, Object>> importQuestions(
             @RequestParam("file") MultipartFile file,
+            @Parameter(description = "课程id") @RequestParam(defaultValue = "1") Long courseId,
             Authentication authentication) {
         try {
             if (file.isEmpty()) {
@@ -124,7 +128,7 @@ public class QuestionController {
             }
             
             Long userId = getCurrentUserId(authentication);
-            Map<String, Object> result = questionImportService.importQuestions(file, userId);
+            Map<String, Object> result = questionImportService.importQuestions(file,courseId, userId);
             
             return ApiResponse.success("导入完成", result);
             

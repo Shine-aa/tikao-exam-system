@@ -262,11 +262,12 @@ export function getQuestionStatistics() {
 }
 
 // 导入题目
-export function importQuestions(formData) {
+export function importQuestions(formData, courseId) {
   return request({
     url: '/api/questions/import',
     method: 'post',
     data: formData,
+    params: { courseId },
     headers: {
       'Content-Type': 'multipart/form-data'
     }
