@@ -3,6 +3,7 @@ package com.example.manger.config;
 import com.example.manger.entity.User;
 import com.example.manger.repository.UserRepository;
 import com.example.manger.util.JwtUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -65,16 +66,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             // 2. 令牌验证失败
-            if (!jwtUtil.validateToken(token)) {
+            if (!jwtUtil.checkToken(token)) {
                 logger.warn("JWT Filter - Token validation failed");
                 sendErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED, "令牌无效");
                 return;
             }
 
             logger.info("JWT Filter - Token is valid");
-            String username = jwtUtil.getUsernameFromToken(token);
             Long userId = jwtUtil.getUserIdFromToken(token);
-            logger.info("JWT Filter - Username: " + username + ", UserId: " + userId);
 
             User user = userRepository.findByIdWithRoles(userId).orElse(null);
             // 3. 用户不存在或未激活
