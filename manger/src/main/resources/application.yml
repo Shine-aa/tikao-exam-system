@@ -45,7 +45,8 @@ spring:
 jwt:
   secret: your-secret-key-here-must-be-very-long-and-secure
   expiration: 86400000  # 24小时
-  refresh-expiration: 2592000000  # 30天
+  rememberExpiration: 2592000 # 30天
+#  refresh-expiration: 2592000000  # 30天
 
 # 验证码配置
 kaptcha:

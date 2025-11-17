@@ -1,5 +1,6 @@
 package com.example.manger.entity;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -42,17 +43,23 @@ public class User {
     
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
-    
+
+    // 直接在字段上配置序列化格式，无需依赖全局 ObjectMapper
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @Column(name = "last_login_time")
     private LocalDateTime lastLoginTime;
     
     @Column(name = "class_id")
     private Long classId;
-    
+
+    // 直接在字段上配置序列化格式，无需依赖全局 ObjectMapper
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @CreationTimestamp
     @Column(name = "create_time", nullable = false, updatable = false)
     private LocalDateTime createTime;
-    
+
+    // 直接在字段上配置序列化格式，无需依赖全局 ObjectMapper
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @UpdateTimestamp
     @Column(name = "update_time", nullable = false)
     private LocalDateTime updateTime;
