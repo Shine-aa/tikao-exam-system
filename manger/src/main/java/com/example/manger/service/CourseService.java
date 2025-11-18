@@ -1,9 +1,8 @@
 package com.example.manger.service;
 
-import com.example.manger.dto.CourseRequest;
-import com.example.manger.dto.CourseResponse;
-import com.example.manger.dto.PageResponse;
+import com.example.manger.dto.*;
 import com.example.manger.entity.Course;
+import com.example.manger.entity.TeacherCourse;
 import com.example.manger.entity.User;
 import com.example.manger.exception.BusinessException;
 import com.example.manger.exception.ErrorCode;
@@ -19,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,7 +34,6 @@ public class CourseService {
     private final ClassCourseRepository classCourseRepository;
     private final UserRepository userRepository;
     private final TeacherCourseRepository teacherCourseRepository;
-    
     /**
      * 创建课程
      */
@@ -46,7 +45,7 @@ public class CourseService {
         }
         
         // 检查教师是否存在
-        User teacher = userRepository.findById(request.getTeacherId())
+        User creator = userRepository.findById(request.getTeacherId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "教师不存在"));
         
         // 创建课程
@@ -58,8 +57,19 @@ public class CourseService {
         course.setSemester(request.getSemester());
         course.setAcademicYear(request.getAcademicYear());
         course.setIsActive(request.getIsActive());
-        
+
+        // 保存课程，获取保存后的课程ID（必须先保存课程，才能获取ID用于关联）
         Course savedCourse = courseRepository.save(course);
+
+        // 创建课程-教师关联：自动将创建者添加到课程的教师列表
+        TeacherCourse teacherCourse = new TeacherCourse();
+        teacherCourse.setTeacherId(creator.getId()); // 创建者的教师ID
+        teacherCourse.setCourseId(savedCourse.getId()); // 刚创建的课程ID
+        teacherCourse.setIsActive(true); // 默认为激活状态
+        // createdAt和updatedAt会由@CreationTimestamp和@UpdateTimestamp自动填充
+        // 保存关联关系
+        teacherCourseRepository.save(teacherCourse);
+
         return convertToResponse(savedCourse);
     }
     
@@ -174,7 +184,109 @@ public class CourseService {
                 .hasPrevious(page > 1)
                 .build();
     }
-    
+
+
+    /**
+     * 获取课程的教师授权信息（包含已授权教师和所有教师）
+     */
+    public CourseTeacherAuthDTO getCourseTeacherAuthInfo(Long courseId) {
+        // 1. 验证课程是否存在
+        if (!courseRepository.existsById(courseId)) {
+            throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+        }
+
+        // 2. 获取系统中所有教师（角色为TEACHER且激活的用户）
+        List<User> allTeachers = userRepository.findByRolesRoleCodeAndIsActiveTrue("TEACHER");
+        List<TeacherResponse> allTeacherResponses = allTeachers.stream()
+                .map(this::convertToTeacherResponse)
+                .collect(Collectors.toList());
+
+        // 3. 获取当前课程已授权的教师ID列表
+        List<Long> authorizedTeacherIds = teacherCourseRepository.findByCourseIdAndIsActiveTrue(courseId)
+                .stream()
+                .map(TeacherCourse::getTeacherId)
+                .collect(Collectors.toList());
+
+        // 4. 过滤出已授权的教师
+        List<TeacherResponse> authorizedTeachers = allTeachers.stream()
+                .filter(teacher -> authorizedTeacherIds.contains(teacher.getId()))
+                .map(this::convertToTeacherResponse)
+                .collect(Collectors.toList());
+
+        // 5. 包装结果返回
+        return new CourseTeacherAuthDTO(authorizedTeachers, allTeacherResponses);
+    }
+
+    /**
+     * 授权教师到课程（全量更新：新增需要的，移除不需要的）
+     */
+    @Transactional
+    public void authorizeTeachers(Long courseId, List<Long> newTeacherIds) {
+        // 1. 验证课程是否存在
+        if (!courseRepository.existsById(courseId)) {
+            throw new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在");
+        }
+
+        // 2. 验证传入的教师是否都存在（过滤无效ID，避免后续处理异常）
+        List<Long> existingTeacherIds = userRepository.findAllById(newTeacherIds).stream()
+                .map(User::getId)
+                .collect(Collectors.toList());
+        if (existingTeacherIds.size() != newTeacherIds.size()) {
+            // 计算不存在的ID，便于日志提示
+            List<Long> invalidIds = newTeacherIds.stream()
+                    .filter(id -> !existingTeacherIds.contains(id))
+                    .collect(Collectors.toList());
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND, "部分教师不存在：" + invalidIds);
+        }
+
+        // 3. 获取当前课程已授权的教师关联列表（仅激活状态）
+        List<TeacherCourse> currentAuthorized = teacherCourseRepository.findByCourseIdAndIsActiveTrue(courseId);
+        List<Long> currentTeacherIds = currentAuthorized.stream()
+                .map(TeacherCourse::getTeacherId)
+                .collect(Collectors.toList());
+
+        // 4. 计算需要新增的教师ID（新列表有，当前没有的）
+        List<Long> toAdd = existingTeacherIds.stream()
+                .filter(id -> !currentTeacherIds.contains(id))
+                .collect(Collectors.toList());
+
+        // 5. 计算需要移除的教师关联（当前有，新列表没有的）
+        List<TeacherCourse> toRemove = currentAuthorized.stream()
+                .filter(tc -> !existingTeacherIds.contains(tc.getTeacherId()))
+                .collect(Collectors.toList());
+
+        // 6. 执行新增：创建新的关联记录
+        for (Long teacherId : toAdd) {
+            TeacherCourse newRelation = new TeacherCourse();
+            newRelation.setTeacherId(teacherId);
+            newRelation.setCourseId(courseId);
+            newRelation.setIsActive(true);
+            // createdAt/updatedAt由注解自动填充，无需手动设置
+            teacherCourseRepository.save(newRelation);
+        }
+
+        // 7. 执行移除：将关联记录置为非激活（逻辑删除，保留历史）
+        // 若需要物理删除，可改为 teacherCourseRepository.deleteAll(toRemove);
+        for (TeacherCourse relation : toRemove) {
+            relation.setIsActive(false);
+            relation.setUpdatedAt(LocalDateTime.now()); // 手动更新时间戳（可选）
+            teacherCourseRepository.save(relation);
+        }
+    }
+    /**
+     * 转换用户为教师响应DTO
+     */
+    private TeacherResponse convertToTeacherResponse(User user) {
+        TeacherResponse response = new TeacherResponse();
+        response.setId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setName(user.getName()); // 假设用户表有姓名字段
+        response.setEmail(user.getEmail()); // 假设用户表有邮箱字段
+        // 可补充其他需要的教师信息字段
+        return response;
+    }
+
+
     /**
      * 获取教师的所有课程
      */

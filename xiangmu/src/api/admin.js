@@ -511,6 +511,23 @@ export function getCourses() {
   })
 }
 
+// 获取课程教师授权信息（已授权教师 + 所有教师）
+export function getAuthorizedTeachers(courseId) {
+  return request({
+    url: `/api/courses/${courseId}/authorized-teachers`,
+    method: 'get'
+  })
+}
+
+// 授权教师到课程
+export function authorizeTeachers(courseId, teacherIds) {
+  return request({
+    url: `/api/courses/${courseId}/authorize-teachers`,
+    method: 'post',
+    data: { teacherIds }
+  })
+}
+
 // ==================== 班级管理 API ====================
 
 // 创建班级

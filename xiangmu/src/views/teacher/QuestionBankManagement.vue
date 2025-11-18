@@ -304,7 +304,7 @@
             <el-option
               v-for="course in courseList"
               :key="course.id"
-              :label="course.name"
+              :label="course.courseName"
               :value="course.id"
             />
           </el-select>

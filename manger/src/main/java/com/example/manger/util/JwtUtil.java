@@ -77,7 +77,7 @@ public class JwtUtil {
         if (session == null) {
             return false;
         }
-        BaseContext.setCurrentId((int) session.get("id"));
+        BaseContext.setCurrentId(Long.valueOf((Integer) session.get("id")));
         return true;
     }
 
