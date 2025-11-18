@@ -225,42 +225,77 @@ public class QuestionService {
         
         return convertToResponse(question);
     }
-    
+
+
     /**
-     * 分页查询题目
+     * 分页查询题目（支持按课程过滤）
      */
     public PageResponse<QuestionResponse> getQuestionsWithPagination(
             Question.QuestionType type,
             Question.DifficultyLevel difficulty,
+            long courseId,
             String keyword,
             int page,
             int size,
             String sortBy,
             String sortDir,
             Long userId) {
-        
+
         Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortBy);
         Pageable pageable = PageRequest.of(page - 1, size, sort);
-        
-        Page<Question> questionPage = questionRepository.findByFilters(
-            type, difficulty, keyword, userId, pageable);
-        
-        List<QuestionResponse> responses = questionPage.getContent().stream()
-            .map(this::convertToResponse)
-            .collect(Collectors.toList());
-        
-        int totalPages = questionPage.getTotalPages();
+
+        // 1. 先查询符合所有条件的总条数（关键修正：先算总数）
+        long filteredTotal;
+        if (courseId == -1) {
+            // 不过滤课程：直接查基础条件的总数
+            filteredTotal = questionRepository.countByFilters(type, difficulty, keyword);
+        } else {
+            // 过滤课程：查“基础条件 + 属于该课程”的总数
+            Set<Long> courseQuestionIds = questionCourseRepository.findByCourseIdAndIsActiveTrue(courseId)
+                    .stream()
+                    .map(QuestionCourse::getQuestionId)
+                    .collect(Collectors.toSet());
+            filteredTotal = questionRepository.countByFiltersAndIds(type, difficulty, keyword, courseQuestionIds);
+        }
+
+        // 2. 计算总页数（基于真实总数）
+        int totalPages = filteredTotal == 0 ? 0 : (int) Math.ceil((double) filteredTotal / size);
+
+        // 3. 查询当前页的数据（符合所有条件）
+        List<Question> currentPageQuestions;
+        if (courseId == -1) {
+            // 不过滤课程：直接查分页数据
+            currentPageQuestions = questionRepository.findByFilters(type, difficulty, keyword, pageable).getContent();
+        } else {
+            // 过滤课程：直接查询“基础条件+课程关联”的分页数据（关键修正）
+            Set<Long> courseQuestionIds = questionCourseRepository.findByCourseIdAndIsActiveTrue(courseId)
+                    .stream()
+                    .map(QuestionCourse::getQuestionId)
+                    .collect(Collectors.toSet());
+
+            // 直接调用带课程ID过滤的分页查询，而不是先查基础数据再过滤
+            currentPageQuestions = questionRepository.findByFiltersAndIds(
+                            type, difficulty, keyword, courseQuestionIds, pageable)
+                    .getContent();
+        }
+
+        // 4. 转换为响应DTO
+        List<QuestionResponse> responses = currentPageQuestions.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+
+        // 5. 构建分页响应（基于真实总数和总页数）
         return PageResponse.<QuestionResponse>builder()
-            .content(responses)
-            .page(page)
-            .size(size)
-            .total(questionPage.getTotalElements())
-            .totalPages(totalPages)
-            .first(page == 1)
-            .last(page == totalPages)
-            .hasNext(page != totalPages)
-            .hasPrevious(page != 1)
-            .build();
+                .content(responses)
+                .page(page)
+                .size(size)
+                .total(filteredTotal) // 真实总条数
+                .totalPages(totalPages) // 基于真实总数的总页数
+                .first(page == 1)
+                .last(page >= totalPages || totalPages == 0)
+                .hasNext(page < totalPages)
+                .hasPrevious(page > 1)
+                .build();
     }
     
     /**
@@ -284,7 +319,8 @@ public class QuestionService {
      * 获取题目统计信息
      */
     public QuestionStatistics getQuestionStatistics(Long userId) {
-        long totalQuestions = questionRepository.countByCreatedBy(userId);
+        long totalQuestions = questionRepository.count();
+        //long totalQuestions = questionRepository.countByCreatedBy(userId);
         long singleChoiceCount = questionRepository.countByType(Question.QuestionType.SINGLE_CHOICE);
         long multipleChoiceCount = questionRepository.countByType(Question.QuestionType.MULTIPLE_CHOICE);
         long trueFalseCount = questionRepository.countByType(Question.QuestionType.TRUE_FALSE);

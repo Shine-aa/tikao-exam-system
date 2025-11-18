@@ -70,6 +70,22 @@
             <el-option label="困难" value="HARD" />
           </el-select>
         </el-form-item>
+        <el-form-item label="所属课程">
+          <el-select 
+            v-model="searchForm.courseId" 
+            placeholder="选择课程" 
+            clearable 
+            style="width: 180px"
+            :loading="coursesLoading"
+          >
+            <el-option 
+              v-for="course in courseList" 
+              :key="course.id" 
+              :label="course.courseName" 
+              :value="course.id" 
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="关键词">
           <el-input
             v-model="searchForm.keyword"
@@ -556,7 +572,8 @@ const selectedCourseId = ref('') // 选中的课程ID
 const searchForm = reactive({
   type: '',
   difficulty: '',
-  keyword: ''
+  keyword: '',
+  courseId: ''
 })
 
 // 防抖函数
@@ -580,7 +597,7 @@ const debouncedSearch = debounce(() => {
 
 // 监听搜索表单变化
 watch(
-  () => [searchForm.type, searchForm.difficulty, searchForm.keyword],
+  () => [searchForm.type, searchForm.difficulty, searchForm.keyword, searchForm.courseId],
   () => {
     debouncedSearch()
   },
@@ -844,11 +861,17 @@ const addOption = () => {
 const loadQuestionList = async () => {
   try {
     loading.value = true
+    // 创建搜索参数，只包含有值的字段
     const params = {
       page: pagination.page,
-      size: pagination.size,
-      ...searchForm
+      size: pagination.size
     }
+    
+    // 只有当搜索条件有值时才添加到参数中
+    if (searchForm.type) params.type = searchForm.type
+    if (searchForm.difficulty) params.difficulty = searchForm.difficulty
+    if (searchForm.keyword) params.keyword = searchForm.keyword
+    if (searchForm.courseId) params.courseId = searchForm.courseId
     
     const response = await getQuestions(params)
     if (response.code === 200) {
@@ -895,7 +918,8 @@ const handleReset = () => {
   Object.assign(searchForm, {
     type: '',
     difficulty: '',
-    keyword: ''
+    keyword: '',
+    courseId: ''
   })
   pagination.page = 1
   loadQuestionList()
@@ -1311,6 +1335,7 @@ const getImageUrls = (images) => {
 onMounted(() => {
   loadQuestionList()
   loadStatistics()
+  loadCourseList()
 })
 </script>
 

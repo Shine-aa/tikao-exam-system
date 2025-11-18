@@ -9,10 +9,51 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Set;
 
 @Repository
 public interface QuestionRepository extends JpaRepository<Question, Long> {
-    
+    /**
+     * 统计符合基础过滤条件（类型、难度、关键词）的题目总数
+     */
+    @Query("SELECT COUNT(q) FROM Question q " +
+            "WHERE q.isActive = true AND " +
+            "(:type IS NULL OR q.type = :type) AND " +
+            "(:difficulty IS NULL OR q.difficulty = :difficulty) AND " +
+            "(:keyword IS NULL OR q.title LIKE %:keyword% OR q.content LIKE %:keyword% OR q.tags LIKE %:keyword%)")
+    long countByFilters(@Param("type") Question.QuestionType type,
+                        @Param("difficulty") Question.DifficultyLevel difficulty,
+                        @Param("keyword") String keyword);
+
+    /**
+     * 统计符合基础过滤条件且属于指定ID列表（课程关联题目ID）的题目总数
+     */
+    @Query("SELECT COUNT(q) FROM Question q " +
+            "WHERE q.isActive = true AND " +
+            "(:type IS NULL OR q.type = :type) AND " +
+            "(:difficulty IS NULL OR q.difficulty = :difficulty) AND " +
+            "(:keyword IS NULL OR q.title LIKE %:keyword% OR q.content LIKE %:keyword% OR q.tags LIKE %:keyword%) AND " +
+            "q.id IN :questionIds")
+    long countByFiltersAndIds(@Param("type") Question.QuestionType type,
+                              @Param("difficulty") Question.DifficultyLevel difficulty,
+                              @Param("keyword") String keyword,
+                              @Param("questionIds") Set<Long> questionIds);
+
+    /**
+     * 同时满足基础条件和课程关联的分页查询
+     */
+    @Query("SELECT q FROM Question q " +
+            "WHERE q.isActive = true AND " +
+            "(:type IS NULL OR q.type = :type) AND " +
+            "(:difficulty IS NULL OR q.difficulty = :difficulty) AND " +
+            "(:keyword IS NULL OR q.title LIKE %:keyword% OR q.content LIKE %:keyword% OR q.tags LIKE %:keyword%) AND " +
+            "q.id IN :questionIds") // 课程关联的题目ID
+    Page<Question> findByFiltersAndIds(
+            @Param("type") Question.QuestionType type,
+            @Param("difficulty") Question.DifficultyLevel difficulty,
+            @Param("keyword") String keyword,
+            @Param("questionIds") Set<Long> questionIds,
+            Pageable pageable); // 分页参数
     Page<Question> findByIsActiveTrue(Pageable pageable);
     
     @Query("SELECT q FROM Question q WHERE q.isActive = true AND " +
@@ -37,12 +78,10 @@ public interface QuestionRepository extends JpaRepository<Question, Long> {
            "WHERE q.isActive = true AND " +
            "(:type IS NULL OR q.type = :type) AND " +
            "(:difficulty IS NULL OR q.difficulty = :difficulty) AND " +
-           "(:keyword IS NULL OR q.title LIKE %:keyword% OR q.content LIKE %:keyword% OR q.tags LIKE %:keyword%) AND " +
-           "(:createdBy IS NULL OR q.createdBy = :createdBy)")
+           "(:keyword IS NULL OR q.title LIKE %:keyword% OR q.content LIKE %:keyword% OR q.tags LIKE %:keyword%)")
     Page<Question> findByFilters(@Param("type") Question.QuestionType type,
                                 @Param("difficulty") Question.DifficultyLevel difficulty,
                                 @Param("keyword") String keyword,
-                                @Param("createdBy") Long createdBy,
                                 Pageable pageable);
     
     @Query("SELECT COUNT(q) FROM Question q WHERE q.isActive = true AND q.type = :type")
