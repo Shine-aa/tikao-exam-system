@@ -285,9 +285,9 @@ public class ExamController {
     @Operation(summary = "获取老师端仪表盘统计数据", description = "获取老师端仪表盘的各种统计数据（题库数量、考试数量、学生数量等）")
     @Tag(name = "仪表盘")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ApiResponse<Map<String, Object>> getDashboardStats(HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> getDashboardStats() {
         try {
-            Map<String, Object> stats = examService.getDashboardStats(request);
+            Map<String, Object> stats = examService.getDashboardStats();
             return ApiResponse.success("获取仪表盘统计数据成功", stats);
         } catch (Exception e) {
             return ApiResponse.error("获取仪表盘统计数据失败: " + e.getMessage());
