@@ -13,6 +13,12 @@ import java.util.Set;
 
 @Repository
 public interface QuestionRepository extends JpaRepository<Question, Long> {
+    // 按题目ID列表统计总数
+    long countByIdIn(Set<Long> questionIds);
+
+    // 按题目ID列表和类型统计数量
+    long countByIdInAndType(Set<Long> questionIds, Question.QuestionType type);
+
     /**
      * 统计符合基础过滤条件（类型、难度、关键词）的题目总数
      */

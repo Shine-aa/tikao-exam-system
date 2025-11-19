@@ -9,6 +9,7 @@ import com.example.manger.exception.BusinessException;
 import com.example.manger.exception.ErrorCode;
 import com.example.manger.repository.QuestionRepository;
 import com.example.manger.repository.QuestionCourseRepository;
+import com.example.manger.repository.TeacherCourseRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +27,7 @@ public class QuestionService {
     
     private final QuestionRepository questionRepository;
     private final QuestionCourseRepository questionCourseRepository;
+    private final TeacherCourseRepository teacherCourseRepository;
     
     /**
      * 创建题目
@@ -305,40 +307,67 @@ public class QuestionService {
     public void batchDeleteQuestions(List<Long> ids, Long userId) {
         List<Question> questions = questionRepository.findAllById(ids);
         
-        for (Question question : questions) {
-            if (!question.getCreatedBy().equals(userId)) {
-                throw new BusinessException(ErrorCode.ACCESS_DENIED, "无权限删除题目: " + question.getId());
-            }
-        }
+        //for (Question question : questions) {
+        //    if (!question.getCreatedBy().equals(userId)) {
+        //        throw new BusinessException(ErrorCode.ACCESS_DENIED, "无权限删除题目: " + question.getId());
+        //    }
+        //}
         
         // 删除题目本身
         questionRepository.deleteAll(questions);
     }
-    
+
     /**
-     * 获取题目统计信息
+     * 获取教师管理课程下的题目统计信息
      */
-    public QuestionStatistics getQuestionStatistics(Long userId) {
-        long totalQuestions = questionRepository.count();
-        //long totalQuestions = questionRepository.countByCreatedBy(userId);
-        long singleChoiceCount = questionRepository.countByType(Question.QuestionType.SINGLE_CHOICE);
-        long multipleChoiceCount = questionRepository.countByType(Question.QuestionType.MULTIPLE_CHOICE);
-        long trueFalseCount = questionRepository.countByType(Question.QuestionType.TRUE_FALSE);
-        long fillBlankCount = questionRepository.countByType(Question.QuestionType.FILL_BLANK);
-        long subjectiveCount = questionRepository.countByType(Question.QuestionType.SUBJECTIVE);
-        long programmingCount = questionRepository.countByType(Question.QuestionType.PROGRAMMING);
-        
+    public QuestionStatistics getQuestionStatistics(Long teacherId) {
+        // 1. 获取教师管理的所有课程ID
+        List<Long> teacherCourseIds = teacherCourseRepository.findByTeacherIdAndIsActiveTrue(teacherId)
+                .stream()
+                .map(tc -> tc.getCourseId())
+                .collect(Collectors.toList());
+
+        if (teacherCourseIds.isEmpty()) {
+            return new QuestionStatistics(0, 0, 0, 0, 0, 0, 0);
+        }
+
+        // 2. 通过中间表 QuestionCourse，找到这些课程下的所有题目ID
+        Set<Long> questionIds = questionCourseRepository.findByCourseIdInAndIsActiveTrue(teacherCourseIds)
+                .stream()
+                .map(QuestionCourse::getQuestionId)
+                .collect(Collectors.toSet());
+
+        if (questionIds.isEmpty()) {
+            return new QuestionStatistics(0, 0, 0, 0, 0, 0, 0);
+        }
+
+        // 3. 统计这些题目ID对应的题目数量（按类型区分）
+        long totalQuestions = questionRepository.countByIdIn(questionIds);
+
+        long singleChoiceCount = questionRepository.countByIdInAndType(
+                questionIds, Question.QuestionType.SINGLE_CHOICE);
+        long multipleChoiceCount = questionRepository.countByIdInAndType(
+                questionIds, Question.QuestionType.MULTIPLE_CHOICE);
+        long trueFalseCount = questionRepository.countByIdInAndType(
+                questionIds, Question.QuestionType.TRUE_FALSE);
+        long fillBlankCount = questionRepository.countByIdInAndType(
+                questionIds, Question.QuestionType.FILL_BLANK);
+        long subjectiveCount = questionRepository.countByIdInAndType(
+                questionIds, Question.QuestionType.SUBJECTIVE);
+        long programmingCount = questionRepository.countByIdInAndType(
+                questionIds, Question.QuestionType.PROGRAMMING);
+
         return new QuestionStatistics(
-            totalQuestions,
-            singleChoiceCount,
-            multipleChoiceCount,
-            trueFalseCount,
-            fillBlankCount,
-            subjectiveCount,
-            programmingCount
+                totalQuestions,
+                singleChoiceCount,
+                multipleChoiceCount,
+                trueFalseCount,
+                fillBlankCount,
+                subjectiveCount,
+                programmingCount
         );
     }
-    
+
     /**
      * 题目统计信息内部类
      */

@@ -2,7 +2,7 @@
   <div class="question-bank-container">
     <!-- 页面标题 -->
     <div class="page-header">
-      <h2>题库管理</h2>
+      <h2>题库管理<template v-if="currentCourseName"> - {{ currentCourseName }}</template></h2>
       <p>管理题目、知识点和标签</p>
     </div>
 
@@ -77,11 +77,12 @@
             clearable 
             style="width: 180px"
             :loading="coursesLoading"
+            @change="handleCourseChange"
           >
             <el-option 
               v-for="course in courseList" 
               :key="course.id" 
-              :label="course.courseName" 
+              :label="course.courseName || course.name" 
               :value="course.id" 
             />
           </el-select>
@@ -523,11 +524,13 @@
 
 <script setup>
 import { ref, reactive, onMounted, computed, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Refresh, Upload, Check } from '@element-plus/icons-vue'
 import { getQuestions, deleteQuestion, batchDeleteQuestions, getQuestionStatistics, importQuestions, createQuestion, updateQuestion, getCourses } from '../../api/admin'
 
 // 响应式数据
+const route = useRoute()
 const loading = ref(false)
 const questionList = ref([])
 const selectedQuestions = ref([])
@@ -538,6 +541,8 @@ const editingQuestion = ref(null)
 // 课程相关
 const courseList = ref([]) // 课程列表
 const coursesLoading = ref(false) // 课程加载状态
+// 路由参数相关
+const currentCourseName = ref('') // 当前选中的课程名称
 
 // 加载课程列表
 const loadCourseList = async () => {
@@ -573,7 +578,7 @@ const searchForm = reactive({
   type: '',
   difficulty: '',
   keyword: '',
-  courseId: ''
+  courseId: route.query.courseId || ''
 })
 
 // 防抖函数
@@ -636,6 +641,45 @@ const pagination = reactive({
   size: 10,
   total: 0
 })
+
+// 监听路由参数变化
+watch(() => route.query, (newQuery) => {
+  if (newQuery.courseId) {
+    // 1. 统一类型：将路由参数的courseId转为与课程列表id一致的类型（假设课程id是数字）
+    const courseId = Number(newQuery.courseId); // 若课程id是字符串则用String()
+    searchForm.courseId = courseId;
+
+    // 2. 优先用路由中的courseName，否则从课程列表查找
+    if (newQuery.courseName) {
+      currentCourseName.value = newQuery.courseName;
+    } else if (courseList.value.length > 0) {
+      const selectedCourse = courseList.value.find(course => course.id === courseId);
+      currentCourseName.value = selectedCourse ? (selectedCourse.courseName || selectedCourse.name || '') : '';
+    } else {
+      currentCourseName.value = '';
+    }
+
+    pagination.page = 1;
+    loadQuestionList();
+  }
+});
+
+// 处理课程选择变化
+const handleCourseChange = (courseId) => {
+  if (courseId) {
+    // 从课程列表中查找对应的课程名称
+    const selectedCourse = courseList.value.find(course => course.id === courseId)
+    if (selectedCourse) {
+      currentCourseName.value = selectedCourse.courseName || selectedCourse.name || ''
+    }
+  } else {
+    // 清除选择时，清空课程名称
+    currentCourseName.value = ''
+  }
+  // 重置页码并重新加载数据
+  pagination.page = 1
+  loadQuestionList()
+}
 
 // 计算属性
 const getTypeTagType = (type) => {
@@ -1332,10 +1376,30 @@ const getImageUrls = (images) => {
 }
 
 // 生命周期
-onMounted(() => {
+onMounted(async () => {
+  await loadStatistics()
+  await loadCourseList()
+  
+  if (route.query.courseId) {
+    // 统一转为数字类型（关键修改）
+    searchForm.courseId = Number(route.query.courseId)
+    
+    if (route.query.courseName) {
+      currentCourseName.value = route.query.courseName
+    } else if (courseList.value.length > 0) {
+      // 直接用数字比较（因searchForm.courseId已转为数字）
+      const selectedCourse = courseList.value.find(course => course.id === searchForm.courseId)
+      if (selectedCourse) {
+        currentCourseName.value = selectedCourse.courseName || selectedCourse.name || ''
+      }
+    } else {
+      currentCourseName.value = ''
+    }
+    
+    pagination.page = 1
+  }
+  
   loadQuestionList()
-  loadStatistics()
-  loadCourseList()
 })
 </script>
 

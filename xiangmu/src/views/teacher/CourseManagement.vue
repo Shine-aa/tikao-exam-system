@@ -83,7 +83,7 @@
             教师
           </el-button>
           <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-          <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+          <el-button v-if="row.teacherId === currentTeacherId" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -444,9 +444,9 @@ onMounted(async () => {
 
 // 题目管理相关方法
 const handleManageQuestions = (row) => {
-  // 跳转到课程题库管理页面
+  // 跳转到题库管理页面
   router.push({
-    name: 'CourseQuestionBank',
+    path: '/teacher/question-bank',
     query: {
       courseId: row.id,
       courseName: row.courseName

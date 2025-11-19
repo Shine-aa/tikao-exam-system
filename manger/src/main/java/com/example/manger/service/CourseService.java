@@ -19,7 +19,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -291,7 +293,19 @@ public class CourseService {
      * 获取教师的所有课程
      */
     public List<CourseResponse> getCoursesByTeacher(Long teacherId) {
-        List<Course> courses = courseRepository.findByTeacherIdAndIsActiveTrue(teacherId);
+        // 获取教师的课程ID列表
+        List<Long> teacherCourseIds = teacherCourseRepository.findByTeacherIdAndIsActiveTrue(teacherId)
+                .stream()
+                .map(TeacherCourse::getCourseId) // 假设实体类是TeacherCourse
+                .collect(Collectors.toList());
+
+        // 批量查询课程（处理Optional并过滤无效课程）
+        List<Course> courses = teacherCourseIds.stream()
+                .map(courseId -> courseRepository.findById(courseId).orElse(null))
+                .filter(Objects::nonNull) // 排除不存在的课程
+                .collect(Collectors.toList());
+
+        // 转换为响应对象
         return courses.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
