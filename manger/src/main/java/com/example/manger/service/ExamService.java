@@ -1,5 +1,6 @@
 package com.example.manger.service;
 
+import com.example.manger.context.BaseContext;
 import com.example.manger.dto.ExamRequest;
 import com.example.manger.dto.ExamResponse;
 import com.example.manger.dto.PageResponse;
@@ -61,6 +62,9 @@ public class ExamService {
     
     @Autowired
     private StudentExamPaperService studentExamPaperService;
+
+    @Autowired
+    private QuestionService questionService;
     
     @Autowired
     private JwtUtil jwtUtil;
@@ -1581,13 +1585,14 @@ public class ExamService {
     /**
      * 获取老师端仪表盘统计数据
      */
-    public Map<String, Object> getDashboardStats(HttpServletRequest request) {
+    public Map<String, Object> getDashboardStats() {
         // 获取当前用户ID
-        Long teacherId = getCurrentUserId(request);
-        
-        // 获取题库总数
-        Long questionBankCount = questionRepository.count();
-        
+        Long teacherId = BaseContext.getCurrentId();
+
+        //Long questionBankCount = questionRepository.count();
+        // 获取我管理的题库总数
+        Long questionBankCount = questionService.getTotalOnMyManagement(teacherId);
+
         // 获取进行中的考试数量
         Long ongoingExams = examRepository.countByStatusAndIsActiveTrue(Exam.ExamStatus.ONGOING);
         

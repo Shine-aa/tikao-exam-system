@@ -368,6 +368,33 @@ public class QuestionService {
         );
     }
 
+    public Long getTotalOnMyManagement(Long teacherId){
+        // 1. 获取教师管理的所有课程ID
+        List<Long> teacherCourseIds = teacherCourseRepository.findByTeacherIdAndIsActiveTrue(teacherId)
+                .stream()
+                .map(tc -> tc.getCourseId())
+                .collect(Collectors.toList());
+
+        if (teacherCourseIds.isEmpty()) {
+            return 0l;
+        }
+
+        // 2. 通过中间表 QuestionCourse，找到这些课程下的所有题目ID
+        Set<Long> questionIds = questionCourseRepository.findByCourseIdInAndIsActiveTrue(teacherCourseIds)
+                .stream()
+                .map(QuestionCourse::getQuestionId)
+                .collect(Collectors.toSet());
+
+        if (questionIds.isEmpty()) {
+            return 0l;
+        }
+
+        // 3. 统计这些题目ID对应的题目数量（按类型区分）
+        long totalQuestions = questionRepository.countByIdIn(questionIds);
+
+        return totalQuestions;
+    }
+
     /**
      * 题目统计信息内部类
      */

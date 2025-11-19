@@ -8,7 +8,7 @@
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-number">{{ stats.questionBankCount }}</div>
-        <div class="stat-label">题库总数</div>
+        <div class="stat-label">我管理的题库总数</div>
       </div>
       <div class="stat-card">
         <div class="stat-number">{{ stats.ongoingExams }}</div>
