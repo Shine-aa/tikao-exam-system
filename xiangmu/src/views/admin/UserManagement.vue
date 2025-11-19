@@ -128,12 +128,17 @@
 
     <!-- 导入用户对话框（手动上传模式） -->
     <el-dialog v-model="showImportDialog" title="导入用户" width="500px">
-      <el-upload ref="uploadRef" drag :before-upload="beforeUpload" :show-file-list="true" :auto-upload="false"
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <el-upload ref="uploadRef" drag :before-upload="beforeUpload" :show-file-list="true" :auto-upload="false"
                  accept=".csv,.xlsx" :on-change="handleFileChange">
-        <i class="el-icon-upload"></i>
-        <div class="el-upload__text">拖拽文件到这里，或<em>点击上传</em></div>
-        <div class="el-upload__tip" slot="tip">只支持 CSV 或 Excel 文件</div>
-      </el-upload>
+          <i class="el-icon-upload"></i>
+          <div class="el-upload__text">拖拽文件到这里，或<em>点击上传</em></div>
+          <div class="el-upload__tip" slot="tip">只支持 CSV 或 Excel 文件</div>
+        </el-upload>
+        <el-button type="info" @click="handleDownloadTemplate" style="align-self: flex-start;">
+          下载导入模板
+        </el-button>
+      </div>
 
       <template #footer>
         <el-button @click="showImportDialog = false">取消</el-button>
@@ -529,6 +534,22 @@ const beforeUpload = (file) => {
 
 const handleFileChange = (file) => {
   selectedFile.value = file.raw
+}
+
+// 下载用户导入模板
+const handleDownloadTemplate = () => {
+  try {
+    // 创建一个临时链接下载模板文件
+    const link = document.createElement('a')
+    link.href = '/templates/用户导入模板.xlsx'
+    link.download = '用户导入模板.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  } catch (error) {
+    console.error('下载模板失败:', error)
+    ElMessage.error('下载模板失败，请重试')
+  }
 }
 
 const submitUpload = async () => {

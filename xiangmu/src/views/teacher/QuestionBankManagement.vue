@@ -327,23 +327,30 @@
           </el-select>
         </el-form-item>
         
-        <el-upload
-          ref="uploadRef"
-          class="upload-demo"
-          :auto-upload="false"
-          :limit="1"
-          accept=".xlsx,.xls"
-          :on-change="handleFileChange"
-          :on-remove="handleFileRemove"
-          :file-list="fileList"
-        >
-          <el-button type="primary">选择Excel文件</el-button>
-          <template #tip>
-            <div class="el-upload__tip">
-              只能上传 .xlsx 或 .xls 格式的文件，请参考格式说明文档
-            </div>
-          </template>
-        </el-upload>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <el-upload
+              ref="uploadRef"
+              class="upload-demo"
+              :auto-upload="false"
+              :limit="1"
+              accept=".xlsx,.xls"
+              :on-change="handleFileChange"
+              :on-remove="handleFileRemove"
+              :file-list="fileList"
+            >
+              <el-button type="primary">选择Excel文件</el-button>
+              <template #tip>
+                <div class="el-upload__tip">
+                  只能上传 .xlsx 或 .xls 格式的文件
+                </div>
+              </template>
+            </el-upload>
+            
+            <el-button type="info" @click="handleDownloadTemplate">
+              <el-icon><Download /></el-icon>
+              下载导入模板
+            </el-button>
+          </div>
 
         <el-alert
           v-if="importResult"
@@ -526,7 +533,7 @@
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Refresh, Upload, Check } from '@element-plus/icons-vue'
+import { Plus, Delete, Refresh, Upload, Check, Download } from '@element-plus/icons-vue'
 import { getQuestions, deleteQuestion, batchDeleteQuestions, getQuestionStatistics, importQuestions, createQuestion, updateQuestion, getCourses } from '../../api/admin'
 
 // 响应式数据
@@ -1047,6 +1054,24 @@ const handleImportDialogOpen = async () => {
 
 const handleImport = () => {
   importDialogVisible.value = true
+}
+
+// 下载题库导入模板
+const handleDownloadTemplate = () => {
+  try {
+    // 创建一个临时链接来下载模板文件
+    const link = document.createElement('a')
+    // 模板文件存放在public/templates目录下
+    link.href = '/templates/题库导入模板.xlsx'
+    link.download = '题库导入模板.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    ElMessage.success('模板下载成功')
+  } catch (error) {
+    console.error('下载模板失败:', error)
+    ElMessage.error('模板下载失败，请稍后重试')
+  }
 }
 
 const handleFileChange = (file) => {
