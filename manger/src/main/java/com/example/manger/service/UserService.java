@@ -169,6 +169,7 @@ public class UserService {
         
         AuthResponse.UserInfo userInfo = new AuthResponse.UserInfo();
         userInfo.setId(user.getId());
+        userInfo.setName(user.getName());
         userInfo.setUsername(user.getUsername());
         userInfo.setEmail(user.getEmail());
         userInfo.setCreateTime(user.getCreateTime().toString());

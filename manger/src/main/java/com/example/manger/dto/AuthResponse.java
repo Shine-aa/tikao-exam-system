@@ -10,6 +10,7 @@ public class AuthResponse {
     @Data
     public static class UserInfo {
         private Long id;
+        private String name;
         private String username;
         private String email;
         private String createTime;
