@@ -11,6 +11,10 @@
             <el-icon><Check /></el-icon>
             已保存 {{ formatSaveTime(lastSaveTime) }}
           </span>
+          <span v-if="switchAttempts > 0" class="switch-attempts">
+            <el-icon><Warning /></el-icon>
+            切屏次数：{{ switchAttempts }}
+          </span>
         </div>
       </div>
       <div class="exam-timer">
@@ -29,6 +33,23 @@
         </el-button>
       </div>
     </div>
+
+    <!-- 切屏警告提示 -->
+    <el-alert
+      v-if="switchWarningVisible"
+      :title="`检测到切屏行为！当前切屏次数：${switchAttempts}次`"
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 20px;"
+      :effect="'dark'"
+    >
+      <template #default>
+        <div style="font-size: 14px;">
+          请立即返回考试页面继续答题！
+        </div>
+      </template>
+    </el-alert>
 
     <!-- 整卷内容 -->
     <div class="exam-content">
@@ -323,10 +344,11 @@
 import { ref, computed, onMounted, onUnmounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Edit, View, Check, Refresh, Loading, CaretRight } from '@element-plus/icons-vue'
+import { ArrowLeft, Edit, View, Check, Refresh, Loading, CaretRight, Warning } from '@element-plus/icons-vue'
 import { studentExamApi } from '@/api/admin'
 import { executeCode } from '@/api/user'
 import serverTimeSync from '@/utils/serverTime'
+import { createFullscreenMonitor, enterFullscreen } from '@/utils/fullscreenMonitor'
 
 // 导入 CodeMirror 6（轻量级、易配置、性能好，无需 worker 配置）
 import { EditorView, lineNumbers, keymap } from '@codemirror/view'
@@ -366,6 +388,11 @@ const codeResultDialog = ref({ // 代码执行结果对话框
     exitCode: 0
   }
 })
+
+// 全屏防切屏相关
+const fullscreenMonitor = ref(null)
+const switchAttempts = ref(0)
+const switchWarningVisible = ref(false)
 
 let timer = null
 
@@ -1574,10 +1601,59 @@ const goBack = () => {
   router.go(-1)
 }
 
+// 初始化全屏防切屏监控
+const initFullscreenMonitor = () => {
+  // 如果已经初始化，先停止
+  if (fullscreenMonitor.value) {
+    fullscreenMonitor.value.stop()
+  }
+  
+  // 创建监控器（不设置maxAttempts，只进行警告）
+  fullscreenMonitor.value = createFullscreenMonitor({
+    maxAttempts: 999999, // 设置一个很大的值，实际上不会触发自动交卷
+    onSwitchDetected: (attempts, reason) => {
+      switchAttempts.value = attempts
+      switchWarningVisible.value = true
+      
+      ElMessage.warning({
+        message: `检测到切屏行为！当前切屏次数：${attempts}次，请立即返回考试页面继续答题。`,
+        duration: 5000,
+        showClose: true
+      })
+      
+      // 3秒后隐藏警告
+      setTimeout(() => {
+        switchWarningVisible.value = false
+      }, 3000)
+    },
+    onMaxAttemptsReached: () => {
+      // 不再自动交卷，只记录日志
+      console.warn('切屏次数过多，但不会自动交卷')
+    },
+    onFullscreenChange: (isFullscreen) => {
+      if (!isFullscreen) {
+        // 退出全屏时警告
+        ElMessage.warning('检测到退出全屏，请立即返回全屏模式，否则将记录为切屏行为')
+      }
+    }
+  })
+  
+  // 启动监控
+  fullscreenMonitor.value.start()
+}
+
 // 监听路由变化，确保切换考试时清空状态
 watch(() => route.params.id, async (newExamId, oldExamId) => {
   if (newExamId && oldExamId && newExamId !== oldExamId) {
     console.log('Exam ID changed from', oldExamId, 'to', newExamId, '- Clearing previous exam data')
+    
+    // 停止全屏监控
+    if (fullscreenMonitor.value) {
+      fullscreenMonitor.value.stop()
+      fullscreenMonitor.value = null
+    }
+    switchAttempts.value = 0
+    switchWarningVisible.value = false
     
     // 清空之前考试的答案数据
     selectedAnswers.value = {}
@@ -1611,6 +1687,14 @@ watch(() => route.params.id, async (newExamId, oldExamId) => {
     
     // 重新加载新考试数据
     await loadExamData()
+    
+    // 重新进入全屏并启动监控
+    const fullscreenSuccess = await enterFullscreen()
+    if (!fullscreenSuccess) {
+      ElMessage.warning('无法自动进入全屏模式，请按F11手动进入全屏')
+    }
+    initFullscreenMonitor()
+    
     nextTick(() => {
       loadAnswersFromLocal()
     })
@@ -1622,6 +1706,13 @@ watch(() => route.path, (newPath, oldPath) => {
   // 如果离开考试预览页面，清理编辑器
   if (oldPath && oldPath.includes('/exam/') && !newPath.includes('/exam/')) {
     console.log('Leaving exam page, cleaning up editors')
+    
+    // 停止全屏监控
+    if (fullscreenMonitor.value) {
+      fullscreenMonitor.value.stop()
+      fullscreenMonitor.value = null
+    }
+    
     Object.entries(codeEditors.value).forEach(([key, editor]) => {
       if (editor && editor instanceof EditorView) {
         try {
@@ -1643,6 +1734,15 @@ onMounted(async () => {
     
     // 先加载考试数据
     await loadExamData()
+    
+    // 尝试进入全屏
+    const fullscreenSuccess = await enterFullscreen()
+    if (!fullscreenSuccess) {
+      ElMessage.warning('无法自动进入全屏模式，请按F11手动进入全屏，否则可能影响考试')
+    }
+    
+    // 初始化并启动全屏防切屏监控
+    initFullscreenMonitor()
     
     // 异步加载本地保存的答案（不阻塞界面）
     // 不使用 await，直接异步执行
@@ -1667,6 +1767,12 @@ const handleVisibilityChange = () => {
 
 // 组件销毁前清理资源
 onBeforeUnmount(() => {
+  // 停止全屏监控
+  if (fullscreenMonitor.value) {
+    fullscreenMonitor.value.stop()
+    fullscreenMonitor.value = null
+  }
+  
   // 清理代码编辑器实例
   Object.values(codeEditors.value).forEach(editor => {
     if (editor && editor instanceof EditorView) {
@@ -1745,6 +1851,15 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.switch-attempts {
+  color: #e6a23c;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 500;
 }
 
 .exam-timer {
