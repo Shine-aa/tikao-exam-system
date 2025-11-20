@@ -1103,7 +1103,8 @@ const handleSubmitGrading = async () => {
       `<div style="text-align: left; line-height: 1.8; font-size: 16px;">
         <p style="margin: 0 0 15px 0; font-weight: bold; color: #e6a23c;">请仔细核对以下判卷信息：</p>
         <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0;">
-          <p style="margin: 8px 0;"><strong>学生姓名：</strong>${studentInfo.value.username}</p>
+          <p style="margin: 8px 0;"><strong>学生姓名：</strong>${studentInfo.value.name}</p>
+          <p style="margin: 8px 0;"><strong>学生学号：</strong>${studentInfo.value.username}</p>
           <p style="margin: 8px 0;"><strong>考试名称：</strong>${examInfo.value.examName}</p>
           <p style="margin: 8px 0;"><strong>班级名称：</strong>${examInfo.value.className}</p>
           <p style="margin: 8px 0;"><strong>得分情况：</strong>${currentTotalScore.value.toFixed(1)}/${examInfo.value.totalPoints}分</p>

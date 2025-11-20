@@ -87,6 +87,7 @@ public class UserController {
             // 创建简化的用户信息，避免循环引用
             Map<String, Object> userInfo = new HashMap<>();
             userInfo.put("id", user.getId());
+            userInfo.put("name",user.getName());
             userInfo.put("username", user.getUsername());
             userInfo.put("email", user.getEmail());
             userInfo.put("phone", user.getPhone());

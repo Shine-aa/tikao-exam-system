@@ -356,7 +356,7 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <!-- <el-col :span="12">
             <el-form-item label="最大尝试次数" prop="maxAttempts">
               <el-input-number
                 v-model="createExamForm.maxAttempts"
@@ -366,7 +366,7 @@
                 style="width: 100%"
               />
             </el-form-item>
-          </el-col>
+          </el-col> -->
         </el-row>
         
         <el-form-item label="乱序设置">
@@ -508,7 +508,7 @@ const createExamForm = reactive({
   startTime: '',
   endTime: '',
   durationMinutes: 120,
-  maxAttempts: 1,
+  maxAttempts: 1,//模板数据，现没有真实意义。
   isRandomOrder: true,
   isRandomOptions: true,
   allowReview: true

@@ -224,7 +224,7 @@
           <el-descriptions-item label="开始时间">{{ formatDateTime(currentExam.startTime) }}</el-descriptions-item>
           <el-descriptions-item label="结束时间">{{ formatDateTime(currentExam.endTime) }}</el-descriptions-item>
           <el-descriptions-item label="考试时长">{{ currentExam.durationMinutes }}分钟</el-descriptions-item>
-          <el-descriptions-item label="最大尝试次数">{{ currentExam.maxAttempts }}次</el-descriptions-item>
+          <!-- <el-descriptions-item label="最大尝试次数">{{ currentExam.maxAttempts }}次</el-descriptions-item> -->
           <el-descriptions-item label="题目乱序">
             <el-tag :type="currentExam.isRandomOrder ? 'success' : 'info'">
               {{ currentExam.isRandomOrder ? '是' : '否' }}

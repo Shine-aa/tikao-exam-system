@@ -321,18 +321,18 @@ const formatExamTime = (dateString) => {
 
 // 处理考试点击
 const handleExamClick = async (exam) => {
-  if (exam.status === 'ONGOING' || exam.status === 'SCHEDULED') {
+  if (exam.status === 'COMPLETED') {
+    // 已完成的考试直接进入成绩页面
+    router.push(`/user/exam/${exam.id}/result`)
+  } else if (exam.status === 'ONGOING' || exam.status === 'SCHEDULED') {
     // 进行中和已安排的考试可以进入考试信息页面
     router.push(`/user/exam/${exam.id}/info`)
-  } else if (exam.status === 'COMPLETED') {
-    // 已完成的考试显示成绩
-    ElMessage.info('查看考试成绩功能开发中')
   } else if (exam.status === 'CANCELLED') {
     // 已取消的考试
     ElMessage.warning('该考试已取消')
   } else {
-    // 其他状态
-    ElMessage.info('考试状态异常')
+    // 其他状态，也进入考试信息页面
+    router.push(`/user/exam/${exam.id}/info`)
   }
 }
 
