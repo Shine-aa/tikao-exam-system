@@ -97,7 +97,7 @@
           <el-icon><ArrowLeft /></el-icon>
           返回
         </el-button>
-        <el-button 
+        <!-- <el-button 
           type="primary" 
           size="large" 
           @click="downloadResult"
@@ -105,7 +105,7 @@
         >
           <el-icon><Download /></el-icon>
           下载成绩单
-        </el-button>
+        </el-button> -->
       </div>
     </div>
   </div>

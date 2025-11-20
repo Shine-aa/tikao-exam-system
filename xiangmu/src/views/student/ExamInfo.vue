@@ -113,6 +113,7 @@ import { ElMessage } from 'element-plus'
 import { Warning, ArrowLeft, VideoPlay, View, Clock } from '@element-plus/icons-vue'
 import { studentExamApi } from '@/api/admin'
 import serverTimeSync from '@/utils/serverTime'
+import { enterFullscreen } from '@/utils/fullscreenMonitor'
 
 const route = useRoute()
 const router = useRouter()
@@ -208,6 +209,13 @@ const startExam = async () => {
   try {
     loading.value = true
     const examId = route.params.id
+    
+    // 尝试进入全屏
+    const fullscreenSuccess = await enterFullscreen()
+    if (!fullscreenSuccess) {
+      ElMessage.warning('无法进入全屏模式，请手动按F11进入全屏，否则可能影响考试')
+    }
+    
     await studentExamApi.startStudentExam(examId)
     
     ElMessage.success('考试已开始')

@@ -1115,7 +1115,8 @@ export const studentExamApi = {
   submitStudentExam,
   saveStudentExamDraft,
   getStudentExamStats,
-  getStudentExamPaper
+  getStudentExamPaper,
+  getStudentExamResult
 }
 
 // ==================== 题库API对象 ====================
