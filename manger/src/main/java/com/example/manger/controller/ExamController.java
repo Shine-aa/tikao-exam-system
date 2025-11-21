@@ -1,6 +1,7 @@
 package com.example.manger.controller;
 
 import com.example.manger.common.ApiResponse;
+import com.example.manger.context.BaseContext;
 import com.example.manger.dto.ExamRequest;
 import com.example.manger.dto.ExamResponse;
 import com.example.manger.dto.PageResponse;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -219,6 +221,23 @@ public class ExamController {
     @Tag(name = "考试判卷")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
     public ApiResponse<Map<String, Object>> getStudentAnswers(@PathVariable Long examId, @PathVariable Long studentId, HttpServletRequest request) {
+        try {
+            Map<String, Object> answers = examService.getStudentAnswers(examId, studentId, request);
+            return ApiResponse.success("获取学生答案成功", answers);
+        } catch (Exception e) {
+            return ApiResponse.error("获取学生答案失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取学生获取自己答案
+     */
+    @GetMapping("/{examId}/students/answers")
+    @Operation(summary = "获取学生答案", description = "获取指定学生在指定考试中的答案，包含题目、学生答案和参考答案")
+    @Tag(name = "学生查看自己答案")
+    @PreAuthorize("hasRole('USER')")
+    public ApiResponse<Map<String, Object>> getOwnAnswers(@PathVariable Long examId, HttpServletRequest request) {
+        long studentId = BaseContext.getCurrentId();
         try {
             Map<String, Object> answers = examService.getStudentAnswers(examId, studentId, request);
             return ApiResponse.success("获取学生答案成功", answers);

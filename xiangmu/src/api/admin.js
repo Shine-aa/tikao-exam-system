@@ -959,6 +959,14 @@ export function getStudentAnswers(examId, studentId) {
   })
 }
 
+// 学生获取自己答案
+export function getOwnAnswers(examId) {
+  return request({
+    url: `/api/exams/${examId}/students/answers`,
+    method: 'get'
+  })
+}
+
 // 保存判卷结果
 export function saveGradingResult(gradingData) {
   return request({

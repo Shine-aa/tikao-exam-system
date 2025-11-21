@@ -123,6 +123,12 @@ const routes = [
         name: 'ExamResult',
         component: () => import('@/views/student/ExamResult.vue'),
         meta: { requiresAuth: true, role: 'USER' }
+      },
+      {
+        path: 'exam/:examId/review',
+        name: 'ExamReview',
+        component: () => import('@/views/student/ExamReview.vue'),
+        meta: { requiresAuth: true, role: 'USER' }
       }
     ]
   },

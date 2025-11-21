@@ -6,7 +6,7 @@
       <div class="welcome-section">
         <div class="welcome-card">
           <div class="welcome-content">
-            <h1>欢迎回来，{{ userInfo.username }}！</h1>
+            <h1>欢迎回来，{{ userInfo.name }}！</h1>
             <p>准备好开始今天的学习和考试了吗？</p>
           </div>
           <div class="welcome-avatar">
@@ -189,7 +189,8 @@ const router = useRouter()
 
 // 用户信息
 const userInfo = ref({
-  username: '同学们'
+  username: '同学们',
+  name: ''
 })
 
 // 当前选中的标签页
