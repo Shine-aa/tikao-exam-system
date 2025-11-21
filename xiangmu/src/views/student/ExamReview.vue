@@ -11,6 +11,14 @@
       </div>
       <div class="exam-actions">
         <el-button 
+          v-if="allowViewCorrect"
+          type="success" 
+          size="large" 
+          @click="toggleShowAnswers"
+        >
+          {{ showAnswers ? '隐藏答案' : '显示答案' }}
+        </el-button>
+        <el-button 
           type="primary" 
           size="large" 
           @click="backToExamResult"
@@ -68,20 +76,36 @@
                 <el-icon><Check /></el-icon>
               </div>
             </div>
+            <!-- 选择题学生答案文本提示（可选，增强可读性） -->
+            <div class="student-answer-hint" style="margin-top: 12px; padding: 8px; background: #f5f7fa; border-radius: 4px;">
+              <span style="font-weight: 500; color: #409eff;">你的答案：</span>
+              <span>{{ getChoiceStudentAnswerText(index) || '未作答' }}</span>
+            </div>
           </div>
 
           <!-- 填空题 -->
           <div v-else-if="question.questionType === 'FILL_BLANK'" class="fill-blank-answer">
+            <div style="margin-bottom: 8px; font-weight: 500; color: #409eff;">你的答案：</div>
+            <!-- 先判断是否为数组，否则用空数组兜底 -->
             <el-input
-              :value="fillBlankAnswers[index] || '未作答'"
+              :value="Array.isArray(question.studentAnswers) ? question.studentAnswers.join('；') : '未作答'"
               type="textarea"
               :rows="3"
               readonly
               class="readonly-input"
             />
-            <div v-if="question.correctAnswer" class="answer-hint">
+            <!-- 正确答案：点击显示后才显示 -->
+            <div v-if="(question.correctAnswer || question.answers) && showAnswers" class="answer-hint">
               <span class="hint-label">正确答案：</span>
-              <span class="correct-answer">{{ question.correctAnswer }}</span>
+              <span class="correct-answer">
+                {{ 
+                  question.correctAnswer 
+                    ? question.correctAnswer 
+                    : Array.isArray(question.answers) 
+                      ? question.answers.map(item => item.answerContent).join('；') 
+                      : question.answers 
+                }}
+              </span>
             </div>
           </div>
 
@@ -105,16 +129,27 @@
                 </div>
               </div>
             </div>
+            <!-- 学生答案：明确标签 -->
+            <div style="margin-bottom: 8px; font-weight: 500; color: #409eff;">你的答案：</div>
             <el-input
-              :value="essayAnswers[index] || '未作答'"
+              :value="
+                Array.isArray(question.studentAnswers) && question.studentAnswers[0] 
+                  ? question.studentAnswers[0] 
+                  : typeof question.studentAnswers === 'string' 
+                    ? question.studentAnswers 
+                    : '未作答'
+              "
               type="textarea"
               :rows="6"
               readonly
               class="readonly-input"
             />
-            <div v-if="question.correctAnswer" class="answer-hint">
+            <!-- 参考答案：修复显示逻辑，兼容不同字段 -->
+            <div v-if="(question.correctAnswer || question.referenceAnswer || question.answers) && showAnswers" class="answer-hint">
               <span class="hint-label">参考答案：</span>
-              <span class="correct-answer">{{ question.correctAnswer }}</span>
+              <span class="correct-answer">
+                {{ question.correctAnswer || question.referenceAnswer || (Array.isArray(question.answers) ? question.answers.join('；') : question.answers) || '无' }}
+              </span>
             </div>
           </div>
 
@@ -146,9 +181,19 @@
               </span>
             </div>
             
+            <!-- 学生代码（明确标签） -->
+            <div style="margin-bottom: 8px; font-weight: 500; color: #409eff;">你的代码：</div>
             <!-- 代码展示区域 -->
             <div class="code-display-container">
               <div :id="'code-editor-' + index" class="code-editor"></div>
+            </div>
+            
+            <!-- 程序题参考答案（点击显示后才显示） -->
+            <div v-if="(question.correctAnswer || question.referenceAnswer) && showAnswers" class="answer-hint" style="margin-top: 12px;">
+              <span class="hint-label">参考代码：</span>
+              <pre class="correct-answer" style="margin: 8px 0 0 0; padding: 12px; background: #f0f9eb; border-radius: 4px; font-family: 'Consolas', 'Monaco', 'Courier New', monospace; font-size: 14px; white-space: pre-wrap; word-break: break-all;">
+                {{ question.correctAnswer || question.referenceAnswer || '无' }}
+              </pre>
             </div>
             
             <!-- 测试用例列表 -->
@@ -197,7 +242,7 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ArrowLeft, Check, Refresh, View } from '@element-plus/icons-vue'
-import { studentExamApi } from '@/api/admin'
+import { studentExamApi, getOwnAnswers } from '@/api/admin'
 
 // 导入 CodeMirror 6（轻量级、易配置、性能好，无需 worker 配置）
 import { EditorView, lineNumbers } from '@codemirror/view'
@@ -212,14 +257,16 @@ const router = useRouter()
 // 响应式数据
 const examInfo = ref({})
 const questions = ref([])
-const selectedAnswers = ref({})
-const fillBlankAnswers = ref({})
-const essayAnswers = ref({})
-const programmingAnswers = ref({}) // 程序题答案
+const selectedAnswers = ref({}) // 学生选择的答案
+const fillBlankAnswers = ref({}) // 学生的填空题答案
+const essayAnswers = ref({}) // 学生的主观题答案
+const programmingAnswers = ref({}) // 学生的程序题答案
 const selectedLanguages = ref({}) // 每个程序题选择的编程语言
 const codeEditors = ref({}) // CodeMirror 6 编辑器实例
 const testCaseResults = ref({}) // 每个程序题的测试用例执行结果
 const questionScore = ref({}) // 题目得分
+const allowViewCorrect = ref(false) // 是否允许查看正确答案
+const showAnswers = ref(false) // 是否显示答案
 
 // 计算属性
 const answeredCount = computed(() => {
@@ -283,26 +330,28 @@ const getQuestionTypeLabel = (questionType) => {
   return typeMap[questionType] || '未知题型'
 }
 
-// 检查答案是否已选择
+// 检查答案是否已选择（学生的答案）
 const isAnswerSelected = (questionIndex, optionKey) => {
   const question = questions.value[questionIndex]
-  const option = question.options.find(opt => opt.optionKey === optionKey)
-  const optionContent = option ? option.optionContent : optionKey
+  // 补充：判断 studentAnswers 是数组且非空
+  if (!question || !Array.isArray(question.studentAnswers) || question.studentAnswers.length === 0) {
+    return false
+  }
   
-  const answers = selectedAnswers.value[questionIndex]
-  return answers && answers.includes(optionContent)
+  const option = question.options.find(opt => opt.optionKey === optionKey)
+  // 优先匹配 optionContent（接口返回的 studentAnswers 存的是选项内容，如 "StringBuilder"）
+  return question.studentAnswers.includes(option?.optionContent) || question.studentAnswers.includes(optionKey)
 }
 
 // 检查是否为正确答案
 const isCorrectAnswer = (question, optionKey) => {
-  // 这里假设后端返回的答案结构是正确的，需要根据实际情况调整
-  if (!question || !question.answers || question.answers.length === 0) return false
-  
-  const correctAnswer = question.answers[0]
+  // 必须满足：允许查看答案 + 已点击显示答案 + 题目有选项 + 选项存在且正确
+  if (!allowViewCorrect.value || !showAnswers.value) return false
+  if (!question || !Array.isArray(question.options)) return false
+
   const option = question.options.find(opt => opt.optionKey === optionKey)
-  const optionContent = option ? option.optionContent : optionKey
-  
-  return correctAnswer === optionContent || correctAnswer === optionKey
+  // 确保 option 存在且 isCorrect 为 true（避免 undefined 干扰）
+  return !!option && option.isCorrect === true
 }
 
 // 判断题目是否已答
@@ -426,96 +475,118 @@ const loadExamData = async () => {
     selectedLanguages.value = {}
     codeEditors.value = {}
     questionScore.value = {}
+    allowViewCorrect.value = false
     
-    // 获取考试试卷题目和答案
-    const response = await studentExamApi.getStudentExamPaper(examId)
+    // 1. 获取考试详情（包含allowReview信息）
+    const examDetailResponse = await studentExamApi.getStudentExamDetail(examId)
+    if (examDetailResponse.code !== 200) {
+      ElMessage.error(examDetailResponse.message || '获取考试详情失败')
+      router.push(`/user/exam/${examId}/result`)
+      return
+    }
     
-    if (response.code === 200) {
-      const paperData = response.data
-      
-      // 设置考试信息
-      examInfo.value = {
-        examId: paperData.examId,
-        examName: paperData.examName,
-        paperName: paperData.paperName,
-        totalQuestions: paperData.totalQuestions,
-        totalPoints: paperData.totalPoints,
-        durationMinutes: paperData.durationMinutes
+    const examDetail = examDetailResponse.data
+    allowViewCorrect.value = examDetail.allowReview || false
+    
+    // 设置考试信息
+    examInfo.value = {
+      examId: examDetail.id,
+      examName: examDetail.examName,
+      paperName: examDetail.paperName,
+      totalQuestions: examDetail.totalQuestions,
+      totalPoints: examDetail.totalPoints,
+      durationMinutes: examDetail.durationMinutes
+    }
+    
+    // 2. 获取学生答案信息
+    const studentAnswersResponse = await getOwnAnswers(examId)
+    if (studentAnswersResponse.code !== 200) {
+      ElMessage.error(studentAnswersResponse.message || '获取考试题目失败')
+      router.push(`/user/exam/${examId}/result`)
+      return
+    }
+    
+    const paperData = studentAnswersResponse.data
+
+    
+    // 设置题目数据
+    questions.value = paperData.questions.map((q, idx) => {
+      // 关键修复：处理字符串类型的 studentAnswers（填空题/主观题）
+      let studentAnswers;
+      if (Array.isArray(q.studentAnswers)) {
+        studentAnswers = q.studentAnswers; // 数组类型直接使用
+      } else if (typeof q.studentAnswers === 'string' && q.studentAnswers.trim() !== '') {
+        studentAnswers = [q.studentAnswers.trim()]; // 字符串转数组（单个元素）
+      } else {
+        studentAnswers = []; // 其他情况（undefined/null/空字符串）设为空数组
       }
       
-      // 设置题目数据
-      questions.value = paperData.questions.map((q, idx) => {
-        // 保存题目得分
-        if (q.score !== undefined) {
-          questionScore.value[idx] = q.score
-        }
-        
-        // 初始化程序题的语言选择
-        if (q.questionType === 'PROGRAMMING') {
-          const defaultLanguage = q.programmingLanguage || 'JAVA'
-          selectedLanguages.value[idx] = defaultLanguage
-          
-          // 如果有答案，保存答案
-          if (q.answer) {
-            // 解析答案格式（可能是 "LANGUAGE:code" 格式）
-            if (q.answer.includes(':')) {
-              const [lang, code] = q.answer.split(':', 2)
-              selectedLanguages.value[idx] = lang
-              programmingAnswers.value[idx] = code
-            } else {
-              programmingAnswers.value[idx] = q.answer
-            }
-          }
-        }
-        
-        // 保存其他题型的答案
-        if (q.answer) {
-          switch (q.questionType) {
-            case 'FILL_BLANK':
-              fillBlankAnswers.value[idx] = q.answer
-              break
-            case 'SUBJECTIVE':
-              essayAnswers.value[idx] = q.answer
-              break
-            case 'SINGLE_CHOICE':
-            case 'MULTIPLE_CHOICE':
-            case 'TRUE_FALSE':
-              if (!selectedAnswers.value[idx]) {
-                selectedAnswers.value[idx] = []
-              }
-              // 多选题可能有多个答案，用分号分隔
-              if (q.answer.includes(';')) {
-                selectedAnswers.value[idx] = q.answer.split(';')
-              } else {
-                selectedAnswers.value[idx] = [q.answer]
-              }
-              break
-          }
-        }
-        
-        return {
-          questionId: q.questionId,
-          questionOrder: q.questionOrder,
-          questionType: q.questionType,
-          questionText: q.questionContent,
-          points: q.points,
-          difficulty: q.difficulty,
-          options: q.options || [],
-          answers: q.correctAnswers || [], // 正确答案
-          correctAnswer: q.correctAnswer, // 针对填空题和主观题的正确答案
-          images: q.images || null,
-          programmingLanguage: q.programmingLanguage || 'JAVA',
-          testCases: q.testCases || [],
-          testCaseResults: q.testCaseResults || {} // 测试用例执行结果
-        }
-      })
+      // 保存题目得分（补充：接口返回的是 givenScore，不是 score）
+      if (q.givenScore !== undefined) {
+        questionScore.value[idx] = q.givenScore
+      }
       
-      // 初始化测试用例结果
-      questions.value.forEach((q, idx) => {
-        if (q.questionType === 'PROGRAMMING' && q.testCaseResults) {
-          testCaseResults.value[idx] = q.testCaseResults
+      // 初始化程序题的语言选择（修改：使用格式化后的 studentAnswers）
+      if (q.questionType === 'PROGRAMMING') {
+        const defaultLanguage = q.programmingLanguage || 'JAVA'
+        selectedLanguages.value[idx] = defaultLanguage
+        
+        if (studentAnswers.length > 0) {
+          const answerStr = studentAnswers[0] // 数组第一个元素是答案
+          if (answerStr.includes(':')) {
+            const [lang, code] = answerStr.split(':', 2)
+            selectedLanguages.value[idx] = lang
+            programmingAnswers.value[idx] = code
+          } else {
+            programmingAnswers.value[idx] = answerStr
+          }
         }
-      })
+      }
+      
+      // 保存学生答案（修改：使用格式化后的 studentAnswers）
+      switch (q.questionType) {
+        case 'FILL_BLANK':
+          // 填空题答案：数组转字符串（多个空用分号分隔）
+          fillBlankAnswers.value[idx] = studentAnswers.join('；') || ''
+          break
+        case 'SUBJECTIVE':
+          // 主观题答案：数组第一个元素（通常主观题答案是单个字符串）
+          essayAnswers.value[idx] = studentAnswers[0] || ''
+          break
+        case 'SINGLE_CHOICE':
+        case 'MULTIPLE_CHOICE':
+        case 'TRUE_FALSE':
+          // 选择题答案：直接保存数组（支持多选）
+          selectedAnswers.value[idx] = studentAnswers
+          break
+      }
+      
+      return {
+        questionId: q.questionId,
+        questionOrder: q.questionOrder,
+        questionType: q.questionType,
+        questionText: q.questionContent || q.questionText,
+        points: q.points,
+        difficulty: q.difficulty,
+        options: q.options || [],
+        answers: q.correctAnswers || q.answers || [],
+        correctAnswer: q.correctAnswer,
+        referenceAnswer: q.referenceAnswer,
+        images: q.images || null,
+        programmingLanguage: q.programmingLanguage || 'JAVA',
+        testCases: q.testCases || [],
+        testCaseResults: q.testCaseResults || {},
+        studentAnswers: studentAnswers, // 返回格式化后的数组（数组/字符串都转为数组）
+        givenScore: q.givenScore // 保存得分（接口返回的是 givenScore）
+      }
+    })
+    
+    // 初始化测试用例结果
+    questions.value.forEach((q, idx) => {
+      if (q.questionType === 'PROGRAMMING' && q.testCaseResults) {
+        testCaseResults.value[idx] = q.testCaseResults
+      }
+    })
       
       // 异步初始化程序题代码编辑器（只读模式）
       setTimeout(() => {
@@ -532,21 +603,22 @@ const loadExamData = async () => {
           }, idx * 300)
         })
       }, 500)
-    } else {
-      ElMessage.error(response.message || '获取考试详情失败')
-      router.push('/user/exam-result')
+    } catch (error) {
+      console.error('Load exam data error:', error)
+      ElMessage.error('获取考试详情失败')
+      router.push(`/user/exam/${examId}/result`)
     }
-  } catch (error) {
-    console.error('Load exam data error:', error)
-    ElMessage.error('获取考试详情失败')
-    router.push('/user/exam-result')
   }
-}
-
-// 返回成绩页面
+  
+  // 返回成绩页面
 const backToExamResult = () => {
   const examId = route.params.examId
-  router.push(`/student/exam-result/${examId}`)
+  router.push(`/user/exam/${examId}/result`)
+}
+
+// 切换显示答案
+const toggleShowAnswers = () => {
+  showAnswers.value = !showAnswers.value
 }
 
 // 监听路由变化，确保切换考试时清空状态
@@ -558,7 +630,7 @@ watch(() => route.params.examId, async (newExamId, oldExamId) => {
         try {
           editor.destroy()
         } catch (e) {
-          // 忽略销毁错误
+          // �忽律销毁错误
         }
       }
       delete codeEditors.value[key]
@@ -593,6 +665,24 @@ onBeforeUnmount(() => {
   })
   codeEditors.value = {}
 })
+
+// 获取选择题学生答案的文本描述（如：A. 选项1；B. 选项2）
+const getChoiceStudentAnswerText = (questionIndex) => {
+  const question = questions.value[questionIndex]
+  // 先判断 question 和 studentAnswers 是否为数组
+  if (!question || !Array.isArray(question.studentAnswers) || question.studentAnswers.length === 0) {
+    return ''
+  }
+  
+  // 遍历学生答案，匹配对应的选项文本
+  const studentAnswerTexts = question.studentAnswers.map(answerKey => {
+    const option = question.options.find(opt => opt.optionKey === answerKey || opt.optionContent === answerKey)
+    return option ? `${String.fromCharCode(65 + question.options.findIndex(opt => opt.optionKey === option.optionKey))}. ${option.optionContent}` : answerKey
+  })
+  
+  return studentAnswerTexts.join('；')
+}
+
 </script>
 
 <style scoped>

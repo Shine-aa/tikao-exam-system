@@ -1,0 +1,105 @@
+问题分析
+从接口数据来看，填空题（FILL_BLANK）的 studentAnswers 是字符串类型（如 "123123"），但当前代码在 loadExamData 中仅将其格式化为 “空数组”（因为 Array.isArray(q.studentAnswers) 为 false），导致最终显示 “未作答”。
+核心问题：之前的格式化逻辑只处理了 “数组 / 非数组”，但没考虑 studentAnswers 是字符串的场景（填空题 / 主观题的答案通常是字符串）。
+修改建议（给 AI coder）
+1. 核心修复：优化 studentAnswers 格式化逻辑
+在 loadExamData 中，将 “字符串类型的答案” 转为数组（单个元素），确保填空题 / 主观题能正确读取：
+javascript
+运行
+// 加载考试数据 -> 设置题目数据（修改格式化逻辑）
+questions.value = paperData.questions.map((q, idx) => {
+  // 关键修复：处理字符串类型的 studentAnswers（填空题/主观题）
+  let studentAnswers;
+  if (Array.isArray(q.studentAnswers)) {
+    studentAnswers = q.studentAnswers; // 数组类型直接使用
+  } else if (typeof q.studentAnswers === 'string' && q.studentAnswers.trim() !== '') {
+    studentAnswers = [q.studentAnswers.trim()]; // 字符串转数组（单个元素）
+  } else {
+    studentAnswers = []; // 其他情况（undefined/null/空字符串）设为空数组
+  }
+  
+  // 保存题目得分
+  if (q.givenScore !== undefined) {
+    questionScore.value[idx] = q.givenScore;
+  }
+  
+  // 初始化程序题的语言选择（不变）
+  if (q.questionType === 'PROGRAMMING') {
+    const defaultLanguage = q.programmingLanguage || 'JAVA';
+    selectedLanguages.value[idx] = defaultLanguage;
+    
+    if (studentAnswers.length > 0) {
+      const answerStr = studentAnswers[0];
+      if (answerStr.includes(':')) {
+        const [lang, code] = answerStr.split(':', 2);
+        selectedLanguages.value[idx] = lang;
+        programmingAnswers.value[idx] = code;
+      } else {
+        programmingAnswers.value[idx] = answerStr;
+      }
+    }
+  }
+  
+  // 保存学生答案（不变，因为 studentAnswers 已统一为数组）
+  switch (q.questionType) {
+    case 'FILL_BLANK':
+      fillBlankAnswers.value[idx] = studentAnswers.join('；') || '';
+      break;
+    case 'SUBJECTIVE':
+      essayAnswers.value[idx] = studentAnswers[0] || '';
+      break;
+    case 'SINGLE_CHOICE':
+    case 'MULTIPLE_CHOICE':
+    case 'TRUE_FALSE':
+      selectedAnswers.value[idx] = studentAnswers;
+      break;
+  }
+  
+  return {
+    // 其他字段不变...
+    studentAnswers: studentAnswers, // 返回格式化后的数组（数组/字符串都转为数组）
+  };
+});
+2. 填空题正确答案显示优化（接口 answers 是对象数组）
+接口中填空题的正确答案 answers 是对象数组（如 [{ answerContent: "extends" }]），当前代码直接 join 会显示 [object Object]，需提取 answerContent：
+vue
+<!-- 填空题正确答案（修改后） -->
+<div v-if="(question.correctAnswer || question.answers) && showAnswers" class="answer-hint">
+  <span class="hint-label">正确答案：</span>
+  <span class="correct-answer">
+    {{ 
+      question.correctAnswer 
+        ? question.correctAnswer 
+        : Array.isArray(question.answers) 
+          ? question.answers.map(item => item.answerContent).join('；') 
+          : question.answers 
+    }}
+  </span>
+</div>
+3. 主观题兼容处理（防止字符串类型答案）
+虽然格式化逻辑已处理，但模板层可增加冗余判断，确保万无一失：
+vue
+<!-- 主观题（修改后） -->
+<div v-else-if="question.questionType === 'SUBJECTIVE'" class="essay-answer">
+  <!-- 图片部分不变 -->
+  <div style="margin-bottom: 8px; font-weight: 500; color: #409eff;">你的答案：</div>
+  <el-input
+    :value="
+      Array.isArray(question.studentAnswers) && question.studentAnswers[0] 
+        ? question.studentAnswers[0] 
+        : typeof question.studentAnswers === 'string' 
+          ? question.studentAnswers 
+          : '未作答'
+    "
+    type="textarea"
+    :rows="6"
+    readonly
+    class="readonly-input"
+  />
+  <!-- 参考答案部分不变 -->
+</div>
+关键说明
+格式化逻辑：覆盖了 studentAnswers 的三种场景（数组、非空字符串、空值），统一转为数组，确保后续 join/ 取索引不报错。
+正确答案显示：针对接口 answers 是对象数组的结构，提取 answerContent 字段，避免显示异常。
+兼容性：同时兼容之前的数组类型答案和现在的字符串类型答案，不影响选择题功能。
+修改后，填空题会正确显示学生输入的字符串答案（如 "123123"）和正确答案（如 "extends"），主观题同理。
