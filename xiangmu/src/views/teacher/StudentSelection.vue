@@ -139,17 +139,28 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button
-              type="primary"
-              size="small"
-              :disabled="!row.submitTime || row.gradingStatus === 'GRADED'"
-              @click="handleStartGrading(row)"
-            >
-              <el-icon><EditPen /></el-icon>
-              {{ row.gradingStatus === 'GRADED' ? '已判卷' : '判卷' }}
-            </el-button>
+            <div class="action-buttons">
+              <el-button
+                type="primary"
+                size="small"
+                :disabled="!row.submitTime || row.gradingStatus === 'GRADED'"
+                @click="handleStartGrading(row)"
+              >
+                <el-icon><EditPen /></el-icon>
+                {{ row.gradingStatus === 'GRADED' ? '已判卷' : '判卷' }}
+              </el-button>
+              <el-button
+                type="info"
+                size="small"
+                :disabled="row.gradingStatus !== 'GRADED'"
+                @click="handleViewGradingStatus(row)"
+              >
+                <el-icon><View /></el-icon>
+                批阅情况
+              </el-button>
+            </div>
           </template>
         </el-table-column>
         </el-table>
@@ -175,7 +186,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
-  ArrowLeft, Search, Refresh, EditPen, Close
+  ArrowLeft, Search, Refresh, EditPen, View, Close
 } from '@element-plus/icons-vue'
 import { useRouter, useRoute } from 'vue-router'
 import { examApi } from '@/api/admin'
@@ -293,11 +304,20 @@ const handleStartGrading = (row) => {
     return
   }
   
-  // 跳转到判卷界面
-  router.push(`/teacher/score-analysis/${examId.value}/student/${row.id}`)
+  // 跳转到判卷界面，传递 mode=grading 参数
+  router.push(`/teacher/score-analysis/${examId.value}/student/${row.id}?mode=grading`)
 }
 
-
+// 查看批阅情况
+const handleViewGradingStatus = (row) => {
+  if (row.gradingStatus !== 'GRADED') {
+    ElMessage.warning('只有已判卷的学生才能查看批阅情况')
+    return
+  }
+  
+  // 跳转到判卷界面（查看模式），传递 mode=view 参数
+  router.push(`/teacher/score-analysis/${examId.value}/student/${row.id}?mode=view`)
+}
 
 
 // 返回
@@ -466,6 +486,15 @@ onMounted(() => {
   
   .exam-info-card {
     margin-bottom: 15px;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+    gap: 5px;
+  }
+  
+  .action-buttons .el-button {
+    width: 100%;
   }
 }
 </style>

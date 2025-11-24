@@ -1,5 +1,15 @@
 <template>
   <div class="grading-interface">
+    <!-- 查看模式提示 -->
+    <el-alert
+      v-if="isViewMode"
+      title="当前为批阅情况查看模式，不允许修改判卷结果"
+      type="info"
+      show-icon
+      closable
+      style="margin-bottom: 20px;"
+    />
+
     <!-- 头部信息 -->
     <div class="grading-header">
       <div class="header-left">
@@ -13,11 +23,21 @@
         </div>
       </div>
       <div class="header-right">
-        <el-button type="success" @click="handleSaveGrading" :loading="saving">
+        <el-button 
+          type="success" 
+          @click="handleSaveGrading" 
+          :loading="saving"
+          :disabled="isViewMode"
+        >
           <el-icon><Check /></el-icon>
           保存判卷
         </el-button>
-        <el-button type="primary" @click="handleSubmitGrading" :loading="submitting" :disabled="!isAllGraded">
+        <el-button 
+          type="primary" 
+          @click="handleSubmitGrading" 
+          :loading="submitting" 
+          :disabled="!isAllGraded || isViewMode"
+        >
           <el-icon><Upload /></el-icon>
           {{ isAllGraded ? '提交判卷' : '请完成所有题目判分' }}
         </el-button>
@@ -67,7 +87,7 @@
               type="primary"
               size="small"
               @click="autoGradeObjectiveQuestions"
-              :disabled="!hasObjectiveQuestions"
+              :disabled="!hasObjectiveQuestions || isViewMode"
             >
               一键判卷
             </el-button>
@@ -97,6 +117,7 @@
               type="warning"
               size="small"
               @click="resetSubjectiveQuestions"
+              :disabled="isViewMode"
             >
               重置主观题
             </el-button>
@@ -249,6 +270,7 @@
                       size="small"
                       @click="runStudentCode"
                       :loading="studentCodeRunning"
+                      :disabled="isViewMode"
                     >
                       <el-icon><Loading v-if="studentCodeRunning" /><CaretRight v-else /></el-icon>
                       运行学生代码
@@ -283,6 +305,7 @@
                       size="small"
                       @click="runReferenceCode"
                       :loading="referenceCodeRunning"
+                      :disabled="isViewMode"
                     >
                       <el-icon><Loading v-if="referenceCodeRunning" /><CaretRight v-else /></el-icon>
                       运行参考答案
@@ -304,6 +327,8 @@
                 :precision="1"
                 size="small"
                 style="width: 120px"
+                :readonly="isViewMode"
+                :disabled="isViewMode"
               />
               <span class="score-label">/ {{ currentQuestion.points }} 分</span>
               <el-button
@@ -311,7 +336,7 @@
                 type="primary"
                 size="small"
                 @click="autoGradeQuestion"
-                :disabled="currentQuestion.isGraded"
+                :disabled="currentQuestion.isGraded || isViewMode"
               >
                 重新判分
               </el-button>
@@ -319,7 +344,7 @@
                 type="success"
                 size="small"
                 @click="markAsGraded"
-                :disabled="currentQuestion.givenScore === null"
+                :disabled="currentQuestion.givenScore === null || isViewMode"
               >
                 标记已判
               </el-button>
@@ -469,6 +494,12 @@ const isAllGraded = computed(() => {
   return questions.value.every(q => q.isGraded)
 })
 
+// 是否为查看模式（根据路由参数判断）
+const isViewMode = computed(() => {
+  // 根据路由参数 mode 区分模式
+  return route.query.mode === 'view'
+})
+
 // 获取考试ID和学生ID
 const examId = computed(() => route.params.examId)
 const studentId = computed(() => route.params.studentId)
@@ -498,11 +529,13 @@ const loadData = async () => {
       
       initializeGradingData()
       
-      // 自动判分客观题
-      autoGradeObjectiveQuestions()
-      
-      // 自动保存客观题判分结果
-      await saveObjectiveGradingResults()
+      // 自动判分客观题（仅在非查看模式下）
+      if (!isViewMode.value) {
+        autoGradeObjectiveQuestions()
+        
+        // 自动保存客观题判分结果
+        await saveObjectiveGradingResults()
+      }
     }
     
   } catch (error) {
@@ -833,6 +866,8 @@ const getLanguageLabel = (language) => {
 
 // 运行学生代码
 const runStudentCode = async () => {
+  if (isViewMode.value) return
+  
   const code = getStudentProgrammingCode()
   if (!code || code.trim() === '') {
     ElMessage.warning('学生代码为空')
@@ -874,6 +909,8 @@ const runStudentCode = async () => {
 
 // 运行参考答案
 const runReferenceCode = async () => {
+  if (isViewMode.value) return
+  
   const code = getReferenceProgrammingCode()
   if (!code || code.trim() === '') {
     ElMessage.warning('参考答案为空')
@@ -915,6 +952,8 @@ const runReferenceCode = async () => {
 
 // 自动判分所有客观题
 const autoGradeObjectiveQuestions = () => {
+  if (isViewMode.value) return
+  
   questions.value.forEach((question, index) => {
     if (isObjectiveQuestion(question.questionType)) {
       const score = calculateObjectiveScore(question)
@@ -928,6 +967,8 @@ const autoGradeObjectiveQuestions = () => {
 
 // 保存客观题判分结果
 const saveObjectiveGradingResults = async () => {
+  if (isViewMode.value) return
+  
   try {
     const gradingData = {
       examId: examId.value,
@@ -948,6 +989,8 @@ const saveObjectiveGradingResults = async () => {
 
 // 重置所有主观题为未判状态
 const resetSubjectiveQuestions = () => {
+  if (isViewMode.value) return
+  
   questions.value.forEach((question, index) => {
     if (isSubjectiveQuestion(question.questionType)) {
       question.givenScore = null
@@ -1014,6 +1057,8 @@ const getStudentAnswersForQuestion = (question) => {
 
 // 自动判分当前题目
 const autoGradeQuestion = () => {
+  if (isViewMode.value) return
+  
   if (!currentQuestion.value) return
   
   const questionType = currentQuestion.value.questionType
@@ -1032,6 +1077,8 @@ const autoGradeQuestion = () => {
 
 // 标记为已判卷
 const markAsGraded = () => {
+  if (isViewMode.value) return
+  
   if (currentQuestion.value) {
     currentQuestion.value.isGraded = true
   }
@@ -1039,11 +1086,15 @@ const markAsGraded = () => {
 
 // 保存判卷结果
 const handleSaveGrading = () => {
+  if (isViewMode.value) return
+  
   saveDialogVisible.value = true
 }
 
 // 确认保存
 const confirmSave = async () => {
+  if (isViewMode.value) return
+  
   try {
     saving.value = true
     saveDialogVisible.value = false
@@ -1081,6 +1132,8 @@ const confirmSave = async () => {
 
 // 提交判卷结果
 const handleSubmitGrading = async () => {
+  if (isViewMode.value) return
+  
   // 显示详细的判卷摘要信息
   const gradingSummary = generateGradingSummary()
   
