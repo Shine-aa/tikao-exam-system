@@ -1357,7 +1357,9 @@ public class ExamService {
         long gradedCount = studentExams.stream()
                 .filter(se -> se.getTotalScore() != null)
                 .count();
-        
+
+        long completeCount = gradingResultRepository.countByExamIdAndIsGradingCompletedTrue(exam.getId());
+
         response.put("studentCount", exam.getStudentCount());
         response.put("participatedCount", (int) submittedCount);
         response.put("unsubmittedCount", (int) (studentExams.size() - submittedCount));
@@ -1366,9 +1368,9 @@ public class ExamService {
         response.put("duration", exam.getDurationMinutes());
         response.put("status", exam.getStatus().name());
         
-        int gradingProgress = studentExams.isEmpty() ? 0 : (int) (gradedCount * 100 / studentExams.size());
+        int gradingProgress = studentExams.isEmpty() ? 0 : (int) (completeCount * 100 / studentExams.size() );
         response.put("gradingProgress", gradingProgress);
-        response.put("gradedCount", (int) gradedCount);
+        response.put("gradedCount", (int) completeCount);
         
         return response;
     }

@@ -113,7 +113,7 @@
             <div style="font-size: 12px; color: #666; margin-top: 2px;">{{ row.gradingProgress }}%</div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <div class="action-buttons">
               <el-button
@@ -132,6 +132,15 @@
               >
                 <el-icon><View /></el-icon>
                 查看详情
+              </el-button>
+              <el-button
+                type="info"
+                size="default"
+                :disabled="row.status !== 'COMPLETED' || row.gradingProgress < 100"
+                @click="handleViewGradingStatus(row)"
+              >
+                <el-icon><View /></el-icon>
+                批阅情况
               </el-button>
             </div>
           </template>
@@ -293,10 +302,9 @@ const handleStartGrading = (row) => {
     return
   }
   
-  // 跳转到学生选择页面
-  router.push(`/teacher/score-analysis/students/${row.id}`)
+  // 跳转到学生选择页面，传递 mode=grading 参数
+  router.push(`/teacher/score-analysis/students/${row.id}?mode=grading`)
 }
-
 
 // 查看详情
 const handleViewDetails = async (row) => {
@@ -310,6 +318,17 @@ const handleViewDetails = async (row) => {
     console.error('View exam details error:', error)
     ElMessage.error('获取考试详情失败')
   }
+}
+
+// 查看批阅情况
+const handleViewGradingStatus = (row) => {
+  if (row.status !== 'COMPLETED' || row.gradingProgress < 100) {
+    ElMessage.warning('只有已结束且判卷进度100%的考试才能查看批阅情况')
+    return
+  }
+  
+  // 跳转到学生选择页面，传递 mode=view 参数
+  router.push(`/teacher/score-analysis/students/${row.id}?mode=view`)
 }
 
 // 状态标签类型
