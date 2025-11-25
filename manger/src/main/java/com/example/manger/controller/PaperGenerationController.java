@@ -3,6 +3,7 @@ package com.example.manger.controller;
 import com.example.manger.common.ApiResponse;
 import com.example.manger.dto.PageResponse;
 import com.example.manger.dto.PaperGenerationRequest;
+import com.example.manger.dto.PaperManualCreateRequest;
 import com.example.manger.dto.PaperResponse;
 import com.example.manger.service.PaperGenerationService;
 import com.example.manger.util.JwtUtil;
@@ -36,6 +37,18 @@ public class PaperGenerationController {
         Long teacherId = getCurrentUserId(httpRequest);
         PaperResponse response = paperGenerationService.generatePaper(request, teacherId);
         return ApiResponse.success("试卷生成成功", response);
+    }
+
+    /**
+     * 手动创建试卷（新增接口）
+     */
+    @PostMapping("/manual/create")
+    @Operation(summary = "手动创建试卷", description = "手动选择题目组卷，支持自定义题目顺序和分值")
+    public ApiResponse<PaperResponse> createPaperManual(@Valid @RequestBody PaperManualCreateRequest request,
+                                                        HttpServletRequest httpRequest) {
+        Long teacherId = getCurrentUserId(httpRequest);
+        PaperResponse response = paperGenerationService.createPaperManual(request, teacherId);
+        return ApiResponse.success("手动组卷成功", response);
     }
     
     /**

@@ -19,8 +19,10 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/questions")
@@ -84,6 +86,49 @@ public class QuestionController {
             type, difficulty, courseId,keyword, page, size, sortBy, sortDir, userId);
         return ApiResponse.success("获取题目列表成功", response);
     }
+
+
+    @GetMapping("/courses/questions")
+    @Operation(summary = "手动组卷题目筛选", description = "分页查询题目列表（支持单个/批量题型/难度筛选）")
+    public ApiResponse<PageResponse<QuestionResponse>> manual(
+            @Parameter(description = "题目类型（单个）") @RequestParam(required = false) Question.QuestionType type,
+            @Parameter(description = "难度等级（单个）") @RequestParam(required = false) Question.DifficultyLevel difficulty,
+            @Parameter(description = "题目类型（批量，多个用逗号分隔，如：SINGLE_CHOICE,MULTIPLE_CHOICE）") @RequestParam(required = false) String batchTypes,
+            @Parameter(description = "难度等级（批量，多个用逗号分隔，如：EASY,MEDIUM）") @RequestParam(required = false) String batchDifficulties,
+            @Parameter(description = "所属课程（题库）") @RequestParam(defaultValue = "-1") long courseId,
+            @Parameter(description = "关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
+            @Parameter(description = "排序字段") @RequestParam(defaultValue = "createdAt") String sortBy,
+            @Parameter(description = "排序方向") @RequestParam(defaultValue = "DESC") String sortDir) {
+
+        Long userId = getCurrentUserId();
+
+        // 解析批量题型参数（字符串转List<QuestionType>）
+        List<Question.QuestionType> batchTypeList = null;
+        if (batchTypes != null && !batchTypes.trim().isEmpty()) {
+            batchTypeList = Arrays.stream(batchTypes.split(","))
+                    .map(String::trim)
+                    .map(Question.QuestionType::valueOf)
+                    .collect(Collectors.toList());
+        }
+
+        // 解析批量难度参数（字符串转List<DifficultyLevel>）
+        List<Question.DifficultyLevel> batchDifficultyList = null;
+        if (batchDifficulties != null && !batchDifficulties.trim().isEmpty()) {
+            batchDifficultyList = Arrays.stream(batchDifficulties.split(","))
+                    .map(String::trim)
+                    .map(Question.DifficultyLevel::valueOf)
+                    .collect(Collectors.toList());
+        }
+
+        PageResponse<QuestionResponse> response = questionService.getQuestionsMannual(
+                type, difficulty, courseId, keyword, page, size, sortBy, sortDir, userId,
+                batchTypeList, batchDifficultyList); // 传递批量参数
+
+        return ApiResponse.success("获取题目列表成功", response);
+    }
+
     
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除题目", description = "批量删除多个题目")

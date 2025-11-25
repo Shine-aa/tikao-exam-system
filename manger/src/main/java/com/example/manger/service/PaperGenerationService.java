@@ -2,6 +2,7 @@ package com.example.manger.service;
 
 import com.example.manger.dto.PageResponse;
 import com.example.manger.dto.PaperGenerationRequest;
+import com.example.manger.dto.PaperManualCreateRequest;
 import com.example.manger.dto.PaperResponse;
 import com.example.manger.entity.*;
 import com.example.manger.exception.BusinessException;
@@ -32,7 +33,115 @@ public class PaperGenerationService {
     private final ClassRepository classRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
-    
+
+    /**
+     * 手动创建试卷（核心方法）
+     */
+    @Transactional
+    public PaperResponse createPaperManual(PaperManualCreateRequest request, Long teacherId) {
+        // 1. 基础校验
+        // 验证课程是否存在
+        Course course = courseRepository.findById(request.getCourseId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在"));
+
+        // 验证班级（如果传入）
+        if (request.getClassId() != null) {
+            classRepository.findById(request.getClassId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
+        }
+
+        // 验证题目列表非空且顺序唯一
+        List<PaperManualCreateRequest.PaperManualQuestion> manualQuestions = request.getQuestions();
+        if (manualQuestions.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "请至少选择一道题目");
+        }
+
+        // 验证题目顺序唯一性
+        Set<Integer> orderSet = new HashSet<>();
+        for (PaperManualCreateRequest.PaperManualQuestion manualQ : manualQuestions) {
+            if (!orderSet.add(manualQ.getQuestionOrder())) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "题目顺序不能重复");
+            }
+        }
+
+        // 验证总分与题目分值总和一致
+        int sumPoints = manualQuestions.stream()
+                .mapToInt(PaperManualCreateRequest.PaperManualQuestion::getPoints)
+                .sum();
+        if (sumPoints != request.getTotalPoints()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "题目分值总和与总分不一致（当前总和：" + sumPoints + "，设置总分：" + request.getTotalPoints() + "）");
+        }
+
+        // 2. 验证所有题目存在且属于当前课程、状态有效
+        List<Long> questionIds = manualQuestions.stream()
+                .map(PaperManualCreateRequest.PaperManualQuestion::getQuestionId)
+                .collect(Collectors.toList());
+
+        List<Question> dbQuestions = questionRepository.findAllById(questionIds);
+        if (dbQuestions.size() != questionIds.size()) {
+            throw new BusinessException(ErrorCode.QUESTION_NOT_FOUND, "部分题目不存在或已被删除");
+        }
+
+        // 验证题目所属课程和状态
+        //for (Question question : dbQuestions) {
+        //    if (!question.getCourseId().equals(request.getCourseId())) {
+        //        throw new BusinessException(ErrorCode.PARAM_ERROR, "题目[" + question.getTitle() + "]不属于当前课程");
+        //    }
+        //    if (!question.getIsActive()) {
+        //        throw new BusinessException(ErrorCode.PARAM_ERROR, "题目[" + question.getTitle() + "]已失效");
+        //    }
+        //}
+
+        // 3. 创建试卷主记录
+        Paper paper = new Paper();
+        paper.setPaperCode(generatePaperCode());
+        paper.setPaperName(request.getPaperName());
+        paper.setDescription(request.getDescription());
+        paper.setClassId(request.getClassId());
+        paper.setCourseId(request.getCourseId());
+        paper.setTeacherId(teacherId);
+        paper.setDurationMinutes(request.getDurationMinutes());
+        paper.setTotalQuestions(manualQuestions.size());
+        paper.setTotalPoints(request.getTotalPoints());
+
+        // 构建题型分布（自动统计）
+        Map<String, Integer> typeDistribution = dbQuestions.stream()
+                .collect(Collectors.groupingBy(q -> q.getType().name(), Collectors.counting()))
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().intValue()));
+        paper.setQuestionTypeDistribution(convertMapToJson(typeDistribution));
+
+        // 构建难度分布（自动统计）
+        Map<String, Integer> difficultyDistribution = dbQuestions.stream()
+                .collect(Collectors.groupingBy(q -> q.getDifficulty().name(), Collectors.counting()))
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().intValue()));
+        paper.setDifficultyDistribution(convertMapToJson(difficultyDistribution));
+
+        paper.setIsActive(true);
+        paper.setCreatedAt(LocalDateTime.now());
+
+        Paper savedPaper = paperRepository.save(paper);
+
+        // 4. 保存试卷-题目关联关系（复用现有逻辑，存储到paper.questions字段）
+        List<Map<String, Object>> questionList = manualQuestions.stream()
+                .map(manualQ -> {
+                    Map<String, Object> questionData = new HashMap<>();
+                    questionData.put("questionId", manualQ.getQuestionId());
+                    questionData.put("questionOrder", manualQ.getQuestionOrder());
+                    questionData.put("points", manualQ.getPoints());
+                    return questionData;
+                })
+                .collect(Collectors.toList());
+
+        savedPaper.setQuestions(questionList);
+        paperRepository.save(savedPaper);
+
+        // 5. 返回结果
+        return convertToResponse(savedPaper);
+    }
+
+
     /**
      * 生成试卷
      */

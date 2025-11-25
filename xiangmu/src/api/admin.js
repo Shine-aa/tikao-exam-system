@@ -202,6 +202,15 @@ export function togglePermissionStatus(id) {
 // ==================== 题库管理相关API ====================
 
 // 获取题目列表
+export function getQuestionsForManual(params) {
+  return request({
+    url: '/api/questions/courses/questions',
+    method: 'get',
+    params
+  })
+}
+
+// 获取题目列表
 export function getQuestions(params) {
   return request({
     url: '/api/questions',
@@ -832,6 +841,15 @@ export function generatePaper(data) {
   })
 }
 
+// 手动组卷创建试卷
+export function createManualPaper(data) {
+  return request({
+    url: '/api/papers/manual/create',
+    method: 'post',
+    data
+  })
+}
+
 // 分页获取试卷列表
 export function getPapersWithPagination(page, size, keyword) {
   return request({
@@ -859,6 +877,7 @@ export function deletePaper(id) {
 
 export const paperApi = {
   generatePaper,
+  createManualPaper,
   getPapersWithPagination,
   getPaperById,
   deletePaper

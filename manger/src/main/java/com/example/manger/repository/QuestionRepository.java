@@ -13,6 +13,37 @@ import java.util.Set;
 
 @Repository
 public interface QuestionRepository extends JpaRepository<Question, Long> {
+    long countByIsActiveTrue();
+
+    /**
+     * 批量筛选题型+难度的题目总数（用于分页总数计算）
+     */
+    @Query("SELECT COUNT(q) FROM Question q WHERE q.isActive = true " +
+            "AND (:types IS NULL OR q.type IN :types) " +
+            "AND (:difficulties IS NULL OR q.difficulty IN :difficulties) " +
+            "AND (:keyword IS NULL OR q.title LIKE %:keyword% OR q.content LIKE %:keyword%) " +
+            "AND (:questionIds IS NULL OR q.id IN :questionIds)")
+    long countByBatchFilters(
+            @Param("types") List<Question.QuestionType> types,
+            @Param("difficulties") List<Question.DifficultyLevel> difficulties,
+            @Param("keyword") String keyword,
+            @Param("questionIds") Set<Long> questionIds);
+
+    /**
+     * 批量筛选题型+难度的题目分页查询（用于获取当前页数据）
+     */
+    @Query("SELECT q FROM Question q WHERE q.isActive = true " +
+            "AND (:types IS NULL OR q.type IN :types) " +
+            "AND (:difficulties IS NULL OR q.difficulty IN :difficulties) " +
+            "AND (:keyword IS NULL OR q.title LIKE %:keyword% OR q.content LIKE %:keyword%) " +
+            "AND (:questionIds IS NULL OR q.id IN :questionIds)")
+    Page<Question> findByBatchFilters(
+            @Param("types") List<Question.QuestionType> types,
+            @Param("difficulties") List<Question.DifficultyLevel> difficulties,
+            @Param("keyword") String keyword,
+            @Param("questionIds") Set<Long> questionIds,
+            Pageable pageable);
+
     // 按题目ID列表统计总数
     long countByIdIn(Set<Long> questionIds);
 
