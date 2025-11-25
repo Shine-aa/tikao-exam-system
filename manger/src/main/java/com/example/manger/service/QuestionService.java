@@ -299,7 +299,90 @@ public class QuestionService {
                 .hasPrevious(page > 1)
                 .build();
     }
-    
+
+
+    /**
+     * 分页查询题目（手动组卷）
+     */
+    public PageResponse<QuestionResponse> getQuestionsMannual(
+            Question.QuestionType type, // 单个题型（原有参数，兼容旧逻辑）
+            Question.DifficultyLevel difficulty, // 单个难度（原有参数，兼容旧逻辑）
+            long courseId,
+            String keyword,
+            int page,
+            int size,
+            String sortBy,
+            String sortDir,
+            Long userId,
+            List<Question.QuestionType> batchTypes, // 新增：批量题型（手动组卷用）
+            List<Question.DifficultyLevel> batchDifficulties) { // 新增：批量难度（手动组卷用）
+
+        Sort sort = Sort.by(Sort.Direction.fromString(sortDir), sortBy);
+        Pageable pageable = PageRequest.of(page - 1, size, sort);
+
+        // 处理筛选参数：优先使用批量参数（手动组卷），无则使用单个参数（原有逻辑）
+        List<Question.QuestionType> finalTypes = (batchTypes != null && !batchTypes.isEmpty()) ? batchTypes : (type != null ? List.of(type) : null);
+        List<Question.DifficultyLevel> finalDifficulties = (batchDifficulties != null && !batchDifficulties.isEmpty()) ? batchDifficulties : (difficulty != null ? List.of(difficulty) : null);
+
+        // 1. 获取当前课程下的所有有效题目ID（关联表过滤）
+        Set<Long> courseQuestionIds = null;
+        if (courseId != -1) {
+            courseQuestionIds = questionCourseRepository.findByCourseIdAndIsActiveTrue(courseId)
+                    .stream()
+                    .map(QuestionCourse::getQuestionId)
+                    .collect(Collectors.toSet());
+        }
+
+        // 2. 计算符合条件的总条数
+        long filteredTotal;
+        if (finalTypes != null || finalDifficulties != null || keyword != null || courseQuestionIds != null) {
+            // 使用批量筛选方法计算总数
+            filteredTotal = questionRepository.countByBatchFilters(
+                    finalTypes,
+                    finalDifficulties,
+                    keyword,
+                    courseQuestionIds);
+        } else {
+            // 无筛选条件：查询所有有效题目总数
+            filteredTotal = questionRepository.countByIsActiveTrue();
+        }
+
+        // 3. 计算总页数
+        int totalPages = filteredTotal == 0 ? 0 : (int) Math.ceil((double) filteredTotal / size);
+
+        // 4. 查询当前页数据
+        Page<Question> questionPage;
+        if (finalTypes != null || finalDifficulties != null || keyword != null || courseQuestionIds != null) {
+            // 使用批量筛选方法查询分页数据
+            questionPage = questionRepository.findByBatchFilters(
+                    finalTypes,
+                    finalDifficulties,
+                    keyword,
+                    courseQuestionIds,
+                    pageable);
+        } else {
+            // 无筛选条件：查询所有有效题目分页数据
+            questionPage = questionRepository.findByIsActiveTrue(pageable);
+        }
+
+        // 5. 转换为响应DTO（复用原有逻辑）
+        List<QuestionResponse> responses = questionPage.getContent().stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+
+        // 6. 构建分页响应
+        return PageResponse.<QuestionResponse>builder()
+                .content(responses)
+                .page(page)
+                .size(size)
+                .total(filteredTotal)
+                .totalPages(totalPages)
+                .first(page == 1)
+                .last(page >= totalPages || totalPages == 0)
+                .hasNext(page < totalPages)
+                .hasPrevious(page > 1)
+                .build();
+    }
     /**
      * 批量删除题目
      */

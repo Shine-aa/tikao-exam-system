@@ -950,20 +950,6 @@ const runReferenceCode = async () => {
   }
 }
 
-// 自动判分所有客观题
-const autoGradeObjectiveQuestions = () => {
-  if (isViewMode.value) return
-  
-  questions.value.forEach((question, index) => {
-    if (isObjectiveQuestion(question.questionType)) {
-      const score = calculateObjectiveScore(question)
-      question.givenScore = score
-      // 只有真正有分数才标记为已判
-      question.isGraded = score !== null && score >= 0
-    }
-  })
-  ElMessage.success('客观题自动判分完成')
-}
 
 // 保存客观题判分结果
 const saveObjectiveGradingResults = async () => {
@@ -1006,17 +992,13 @@ const calculateObjectiveScore = (question) => {
   const studentAnswers = getStudentAnswersForQuestion(question)
   
   if (questionType === 'SINGLE_CHOICE' || questionType === 'TRUE_FALSE') {
-    // 单选题和判断题：选对得满分，选错得0分
-    if (studentAnswers.length === 0) return null // 没有作答返回null
-    
+    // 单选题和判断题：选对得满分，选错/未作答得0分（不再返回null）
     const isCorrect = studentAnswers.some(answer => 
       question.options.some(opt => opt.optionContent === answer && opt.isCorrect)
     )
     return isCorrect ? question.points : 0
   } else if (questionType === 'MULTIPLE_CHOICE') {
-    // 多选题评分规则
-    if (studentAnswers.length === 0) return null // 没有作答返回null
-    
+    // 多选题评分规则：未作答得0分，有错选得0分，全对得满分，部分选对得60%分
     const correctOptions = question.options.filter(opt => opt.isCorrect)
     const studentCorrectAnswers = studentAnswers.filter(answer => 
       question.options.some(opt => opt.optionContent === answer && opt.isCorrect)
@@ -1033,12 +1015,12 @@ const calculateObjectiveScore = (question) => {
       return question.points // 全选对得满分
     } else if (studentCorrectAnswers.length > 0) {
       return Math.floor(question.points * 0.6) // 部分选对得60%分
+    } else {
+      return 0 // 未作答得0分（不再返回null）
     }
-    
-    return 0
   }
   
-  return null // 其他类型题目返回null
+  return 0 // 其他客观题类型默认得0分
 }
 
 // 获取指定题目的学生答案
@@ -1055,24 +1037,18 @@ const getStudentAnswersForQuestion = (question) => {
   return []
 }
 
-// 自动判分当前题目
-const autoGradeQuestion = () => {
+// 自动判分所有客观题（辅助优化：确保标记为已判）
+const autoGradeObjectiveQuestions = () => {
   if (isViewMode.value) return
   
-  if (!currentQuestion.value) return
-  
-  const questionType = currentQuestion.value.questionType
-  
-  // 只对客观题进行自动判分
-  if (isObjectiveQuestion(questionType)) {
-    const score = calculateObjectiveScore(currentQuestion.value)
-    currentQuestion.value.givenScore = score
-    currentQuestion.value.isGraded = true
-    
-    ElMessage.success(`自动判分完成，得分：${score}/${currentQuestion.value.points}`)
-  } else {
-    ElMessage.warning('填空题和主观题需要手动判分')
-  }
+  questions.value.forEach((question, index) => {
+    if (isObjectiveQuestion(question.questionType)) {
+      const score = calculateObjectiveScore(question)
+      question.givenScore = score
+      question.isGraded = true // 客观题只要判分就标记为已判（包括0分）
+    }
+  })
+  ElMessage.success('客观题自动判分完成（未作答题目已判0分）')
 }
 
 // 标记为已判卷

@@ -190,6 +190,12 @@ const routes = [
         meta: { requiresAuth: true, role: 'TEACHER' }
       },
       {
+        path: 'manual-paper-grouping',
+        name: 'ManualPaperGrouping',
+        component: () => import('@/views/teacher/ManualPaperGrouping.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
         path: 'exam-management',
         name: 'ExamManagement',
         component: () => import('@/views/teacher/ExamManagement.vue'),
