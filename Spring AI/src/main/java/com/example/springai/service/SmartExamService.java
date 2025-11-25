@@ -61,32 +61,62 @@ public class SmartExamService {
                     LIMIT $limit
                 """;
 
-        Collection<Map<String, Object>> rawQuestions = neo4jClient.query(cypherQuery)
-                .bind(studentId).to("studentId")
-                .bind(questionCount).to("limit")
-                .fetch()
-                .all();
+        System.out.println("DEBUG: Executing Neo4j query for studentId=" + studentId);
+        try {
+            Collection<Map<String, Object>> rawQuestions = neo4jClient.query(cypherQuery)
+                    .bind(studentId).to("studentId")
+                    .bind(questionCount).to("limit")
+                    .fetch()
+                    .all();
 
-        List<Map<String, Object>> questions = new ArrayList<>(rawQuestions);
+            List<Map<String, Object>> questions = new ArrayList<>(rawQuestions);
 
-        // 计算题型分布
-        Map<String, Integer> typeDistribution = questions.stream()
-                .collect(Collectors.groupingBy(
-                        q -> (String) q.get("type"),
-                        Collectors.summingInt(q -> 1)));
+            // 计算题型分布
+            Map<String, Integer> typeDistribution = questions.stream()
+                    .collect(Collectors.groupingBy(
+                            q -> (String) q.get("type"),
+                            Collectors.summingInt(q -> 1)));
 
-        // 计算难度分布
-        Map<String, Integer> difficultyDistribution = questions.stream()
-                .collect(Collectors.groupingBy(
-                        q -> (String) q.get("difficulty"),
-                        Collectors.summingInt(q -> 1)));
+            // 计算难度分布
+            Map<String, Integer> difficultyDistribution = questions.stream()
+                    .collect(Collectors.groupingBy(
+                            q -> (String) q.get("difficulty"),
+                            Collectors.summingInt(q -> 1)));
+
+            SmartExamResult result = new SmartExamResult();
+            result.setQuestions(questions);
+            result.setQuestionTypeDistribution(typeDistribution);
+            result.setDifficultyDistribution(difficultyDistribution);
+            result.setTotalQuestions(questions.size());
+
+            return result;
+        } catch (Exception e) {
+            System.err.println("Neo4j 连接失败，使用模拟数据: " + e.getMessage());
+            return createMockResult(questionCount);
+        }
+    }
+
+    /**
+     * 创建模拟组卷结果（当数据库不可用时）
+     */
+    private SmartExamResult createMockResult(int count) {
+        List<Map<String, Object>> questions = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            Map<String, Object> q = new HashMap<>();
+            q.put("id", (long) i);
+            q.put("content", "模拟题目 " + i + " (数据库未连接)");
+            q.put("type", i % 2 == 0 ? "SINGLE_CHOICE" : "MULTIPLE_CHOICE");
+            q.put("difficulty", i % 3 == 0 ? "HARD" : (i % 3 == 1 ? "EASY" : "MEDIUM"));
+            q.put("reason", "智能补充 (Mock)");
+            questions.add(q);
+        }
 
         SmartExamResult result = new SmartExamResult();
         result.setQuestions(questions);
-        result.setQuestionTypeDistribution(typeDistribution);
-        result.setDifficultyDistribution(difficultyDistribution);
-        result.setTotalQuestions(questions.size());
-
+        result.setQuestionTypeDistribution(Map.of("SINGLE_CHOICE", count / 2, "MULTIPLE_CHOICE", count - count / 2));
+        result.setDifficultyDistribution(
+                Map.of("EASY", count / 3, "MEDIUM", count / 3, "HARD", count - 2 * (count / 3)));
+        result.setTotalQuestions(count);
         return result;
     }
 }

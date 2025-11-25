@@ -1,4 +1,12 @@
 com\example\springai\tool\SmartExamTool.class
+com\example\springai\service\AIRankingService$1.class
+com\example\springai\config\WebConfig.class
+com\example\springai\service\TaiKaoApiService.class
+com\example\springai\dto\StudentAnalysisReport.class
+com\example\springai\config\AIConfig.class
+com\example\springai\service\AIRankingService.class
+com\example\springai\service\AIAnalysisService.class
+com\example\springai\dto\RankedQuestion.class
 com\example\springai\controller\InMemoryController.class
 com\example\springai\SpringAiServerApplication.class
 com\example\springai\config\WebClientConfig.class
@@ -6,4 +14,3 @@ com\example\springai\service\SmartExamService$SmartExamResult.class
 com\example\springai\controller\SmartExamController.class
 com\example\springai\service\SmartExamService.class
 com\example\springai\dto\PaperGenerationRequest.class
-com\example\springai\service\TaiKaoApiService.class
