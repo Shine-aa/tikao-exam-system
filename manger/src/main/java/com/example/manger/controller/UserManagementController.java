@@ -30,6 +30,7 @@ public class UserManagementController {
     private final UserManagementService userManagementService;
     
     /**
+     * Author：李正阳
      * 创建用户
      */
     @PostMapping
@@ -44,6 +45,7 @@ public class UserManagementController {
     }
 
     /**
+     * Author：郭依林，李子政
      * 一键导入创建用户
      */
     @PostMapping("/import")
@@ -52,6 +54,7 @@ public class UserManagementController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 更新用户
      */
     @PutMapping("/{userId}")
@@ -67,6 +70,7 @@ public class UserManagementController {
     }
 
     /**
+     * Author：李子政，郭依林
      * 更新用户密码
      */
     @PutMapping("/{userId}/change-password")
@@ -82,6 +86,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳
      * 删除用户
      */
     @DeleteMapping("/{userId}")
@@ -96,6 +101,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳
      * 批量删除用户
      */
     @DeleteMapping("/batch")
@@ -117,6 +123,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取用户详情
      */
     @GetMapping("/{userId}")
@@ -131,6 +138,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取所有用户
      */
     @GetMapping
@@ -149,6 +157,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 分页查询用户
      */
     @GetMapping("/page")
@@ -178,6 +187,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取启用的用户
      */
     @GetMapping("/active")
@@ -192,6 +202,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 启用/禁用用户
      */
     @PutMapping("/{userId}/toggle-status")
@@ -206,6 +217,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 为用户分配角色
      */
     @PutMapping("/{userId}/assign-roles")
@@ -221,6 +233,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 从用户移除角色
      */
     @DeleteMapping("/{userId}/remove-roles")
@@ -236,6 +249,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 重置用户密码
      */
     @PutMapping("/{userId}/reset-password")
@@ -252,6 +266,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 获取所有学生（普通用户）
      */
     @GetMapping("/students")
@@ -267,6 +282,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 分页获取学生列表（带班级信息）
      */
     @GetMapping("/students/page")
@@ -288,6 +304,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 分配学生到班级
      */
     @PostMapping("/students/assign")
@@ -306,6 +323,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 批量分配学生到班级
      */
     @PostMapping("/students/batch-assign")
@@ -328,6 +346,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 将学生移出班级
      */
     @DeleteMapping("/students/{studentId}/remove-from-class")
@@ -343,6 +362,7 @@ public class UserManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 批量将学生移出班级
      */
     @DeleteMapping("/students/batch-remove-from-class")

@@ -28,6 +28,7 @@ public class PaperGenerationController {
     private final JwtUtil jwtUtil;
     
     /**
+     * Author：李正阳，李子政
      * 生成试卷
      */
     @PostMapping("/generate")
@@ -40,6 +41,7 @@ public class PaperGenerationController {
     }
 
     /**
+     * Author：李子政
      * 手动创建试卷（新增接口）
      */
     @PostMapping("/manual/create")
@@ -52,6 +54,7 @@ public class PaperGenerationController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 分页获取试卷列表
      */
     @GetMapping("/page")
@@ -66,6 +69,7 @@ public class PaperGenerationController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 根据ID获取试卷详情
      */
     @GetMapping("/{id}")
@@ -76,6 +80,7 @@ public class PaperGenerationController {
     }
     
     /**
+     * Author：李正阳
      * 删除试卷
      */
     @DeleteMapping("/{id}")

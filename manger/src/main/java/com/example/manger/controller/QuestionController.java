@@ -33,7 +33,12 @@ public class QuestionController {
     private final QuestionService questionService;
     private final QuestionImportService questionImportService;
     private final QuestionCourseRepository questionCourseRepository;
-    
+
+    /**
+     * Author：李子政
+     * @param request
+     * @return
+     */
     @PostMapping
     @Operation(summary = "创建题目", description = "创建新的题目")
     public ApiResponse<QuestionResponse> createQuestion(
@@ -42,7 +47,13 @@ public class QuestionController {
         QuestionResponse response = questionService.createQuestion(request, userId);
         return ApiResponse.success("题目创建成功", response);
     }
-    
+
+    /**
+     * Author：李子政
+     * @param id
+     * @param request
+     * @return
+     */
     @PutMapping("/{id}")
     @Operation(summary = "更新题目", description = "更新指定题目")
     public ApiResponse<QuestionResponse> updateQuestion(
@@ -52,7 +63,12 @@ public class QuestionController {
         QuestionResponse response = questionService.updateQuestion(id, request, userId);
         return ApiResponse.success("题目更新成功", response);
     }
-    
+
+    /**
+     * Author：李子政
+     * @param id
+     * @return
+     */
     @DeleteMapping("/{id}")
     @Operation(summary = "删除题目", description = "删除指定题目")
     public ApiResponse<Void> deleteQuestion(
@@ -61,14 +77,23 @@ public class QuestionController {
         questionService.deleteQuestion(id, userId);
         return ApiResponse.success("题目删除成功", null);
     }
-    
+
+    /**
+     * Author：李子政
+     * @param id
+     * @return
+     */
     @GetMapping("/{id}")
     @Operation(summary = "获取题目详情", description = "获取指定题目的详细信息")
     public ApiResponse<QuestionResponse> getQuestionById(@PathVariable Long id) {
         QuestionResponse response = questionService.getQuestionById(id);
         return ApiResponse.success("获取题目详情成功", response);
     }
-    
+
+    /**
+     * Author：李子政，李正阳
+     * @return
+     */
     @GetMapping
     @Operation(summary = "分页查询题目", description = "分页查询题目列表")
     public ApiResponse<PageResponse<QuestionResponse>> getQuestionsWithPagination(
@@ -88,6 +113,11 @@ public class QuestionController {
     }
 
 
+    /**
+     * 手动组卷题目筛选
+     * Author：李子政
+     * @return
+     */
     @GetMapping("/courses/questions")
     @Operation(summary = "手动组卷题目筛选", description = "分页查询题目列表（支持单个/批量题型/难度筛选）")
     public ApiResponse<PageResponse<QuestionResponse>> manual(
@@ -129,7 +159,12 @@ public class QuestionController {
         return ApiResponse.success("获取题目列表成功", response);
     }
 
-    
+
+    /**
+     * Author：李子政
+     * @param ids
+     * @return
+     */
     @DeleteMapping("/batch")
     @Operation(summary = "批量删除题目", description = "批量删除多个题目")
     public ApiResponse<Void> batchDeleteQuestions(
@@ -138,7 +173,11 @@ public class QuestionController {
         questionService.batchDeleteQuestions(ids, userId);
         return ApiResponse.success("批量删除成功", null);
     }
-    
+
+    /**
+     * Author：李子政
+     * @return
+     */
     @GetMapping("/statistics")
     @Operation(summary = "获取题目统计", description = "获取题目统计信息")
     public ApiResponse<QuestionService.QuestionStatistics> getQuestionStatistics() {
@@ -146,14 +185,25 @@ public class QuestionController {
         QuestionService.QuestionStatistics statistics = questionService.getQuestionStatistics(userId);
         return ApiResponse.success("获取统计信息成功", statistics);
     }
-    
+
+    /**
+     * Author：李子政，李正阳
+     * @param courseId
+     * @return
+     */
     @GetMapping("/course/{courseId}")
     @Operation(summary = "根据课程获取题目列表", description = "获取指定课程的所有题目")
     public ApiResponse<List<QuestionResponse>> getQuestionsByCourse(@PathVariable Long courseId) {
         List<QuestionResponse> questions = questionService.getQuestionsByCourseId(courseId);
         return ApiResponse.success("获取题目列表成功", questions);
     }
-    
+
+    /**
+     * Author：李正阳
+     * @param file
+     * @param courseId
+     * @return
+     */
     @PostMapping("/import")
     @Operation(summary = "导入题库", description = "从Excel文件导入题目")
     public ApiResponse<Map<String, Object>> importQuestions(
@@ -177,7 +227,7 @@ public class QuestionController {
             return ApiResponse.error("导入失败: " + e.getMessage());
         }
     }
-    
+
     private Long getCurrentUserId() {
         return BaseContext.getCurrentId();
     }

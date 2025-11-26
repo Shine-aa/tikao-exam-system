@@ -23,6 +23,11 @@ public class CodeExecutionController {
 
     private final CodeExecutionService codeExecutionService;
 
+    /**
+     * Author：李正阳，李子政
+     * @param request
+     * @return
+     */
     @PostMapping("/execute")
     @Operation(summary = "执行代码", description = "在 Docker 容器中安全执行代码")
     // 暂时允许匿名访问以便测试，生产环境需要添加 @PreAuthorize("hasRole('USER')")
@@ -44,6 +49,7 @@ public class CodeExecutionController {
     }
 
     /**
+     * Author：李正阳，张建渠
      * 检查语言是否支持
      */
     private boolean isLanguageSupported(String language) {

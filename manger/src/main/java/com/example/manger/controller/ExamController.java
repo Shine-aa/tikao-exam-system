@@ -33,6 +33,7 @@ public class ExamController {
     private ExamService examService;
     
     /**
+     * Author：李正阳，郭依林
      * 创建考试
      */
     @Operation(summary = "创建考试", description = "老师或管理员创建新的考试")
@@ -57,6 +58,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 分页查询考试列表
      */
     @Operation(summary = "分页查询考试列表", description = "获取考试列表，支持分页和关键词搜索")
@@ -81,6 +83,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 根据ID获取考试详情
      */
     @GetMapping("/{id}")
@@ -96,6 +99,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 更新考试
      */
     @PutMapping("/{id}")
@@ -111,6 +115,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 删除考试
      */
     @DeleteMapping("/{id}")
@@ -126,6 +131,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 开始考试
      */
     @PostMapping("/{id}/start")
@@ -141,6 +147,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 结束考试
      */
     @PostMapping("/{id}/end")
@@ -156,6 +163,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 获取考试学生列表
      */
     @GetMapping("/{id}/students")
@@ -171,6 +179,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李子政
      * 获取判卷考试列表
      */
     @Operation(summary = "获取判卷考试列表", description = "获取需要判卷的考试列表")
@@ -192,6 +201,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李子政，李正阳
      * 获取考试学生列表（用于判卷）
      */
     @GetMapping("/{id}/students/grading")
@@ -214,6 +224,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李子政，李正阳
      * 获取学生答案
      */
     @GetMapping("/{examId}/students/{studentId}/answers")
@@ -230,6 +241,7 @@ public class ExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 获取学生获取自己答案
      */
     @GetMapping("/{examId}/students/answers")
@@ -247,6 +259,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 保存判卷结果
      */
     @PostMapping("/grading/save")
@@ -263,6 +276,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 提交判卷结果
      */
     @PostMapping("/grading/submit")
@@ -279,6 +293,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 获取学生考试结果（仅显示分数，不显示题目内容）
      */
     @Operation(summary = "获取学生考试结果", description = "学生查看考试结果，仅显示分数不显示题目内容")
@@ -298,6 +313,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取老师端仪表盘统计数据
      */
     @GetMapping("/dashboard/stats")
@@ -314,6 +330,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取老师端最近活动
      */
     @GetMapping("/dashboard/activities")

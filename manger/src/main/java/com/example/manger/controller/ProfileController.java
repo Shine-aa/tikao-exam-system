@@ -28,6 +28,7 @@ public class ProfileController {
     private final ProfileService profileService;
     
     /**
+     * Author：李子政，郭依林
      * 获取当前用户信息
      */
     @GetMapping("/info")
@@ -44,6 +45,7 @@ public class ProfileController {
     }
     
     /**
+     * Author：李子政，郭依林
      * 更新个人资料
      */
     @PutMapping("/profile")
@@ -61,6 +63,7 @@ public class ProfileController {
     }
     
     /**
+     * Author：李子政，郭依林
      * 修改密码
      */
     @PostMapping("/change-password")

@@ -28,6 +28,7 @@ public class CourseController {
     private final CourseService courseService;
     
     /**
+     * Author：李正阳
      * 创建课程
      */
     @PostMapping
@@ -39,6 +40,7 @@ public class CourseController {
     }
     
     /**
+     * Author：李正阳
      * 更新课程
      */
     @PutMapping("/{id}")
@@ -51,6 +53,7 @@ public class CourseController {
     }
     
     /**
+     * Author：李正阳
      * 删除课程
      */
     @DeleteMapping("/{id}")
@@ -61,6 +64,7 @@ public class CourseController {
     }
     
     /**
+     * Author：李正阳
      * 根据ID获取课程
      */
     @GetMapping("/{id}")
@@ -71,6 +75,7 @@ public class CourseController {
     }
     
     /**
+     * Author：李正阳
      * 分页获取教师的课程
      */
     @GetMapping("/page")
@@ -88,6 +93,7 @@ public class CourseController {
     }
     
     /**
+     * Author：李子政
      * 获取教师的所有课程
      */
     @GetMapping
@@ -99,6 +105,7 @@ public class CourseController {
     }
 
     /**
+     * Author：李子政
      * 获取课程教师授权信息（已授权教师 + 所有教师）
      */
     @GetMapping("/{courseId}/authorized-teachers")
@@ -110,6 +117,7 @@ public class CourseController {
     }
 
     /**
+     * Author：李子政
      * 授权教师到课程
      */
     @PostMapping("/{courseId}/authorize-teachers")

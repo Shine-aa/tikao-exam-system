@@ -26,6 +26,7 @@ public class ClassCourseController {
     private ClassCourseService classCourseService;
     
     /**
+     * Author：李正阳，郭依林
      * 创建班级课程关联
      */
     @PostMapping
@@ -36,6 +37,7 @@ public class ClassCourseController {
     }
     
     /**
+     * Author：李正阳，李子政，郭依林
      * 更新班级课程关联
      */
     @PutMapping("/{id}")
@@ -48,6 +50,7 @@ public class ClassCourseController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 删除班级课程关联
      */
     @DeleteMapping("/{id}")
@@ -58,6 +61,7 @@ public class ClassCourseController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 批量删除班级课程关联
      */
     @DeleteMapping("/batch")
@@ -68,6 +72,7 @@ public class ClassCourseController {
     }
     
     /**
+     * Author：李正阳，李子政，郭依林
      * 根据班级ID删除所有关联
      */
     @DeleteMapping("/class/{classId}")
@@ -78,6 +83,7 @@ public class ClassCourseController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 根据课程ID删除所有关联
      */
     @DeleteMapping("/course/{courseId}")
@@ -88,6 +94,7 @@ public class ClassCourseController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 根据ID获取班级课程关联
      */
     @GetMapping("/{id}")
@@ -98,6 +105,7 @@ public class ClassCourseController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 根据班级ID获取所有关联的课程
      */
     @GetMapping("/class/{classId}")
@@ -108,6 +116,7 @@ public class ClassCourseController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 根据课程ID获取所有关联的班级
      */
     @GetMapping("/course/{courseId}")
@@ -118,6 +127,7 @@ public class ClassCourseController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 分页获取班级课程关联
      */
     @GetMapping("/page")
@@ -135,6 +145,7 @@ public class ClassCourseController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取所有课程列表（用于添加课程时选择）
      */
     @GetMapping
