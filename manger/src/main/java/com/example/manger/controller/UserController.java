@@ -28,6 +28,7 @@ public class UserController {
     private final JwtUtil jwtUtil;
     
     /**
+     * Author：李正阳，李子政
      * 检查用户名是否可用
      */
     @GetMapping("/check-username")
@@ -49,6 +50,7 @@ public class UserController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 检查邮箱是否可用
      */
     @GetMapping("/check-email")
@@ -70,6 +72,7 @@ public class UserController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 根据ID获取用户信息
      */
     @GetMapping("/{id}")

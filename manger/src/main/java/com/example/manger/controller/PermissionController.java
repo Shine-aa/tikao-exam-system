@@ -26,7 +26,7 @@ public class PermissionController {
     private final PermissionService permissionService;
     
     /**
-     * 获取所有权限
+     * Author：李正阳，郭依林
      */
     @GetMapping
     @PreAuthorize("hasRole('SUPER_ADMIN')")
@@ -43,6 +43,7 @@ public class PermissionController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 分页查询权限
      */
     @GetMapping("/page")
@@ -72,6 +73,7 @@ public class PermissionController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 批量删除权限
      */
     @DeleteMapping("/batch")
@@ -93,6 +95,7 @@ public class PermissionController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 根据资源类型获取权限
      */
     @GetMapping("/resource-type/{resourceType}")
@@ -107,6 +110,7 @@ public class PermissionController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 根据角色ID获取权限
      */
     @GetMapping("/role/{roleId}")
@@ -121,6 +125,7 @@ public class PermissionController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 根据用户ID获取权限
      */
     @GetMapping("/user/{userId}")
@@ -135,6 +140,7 @@ public class PermissionController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 检查用户是否有特定权限
      */
     @GetMapping("/check/{userId}/{permissionCode}")
@@ -149,6 +155,7 @@ public class PermissionController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取用户所有权限代码
      */
     @GetMapping("/codes/user/{userId}")
@@ -163,6 +170,7 @@ public class PermissionController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 检查用户是否有角色
      */
     @GetMapping("/check-role/{userId}/{roleCode}")
@@ -177,6 +185,7 @@ public class PermissionController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取用户所有角色代码
      */
     @GetMapping("/role-codes/user/{userId}")

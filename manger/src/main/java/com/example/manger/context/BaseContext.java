@@ -1,5 +1,8 @@
 package com.example.manger.context;
 
+/**
+ * Author：李子政
+ */
 public class BaseContext {
 
     public static ThreadLocal<Long> threadLocal = new ThreadLocal<>();

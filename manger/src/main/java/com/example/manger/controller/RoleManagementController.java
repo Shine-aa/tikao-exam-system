@@ -26,6 +26,7 @@ public class RoleManagementController {
     private final RoleService roleService;
     
     /**
+     * Author：李正阳
      * 创建角色
      */
     @PostMapping
@@ -40,6 +41,7 @@ public class RoleManagementController {
     }
     
     /**
+     * Author：李正阳
      * 更新角色
      */
     @PutMapping("/{roleId}")
@@ -55,6 +57,7 @@ public class RoleManagementController {
     }
     
     /**
+     * Author：李正阳
      * 删除角色
      */
     @DeleteMapping("/{roleId}")
@@ -69,6 +72,7 @@ public class RoleManagementController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 获取角色详情
      */
     @GetMapping("/{roleId}")
@@ -83,6 +87,7 @@ public class RoleManagementController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 获取所有角色
      */
     @GetMapping
@@ -100,6 +105,7 @@ public class RoleManagementController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 分页查询角色
      */
     @GetMapping("/page")
@@ -128,6 +134,7 @@ public class RoleManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 批量删除角色
      */
     @DeleteMapping("/batch")
@@ -149,6 +156,7 @@ public class RoleManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取启用的角色
      */
     @GetMapping("/active")
@@ -163,6 +171,7 @@ public class RoleManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 启用/禁用角色
      */
     @PutMapping("/{roleId}/toggle-status")
@@ -177,6 +186,7 @@ public class RoleManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 为角色分配权限
      */
     @PutMapping("/{roleId}/assign-permissions")
@@ -192,6 +202,7 @@ public class RoleManagementController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 从角色移除权限
      */
     @DeleteMapping("/{roleId}/remove-permissions")
