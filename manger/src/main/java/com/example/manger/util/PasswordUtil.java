@@ -7,6 +7,9 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 
+/**
+ * Author：李正阳
+ */
 @Component
 public class PasswordUtil {
     

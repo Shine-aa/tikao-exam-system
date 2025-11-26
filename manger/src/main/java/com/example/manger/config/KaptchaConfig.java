@@ -7,6 +7,9 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.Properties;
 
+/**
+ * Author：李正阳
+ */
 @Configuration
 public class KaptchaConfig {
     

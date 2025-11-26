@@ -13,6 +13,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.util.Arrays;
 
 /**
+ * Author：李子政
  * 请求日志切面：记录 com.example.manger.controller 包下所有接口的请求信息
  */
 @Aspect  // 标记为切面类，用于拦截请求
