@@ -50,7 +50,7 @@ public class ExamController {
             @Valid @RequestBody ExamRequest request, 
             HttpServletRequest httpRequest) {
         try {
-            ExamResponse exam = examService.createExam(request, httpRequest);
+            ExamResponse exam = examService.createExam(request);
             return ApiResponse.success("考试创建成功", exam);
         } catch (Exception e) {
             return ApiResponse.error("考试创建失败: " + e.getMessage());
@@ -305,7 +305,7 @@ public class ExamController {
             @PathVariable Long examId, 
             HttpServletRequest request) {
         try {
-            Map<String, Object> result = examService.getStudentExamResult(examId, request);
+            Map<String, Object> result = examService.getStudentExamResult(examId);
             return ApiResponse.success("获取考试结果成功", result);
         } catch (Exception e) {
             return ApiResponse.error("获取考试结果失败: " + e.getMessage());

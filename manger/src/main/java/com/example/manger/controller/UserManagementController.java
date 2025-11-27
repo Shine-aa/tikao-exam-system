@@ -34,7 +34,7 @@ public class UserManagementController {
      * 创建用户
      */
     @PostMapping
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {
         try {
             UserResponse user = userManagementService.createUser(request);
@@ -58,7 +58,7 @@ public class UserManagementController {
      * 更新用户
      */
     @PutMapping("/{userId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<UserResponse> updateUser(@PathVariable Long userId, 
                                                @Valid @RequestBody UpdateUserRequest request) {
         try {
@@ -74,7 +74,7 @@ public class UserManagementController {
      * 更新用户密码
      */
     @PutMapping("/{userId}/change-password")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<String> updatePassword(@PathVariable Long userId,
                                               @Valid @RequestBody User user) {
         try {
@@ -90,7 +90,7 @@ public class UserManagementController {
      * 删除用户
      */
     @DeleteMapping("/{userId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<Void> deleteUser(@PathVariable Long userId) {
         try {
             userManagementService.deleteUser(userId);
@@ -105,7 +105,7 @@ public class UserManagementController {
      * 批量删除用户
      */
     @DeleteMapping("/batch")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     @Operation(summary = "批量删除用户", description = "根据用户ID列表批量删除用户")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "批量删除成功"),
@@ -127,7 +127,7 @@ public class UserManagementController {
      * 获取用户详情
      */
     @GetMapping("/{userId}")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<UserResponse> getUserById(@PathVariable Long userId) {
         try {
             UserResponse user = userManagementService.getUserById(userId);
@@ -161,7 +161,7 @@ public class UserManagementController {
      * 分页查询用户
      */
     @GetMapping("/page")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     @Operation(summary = "分页查询用户", description = "支持按用户名、邮箱、状态等条件分页查询用户列表")
     @ApiResponses({
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "查询成功"),
@@ -191,7 +191,7 @@ public class UserManagementController {
      * 获取启用的用户
      */
     @GetMapping("/active")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<List<UserResponse>> getActiveUsers() {
         try {
             List<UserResponse> users = userManagementService.getActiveUsers();
@@ -206,7 +206,7 @@ public class UserManagementController {
      * 启用/禁用用户
      */
     @PutMapping("/{userId}/toggle-status")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<UserResponse> toggleUserStatus(@PathVariable Long userId) {
         try {
             UserResponse user = userManagementService.toggleUserStatus(userId);
@@ -221,7 +221,7 @@ public class UserManagementController {
      * 为用户分配角色
      */
     @PutMapping("/{userId}/assign-roles")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<UserResponse> assignRolesToUser(@PathVariable Long userId,
                                                       @Valid @RequestBody AssignRolesRequest request) {
         try {
@@ -237,7 +237,7 @@ public class UserManagementController {
      * 从用户移除角色
      */
     @DeleteMapping("/{userId}/remove-roles")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<UserResponse> removeRolesFromUser(@PathVariable Long userId,
                                                         @RequestBody Set<Long> roleIds) {
         try {
@@ -253,7 +253,7 @@ public class UserManagementController {
      * 重置用户密码
      */
     @PutMapping("/{userId}/reset-password")
-    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<Void> resetUserPassword(@PathVariable Long userId,
                                               @RequestBody Map<String, String> request) {
         try {
@@ -270,7 +270,7 @@ public class UserManagementController {
      * 获取所有学生（普通用户）
      */
     @GetMapping("/students")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     @Operation(summary = "获取学生列表", description = "获取所有普通用户（学生）列表")
     public ApiResponse<List<UserResponse>> getStudents() {
         try {
@@ -286,7 +286,7 @@ public class UserManagementController {
      * 分页获取学生列表（带班级信息）
      */
     @GetMapping("/students/page")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     @Operation(summary = "分页获取学生列表", description = "分页获取学生列表，支持按班级和状态筛选")
     public ApiResponse<PageResponse<UserResponse>> getStudentsWithPagination(
             @RequestParam(defaultValue = "1") int page,
@@ -308,7 +308,7 @@ public class UserManagementController {
      * 分配学生到班级
      */
     @PostMapping("/students/assign")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     @Operation(summary = "分配学生到班级", description = "将学生分配到指定班级")
     public ApiResponse<Void> assignStudentToClass(@RequestBody Map<String, Object> request) {
         try {
@@ -327,7 +327,7 @@ public class UserManagementController {
      * 批量分配学生到班级
      */
     @PostMapping("/students/batch-assign")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     @Operation(summary = "批量分配学生到班级", description = "批量将学生分配到指定班级")
     public ApiResponse<Void> batchAssignStudentsToClass(@RequestBody Map<String, Object> request) {
         try {
@@ -350,7 +350,7 @@ public class UserManagementController {
      * 将学生移出班级
      */
     @DeleteMapping("/students/{studentId}/remove-from-class")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     @Operation(summary = "将学生移出班级", description = "将学生从当前班级中移除")
     public ApiResponse<Void> removeStudentFromClass(@PathVariable Long studentId) {
         try {
@@ -366,7 +366,7 @@ public class UserManagementController {
      * 批量将学生移出班级
      */
     @DeleteMapping("/students/batch-remove-from-class")
-    @PreAuthorize("hasRole('TEACHER')")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     @Operation(summary = "批量将学生移出班级", description = "批量将学生从当前班级中移除")
     public ApiResponse<Void> batchRemoveStudentsFromClass(@RequestBody Map<String, Object> request) {
         try {

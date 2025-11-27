@@ -1,6 +1,7 @@
 package com.example.manger.controller;
 
 import com.example.manger.common.ApiResponse;
+import com.example.manger.context.BaseContext;
 import com.example.manger.dto.PageResponse;
 import com.example.manger.dto.PaperGenerationRequest;
 import com.example.manger.dto.PaperManualCreateRequest;
@@ -33,9 +34,8 @@ public class PaperGenerationController {
      */
     @PostMapping("/generate")
     @Operation(summary = "生成试卷", description = "根据配置参数智能生成试卷")
-    public ApiResponse<PaperResponse> generatePaper(@Valid @RequestBody PaperGenerationRequest request,
-                                                   HttpServletRequest httpRequest) {
-        Long teacherId = getCurrentUserId(httpRequest);
+    public ApiResponse<PaperResponse> generatePaper(@Valid @RequestBody PaperGenerationRequest request) {
+        Long teacherId = getCurrentUserId();
         PaperResponse response = paperGenerationService.generatePaper(request, teacherId);
         return ApiResponse.success("试卷生成成功", response);
     }
@@ -46,9 +46,8 @@ public class PaperGenerationController {
      */
     @PostMapping("/manual/create")
     @Operation(summary = "手动创建试卷", description = "手动选择题目组卷，支持自定义题目顺序和分值")
-    public ApiResponse<PaperResponse> createPaperManual(@Valid @RequestBody PaperManualCreateRequest request,
-                                                        HttpServletRequest httpRequest) {
-        Long teacherId = getCurrentUserId(httpRequest);
+    public ApiResponse<PaperResponse> createPaperManual(@Valid @RequestBody PaperManualCreateRequest request) {
+        Long teacherId = getCurrentUserId();
         PaperResponse response = paperGenerationService.createPaperManual(request, teacherId);
         return ApiResponse.success("手动组卷成功", response);
     }
@@ -93,12 +92,7 @@ public class PaperGenerationController {
     /**
      * 获取当前用户ID
      */
-    private Long getCurrentUserId(HttpServletRequest request) {
-        String token = request.getHeader("Authorization");
-        if (token != null && token.startsWith("Bearer ")) {
-            token = token.substring(7);
-            return jwtUtil.getUserIdFromToken(token);
-        }
-        throw new RuntimeException("无法获取用户信息");
+    private Long getCurrentUserId() {
+        return BaseContext.getCurrentId();
     }
 }
