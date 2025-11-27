@@ -310,8 +310,14 @@
           />
         </el-form-item>
         
-        <el-form-item label="班级" prop="classId">
-          <el-select v-model="createExamForm.classId" placeholder="请选择班级" style="width: 100%">
+        <el-form-item label="班级" prop="classIds">
+          <el-select 
+            v-model="createExamForm.classIds" 
+            placeholder="请选择班级" 
+            style="width: 100%"
+            multiple
+            collapse-tags
+          >
             <el-option
               v-for="classItem in classList"
               :key="classItem.id"
@@ -485,7 +491,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, ArrowDown, Delete, List } from '@element-plus/icons-vue'
-import { paperApi, classApi, courseApi, examApi } from '@/api/admin'
+import { paperApi, classApi, courseApi, examApi, userApi } from '@/api/admin'
 
 const router = useRouter()
 
@@ -511,7 +517,7 @@ const createExamForm = reactive({
   examName: '',
   description: '',
   paperId: null,
-  classId: null,
+  classIds: [],
   startTime: '',
   endTime: '',
   durationMinutes: 120,
@@ -526,8 +532,9 @@ const createExamFormRules = {
   examName: [
     { required: true, message: '请输入考试名称', trigger: 'blur' }
   ],
-  classId: [
-    { required: true, message: '请选择班级', trigger: 'change' }
+  classIds: [
+    { required: true, message: '请选择班级', trigger: 'change' },
+    { type: 'array', min: 1, message: '至少选择一个班级', trigger: 'change' }
   ],
   startTime: [
     { required: true, message: '请选择开始时间', trigger: 'change' }
@@ -652,9 +659,9 @@ const loadPaperList = async () => {
 
 const loadClassList = async () => {
   try {
-    const response = await classApi.getClassesWithPagination(1, 1000, '', null, null, '')
+    const response = await classApi.getAllClasses()
     if (response.code === 200) {
-      classList.value = response.data.content || []
+      classList.value = response.data || []
     }
   } catch (error) {
     console.error('Load class list error:', error)
@@ -725,7 +732,7 @@ const handleViewQuestions = async (row) => {
 const handleCreateExam = (row) => {
   currentPaperForExam.value = row
   createExamForm.paperId = row.id
-  createExamForm.classId = null // 不再从试卷继承，需要手动选择班级
+  createExamForm.classIds = [] // 不再从试卷继承，需要手动选择班级
   createExamForm.examName = `${row.paperName} - 考试`
   createExamForm.durationMinutes = row.durationMinutes
   createExamDialogVisible.value = true
@@ -879,7 +886,7 @@ const resetCreateExamForm = () => {
   createExamForm.examName = ''
   createExamForm.description = ''
   createExamForm.paperId = null
-  createExamForm.classId = null
+  createExamForm.classIds = []
   createExamForm.startTime = ''
   createExamForm.endTime = ''
   createExamForm.durationMinutes = 120

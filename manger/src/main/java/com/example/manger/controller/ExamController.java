@@ -16,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +32,7 @@ public class ExamController {
     private ExamService examService;
     
     /**
-     * Author：李正阳，郭依林
+     * Author：李正阳，李子政
      * 创建考试
      */
     @Operation(summary = "创建考试", description = "老师或管理员创建新的考试")
@@ -45,13 +44,12 @@ public class ExamController {
     })
     @PostMapping
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ApiResponse<ExamResponse> createExam(
+    public ApiResponse<String> createExam(
             @Parameter(description = "考试创建请求", required = true) 
-            @Valid @RequestBody ExamRequest request, 
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody ExamRequest request) {
         try {
-            ExamResponse exam = examService.createExam(request);
-            return ApiResponse.success("考试创建成功", exam);
+            examService.createExam(request);
+            return ApiResponse.success("考试创建成功");
         } catch (Exception e) {
             return ApiResponse.error("考试创建失败: " + e.getMessage());
         }

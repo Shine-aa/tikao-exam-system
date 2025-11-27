@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Max;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 考试创建请求DTO
@@ -21,7 +22,7 @@ public class ExamRequest {
     private Long paperId;
 
     @NotNull(message = "班级ID不能为空")
-    private Long classId;
+    private List<Long> classIds;
 
     @NotNull(message = "开始时间不能为空")
     private LocalDateTime startTime;

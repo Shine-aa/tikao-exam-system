@@ -22,7 +22,10 @@
             <el-icon><User /></el-icon>
             <span>用户管理</span>
           </el-menu-item>
-
+          <el-menu-item index="/admin/major-management" :route="{ path: '/admin/major-management' }">
+            <el-icon><Reading /></el-icon>
+            <span>专业管理</span>
+          </el-menu-item>
           <el-menu-item index="/admin/class-management" :route="{ path: '/admin/class-management' }">
             <el-icon><School /></el-icon>
             <span>班级管理</span>
@@ -97,6 +100,7 @@ const getCurrentPageTitle = () => {
   const routeMap = {
     '/admin/dashboard': '仪表盘',
     '/admin/users': '用户管理',
+    '/admin/major-management': '专业管理',
     '/admin/class-management': '班级管理',
     '/admin/roles': '角色管理',
     '/admin/permissions': '权限管理',
