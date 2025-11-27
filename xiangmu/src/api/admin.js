@@ -599,6 +599,14 @@ export function getClasses() {
   })
 }
 
+// 获取所有班级
+export function getAllClasses() {
+  return request({
+    url: '/api/classes/getAll',
+    method: 'get'
+  })
+}
+
 // 根据课程获取班级
 export function getClassesByCourse(courseId) {
   return request({
@@ -626,6 +634,7 @@ export const classApi = {
   getClassById,
   getClassesWithPagination,
   getClasses,
+  getAllClasses,
   getClassesByCourse
 }
 

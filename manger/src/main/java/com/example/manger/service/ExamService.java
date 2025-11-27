@@ -72,17 +72,20 @@ public class ExamService {
     /**
      * 创建考试
      */
-    public ExamResponse createExam(ExamRequest request) {
+    public void createExam(ExamRequest request) {
         // 获取当前用户ID
         Long teacherId = getCurrentUserId();
         
         // 验证试卷是否存在
         Paper paper = paperRepository.findById(request.getPaperId())
                 .orElseThrow(() -> new RuntimeException("试卷不存在"));
-        
-        // 验证班级是否存在
-        com.example.manger.entity.Class classEntity = classRepository.findById(request.getClassId())
-                .orElseThrow(() -> new RuntimeException("班级不存在"));
+
+        for(Long classId:request.getClassIds()){
+            // 验证班级是否存在
+            com.example.manger.entity.Class classEntity = classRepository.findById(classId)
+                    .orElseThrow(() -> new RuntimeException("班级不存在"));
+        }
+
         
         // 验证时间设置
         if (request.getStartTime().isAfter(request.getEndTime())) {
@@ -96,11 +99,9 @@ public class ExamService {
         
         // 创建考试
         Exam exam = new Exam();
-        exam.setExamCode(generateExamCode());
         exam.setExamName(request.getExamName());
         exam.setDescription(request.getDescription());
         exam.setPaperId(request.getPaperId());
-        exam.setClassId(request.getClassId());
         exam.setTeacherId(teacherId);
         exam.setStartTime(request.getStartTime());
         exam.setEndTime(request.getEndTime());
@@ -110,18 +111,20 @@ public class ExamService {
         exam.setIsRandomOptions(request.getIsRandomOptions());
         exam.setAllowReview(request.getAllowReview());
         exam.setStatus(Exam.ExamStatus.SCHEDULED);
-        
-        // 计算应考人数（班级学生总数）
-        long studentCount = studentClassRepository.countByClassIdAndIsActiveTrue(request.getClassId());
-        exam.setStudentCount((int) studentCount);
-        exam.setParticipatedCount(0); // 初始实考人数为0
-        
-        Exam savedExam = examRepository.save(exam);
-        
-        // 为班级中的所有学生创建考试记录
-        createStudentExamRecords(savedExam.getId(), request.getClassId());
-        
-        return convertToResponse(savedExam);
+
+        for(Long classId:request.getClassIds()){
+            Exam copyExam = new Exam();
+            BeanUtils.copyProperties(exam,copyExam);
+            copyExam.setExamCode(generateExamCode());
+            copyExam.setClassId(classId);
+            // 计算应考人数（班级学生总数）
+            long studentCount = studentClassRepository.countByClassIdAndIsActiveTrue(classId);
+            copyExam.setStudentCount((int) studentCount);
+            copyExam.setParticipatedCount(0); // 初始实考人数为0
+            Exam savedExam = examRepository.save(copyExam);
+            // 为班级中的所有学生创建考试记录
+            createStudentExamRecords(savedExam.getId(), classId);
+        }
     }
     
     /**
@@ -243,10 +246,6 @@ public class ExamService {
         
         if (exam.getStatus() != Exam.ExamStatus.SCHEDULED) {
             throw new RuntimeException("只有已安排的考试才能开始");
-        }
-        
-        if (LocalDateTime.now().isBefore(exam.getStartTime())) {
-            throw new RuntimeException("考试尚未到开始时间");
         }
         
         exam.setStatus(Exam.ExamStatus.ONGOING);

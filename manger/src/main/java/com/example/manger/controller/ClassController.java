@@ -103,6 +103,17 @@ public class ClassController {
         List<ClassResponse> response = classService.getClassesByTeacherId(teacherId);
         return ApiResponse.success("获取班级列表成功", response);
     }
+
+    /**
+     * Author：李正阳，郭依林
+     * 获取教师的所有班级
+     */
+    @GetMapping("/getAll")
+    @Operation(summary = "获取所有班级", description = "获取所有班级")
+    public ApiResponse<List<ClassResponse>> getAllClasses() {
+        List<ClassResponse> response = classService.getAllClasses();
+        return ApiResponse.success("获取班级列表成功", response);
+    }
     
     /**
      * Author：李正阳，郭依林
