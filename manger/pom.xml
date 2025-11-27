@@ -50,6 +50,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+<!-- 解决冲突 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-neo4j</artifactId>
+        </dependency>
 
         <!-- MySQL -->
         <dependency>
@@ -84,13 +89,13 @@
             <version>${jwt.version}</version>
             <scope>runtime</scope>
         </dependency>
+<!-- 解决冲突 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt</artifactId>
             <version>${jwt.version}</version>
             <scope>runtime</scope>
         </dependency>
-
 
         <!-- Kaptcha -->
         <dependency>

@@ -96,6 +96,21 @@ public class AuthController {
     }
     
     /**
+     * 解决冲突
+     * 刷新令牌
+     */
+    @PostMapping("/refresh")
+    @Operation(summary = "刷新令牌", description = "使用刷新令牌获取新的访问令牌")
+    public ApiResponse<String> refreshToken(@RequestParam String refreshToken) {
+        try {
+            String newToken = userService.refreshToken(refreshToken);
+            return ApiResponse.success("令牌刷新成功", newToken);
+        } catch (Exception e) {
+            return ApiResponse.error(e.getMessage());
+        }
+    }
+    
+    /**
      * Author：李正阳，郭依林
      * 获取客户端IP地址
      */
