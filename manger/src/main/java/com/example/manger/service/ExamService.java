@@ -72,9 +72,9 @@ public class ExamService {
     /**
      * 创建考试
      */
-    public ExamResponse createExam(ExamRequest request, HttpServletRequest httpRequest) {
+    public ExamResponse createExam(ExamRequest request) {
         // 获取当前用户ID
-        Long teacherId = getCurrentUserId(httpRequest);
+        Long teacherId = getCurrentUserId();
         
         // 验证试卷是否存在
         Paper paper = paperRepository.findById(request.getPaperId())
@@ -161,7 +161,7 @@ public class ExamService {
     }
 
     public PageResponse<ExamResponse> getExamsWithPagination(int page, int size, String keyword, String status, HttpServletRequest httpRequest) {
-        Long teacherId = getCurrentUserId(httpRequest);
+        Long teacherId = getCurrentUserId();
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
 
         // 处理status参数（转换为枚举，空字符串或无效值视为null）
@@ -1310,7 +1310,7 @@ public class ExamService {
         gradingResult.setTotalScore(BigDecimal.valueOf(totalScore));
         gradingResult.setIsGradingCompleted(true); // 提交时标记为完成
         gradingResult.setGradedAt(LocalDateTime.now());
-        gradingResult.setGradedBy(getCurrentUserId(request)); // 获取当前用户ID
+        gradingResult.setGradedBy(getCurrentUserId()); // 获取当前用户ID
         gradingResult.setUpdatedAt(LocalDateTime.now());
         
         gradingResultRepository.save(gradingResult);
@@ -1378,13 +1378,8 @@ public class ExamService {
     /**
      * 获取当前用户ID
      */
-    private Long getCurrentUserId(HttpServletRequest request) {
-        String token = request.getHeader("Authorization");
-        if (token != null && token.startsWith("Bearer ")) {
-            token = token.substring(7);
-            return jwtUtil.getUserIdFromToken(token);
-        }
-        throw new RuntimeException("无法获取用户信息");
+    private Long getCurrentUserId() {
+        return BaseContext.getCurrentId();
     }
     
     /**
@@ -1498,9 +1493,9 @@ public class ExamService {
     /**
      * 获取学生考试结果（仅显示分数，不显示题目内容）
      */
-    public Map<String, Object> getStudentExamResult(Long examId, HttpServletRequest request) {
+    public Map<String, Object> getStudentExamResult(Long examId) {
         // 获取当前用户ID
-        Long currentUserId = getCurrentUserId(request);
+        Long currentUserId = getCurrentUserId();
         
         // 验证考试是否存在
         Exam exam = examRepository.findById(examId)
@@ -1626,7 +1621,7 @@ public class ExamService {
      */
     public List<Map<String, Object>> getRecentActivities(HttpServletRequest request) {
         // 获取当前用户ID
-        Long teacherId = getCurrentUserId(request);
+        Long teacherId = getCurrentUserId();
         
         List<Map<String, Object>> activities = new ArrayList<>();
         
