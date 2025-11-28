@@ -15,6 +15,7 @@ public class ExamResponse {
     private String examName;
     private String description;
     private Long paperId;
+    private Long courseId;
     private String paperName;
     private String paperCode;
     private Long classId;

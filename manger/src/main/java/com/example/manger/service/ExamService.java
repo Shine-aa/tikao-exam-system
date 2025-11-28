@@ -1,5 +1,7 @@
 package com.example.manger.service;
 
+import org.springframework.util.CollectionUtils;
+
 import com.example.manger.context.BaseContext;
 import com.example.manger.dto.ExamRequest;
 import com.example.manger.dto.ExamResponse;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -80,6 +83,8 @@ public class ExamService {
         Paper paper = paperRepository.findById(request.getPaperId())
                 .orElseThrow(() -> new RuntimeException("试卷不存在"));
 
+        Long courseId = paper.getCourseId();
+
         for(Long classId:request.getClassIds()){
             // 验证班级是否存在
             com.example.manger.entity.Class classEntity = classRepository.findById(classId)
@@ -111,6 +116,7 @@ public class ExamService {
         exam.setIsRandomOptions(request.getIsRandomOptions());
         exam.setAllowReview(request.getAllowReview());
         exam.setStatus(Exam.ExamStatus.SCHEDULED);
+        exam.setCourseId(courseId);
 
         for(Long classId:request.getClassIds()){
             Exam copyExam = new Exam();
@@ -268,7 +274,15 @@ public class ExamService {
         
         for (StudentExam studentExam : studentExams) {
             // 只处理进行中的考试记录
-            if (studentExam.getStatus() == StudentExam.StudentExamStatus.IN_PROGRESS) {
+            if (studentExam.getStatus() == StudentExam.StudentExamStatus.IN_PROGRESS||
+                    studentExam.getStatus() == StudentExam.StudentExamStatus.NOT_STARTED) {
+
+                //假如考生还没有开始考试，那么直接交卷判零。
+                if(studentExam.getStatus() == StudentExam.StudentExamStatus.NOT_STARTED){
+                    autoSubmittResult(studentExam);
+                    studentExam.setTotalScore(BigDecimal.valueOf(0.0));
+                }
+
                 studentExam.setStatus(StudentExam.StudentExamStatus.SUBMITTED);
                 // 如果还没有提交时间，设置为当前时间或考试结束时间
                 if (studentExam.getSubmitTime() == null) {
@@ -1119,7 +1133,256 @@ public class ExamService {
         Collections.shuffle(options, random);
         return options;
     }
-    
+    /**
+     * 自动提交方法：无答题记录时先生成StudentAnswer，再0分判分
+     */
+    public void autoSubmittResult(StudentExam studentExam) {
+        Long examId = studentExam.getExamId();
+        Long studentId = studentExam.getStudentId();
+        Long studentExamId = studentExam.getId();
+
+        // 1. 获取基础信息（考试、学生、试卷）
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new RuntimeException("考试不存在，examId: " + examId));
+        User student = userRepository.findById(studentId)
+                .orElseThrow(() -> new RuntimeException("学生不存在，studentId: " + studentId));
+        Paper paper = paperRepository.findById(exam.getPaperId())
+                .orElseThrow(() -> new RuntimeException("试卷不存在，paperId: " + exam.getPaperId()));
+
+        // 2. 检查并生成StudentAnswer（核心：无记录时自动创建）
+        StudentAnswer studentAnswer = studentAnswerRepository.findByStudentExamId(studentExamId)
+                .orElseGet(() -> createEmptyStudentAnswer(studentExam, paper, exam));
+
+        // 3. 从生成的StudentAnswer中获取题目列表（和学生手动进入考试的结构完全一致）
+        Map<String, Object> paperContent = studentAnswer.getPaperContent();
+        List<Map<String, Object>> questions = new ArrayList<>();
+        if (paperContent != null && paperContent.containsKey("questions")) {
+            Object questionsObj = paperContent.get("questions");
+            if (questionsObj instanceof List) {
+                questions = (List<Map<String, Object>>) questionsObj;
+            } else {
+                System.err.println("警告：paperContent.questions 格式异常，studentExamId: " + studentExamId);
+            }
+        }
+
+        // 4. 构建gradingData：所有题目0分（未答题）
+        Map<String, Object> gradingDataMap = new HashMap<>();
+        if (!CollectionUtils.isEmpty(questions)) {
+            for (Map<String, Object> question : questions) {
+                // 兼容题目ID字段
+                Object idObj = question.get("questionId");
+                if (idObj == null) {
+                    idObj = question.get("id");
+                }
+                if (idObj == null) {
+                    continue;
+                }
+
+                Long questionId = Long.valueOf(idObj.toString());
+                Map<String, Object> questionGrading = new HashMap<>();
+
+                // 未答题：所有题型统一0分（客观题已判分，主观题标记为未判分）
+                String questionType = (String) question.get("questionType");
+                Boolean isGraded = !"SUBJECTIVE".equals(questionType) && !"PROGRAMMING".equals(questionType);
+
+                questionGrading.put("givenScore", 0.0); // 未答题得0分
+                questionGrading.put("isGraded", isGraded);
+                questionGrading.put("questionType", questionType);
+                questionGrading.put("questionText", question.get("questionText"));
+                questionGrading.put("points", question.get("points"));
+                questionGrading.put("studentAnswers", null); // 明确标记未答题
+
+                gradingDataMap.put(questionId.toString(), questionGrading);
+            }
+        }
+
+        // 5. 计算总分（全0分）
+        BigDecimal totalScore = BigDecimal.ZERO;
+        if (!CollectionUtils.isEmpty(gradingDataMap)) {
+            totalScore = calculateAutoSubmitTotalScore(gradingDataMap);
+        }
+
+        // 6. 保存判分结果
+        Optional<GradingResult> existingResult = gradingResultRepository.findByStudentExamId(studentExamId);
+        GradingResult gradingResult = existingResult.orElse(new GradingResult());
+
+        // 基本信息赋值
+        gradingResult.setExamId(examId);
+        gradingResult.setStudentId(studentId);
+        gradingResult.setStudentExamId(studentExamId);
+        gradingResult.setExamName(exam.getExamName());
+        gradingResult.setStudentName(student.getUsername());
+        gradingResult.setExamStartTime(exam.getStartTime());
+
+        // 核心赋值：非空gradingData + 0分总分
+        gradingResult.setGradingData(gradingDataMap);
+        gradingResult.setTotalScore(totalScore);
+        gradingResult.setIsGradingCompleted(true); // 未答题自动判分完成
+        gradingResult.setGradedAt(LocalDateTime.now());
+        gradingResult.setGradedBy(null);
+        gradingResult.setUpdatedAt(LocalDateTime.now());
+
+        // 7. 更新学生考试记录
+        studentExam.setTotalScore(totalScore);
+
+        // 8. 保存所有数据
+        studentAnswerRepository.save(studentAnswer); // 保存自动生成的答题记录
+        gradingResultRepository.save(gradingResult);
+        studentExamRepository.save(studentExam);
+    }
+
+    /**
+     * 生成空的StudentAnswer（模拟学生点进考试但未答题的状态）
+     * 复用getStudentExamPaper的逻辑，保证paperContent结构一致
+     */
+    private StudentAnswer createEmptyStudentAnswer(StudentExam studentExam, Paper paper, Exam exam) {
+        Long studentId = studentExam.getStudentId();
+        Long studentExamId = studentExam.getStudentId();
+        Long examId = studentExam.getExamId();
+
+        // 1. 构建试卷题目（完全复用getStudentExamPaper的逻辑，包括乱序）
+        List<Map<String, Object>> questionList = paper.getQuestions();
+        if (CollectionUtils.isEmpty(questionList)) {
+            throw new RuntimeException("试卷无题目，无法生成答题记录，paperId: " + paper.getId());
+        }
+
+        // 2. 获取题目详情
+        List<Long> questionIds = questionList.stream()
+                .map(q -> ((Number) q.get("questionId")).longValue())
+                .collect(Collectors.toList());
+        List<Question> questions = questionRepository.findAllById(questionIds);
+
+        // 3. 构建题目数据（和学生手动进入考试的响应结构一致）
+        List<Map<String, Object>> questionResponseList = new ArrayList<>();
+        for (Map<String, Object> paperQuestion : questionList) {
+            Long questionId = ((Number) paperQuestion.get("questionId")).longValue();
+            Question question = questions.stream()
+                    .filter(q -> q.getId().equals(questionId))
+                    .findFirst()
+                    .orElse(null);
+
+            if (question == null) {
+                continue;
+            }
+
+            Map<String, Object> questionData = new HashMap<>();
+            questionData.put("id", question.getId()); // 兼容id字段
+            questionData.put("questionId", question.getId());
+            questionData.put("questionOrder", paperQuestion.get("questionOrder"));
+            questionData.put("questionType", question.getType().name());
+            questionData.put("questionText", question.getContent());
+            questionData.put("questionContent", question.getContent());
+            questionData.put("points", paperQuestion.get("points"));
+            questionData.put("difficulty", question.getDifficulty().name());
+            questionData.put("images", question.getImages());
+            questionData.put("studentAnswers", null); // 未答题
+            questionData.put("isGraded", false); // 初始未判分
+            questionData.put("givenScore", null); // 初始无分数
+
+            // 处理选项（选择题）
+            if (isChoiceQuestion(question.getType()) && question.getOptions() != null && !question.getOptions().isEmpty()) {
+                List<Map<String, Object>> optionList = question.getOptions().stream()
+                        .map(optionMap -> {
+                            Map<String, Object> optionData = new HashMap<>();
+                            optionData.put("optionKey", optionMap.get("key"));
+                            optionData.put("optionContent", optionMap.get("content"));
+                            optionData.put("isCorrect", optionMap.get("isCorrect")); // 保留正确答案标记
+                            return optionData;
+                        })
+                        .collect(Collectors.toList());
+
+                // 选项乱序（和学生手动进入考试一致）
+                if (exam.getIsRandomOptions() && question.getType() != Question.QuestionType.TRUE_FALSE) {
+                    optionList = shuffleOptions(optionList, studentId, question.getId());
+                }
+
+                questionData.put("options", optionList);
+            }
+
+            // 处理答案（填空/主观/编程题）
+            if ((question.getType() == Question.QuestionType.FILL_BLANK ||
+                    question.getType() == Question.QuestionType.SUBJECTIVE ||
+                    question.getType() == Question.QuestionType.PROGRAMMING) &&
+                    question.getCorrectAnswer() != null) {
+                List<Map<String, Object>> answerList = new ArrayList<>();
+                Map<String, Object> answerData = new HashMap<>();
+                answerData.put("answerContent", question.getCorrectAnswer());
+                answerList.add(answerData);
+                questionData.put("answers", answerList);
+            }
+
+            // 处理编程题特殊字段
+            if (question.getType() == Question.QuestionType.PROGRAMMING) {
+                String programmingLanguage = StringUtils.hasText(question.getProgrammingLanguage())
+                        ? question.getProgrammingLanguage() : "JAVA";
+                questionData.put("programmingLanguage", programmingLanguage);
+
+                // 测试用例
+                if (question.getTestCases() != null && !question.getTestCases().isEmpty()) {
+                    List<Map<String, Object>> testCases = question.getTestCases().stream()
+                            .map(testCaseMap -> {
+                                Map<String, Object> testCase = new HashMap<>();
+                                testCase.put("input", testCaseMap.get("input"));
+                                testCase.put("output", testCaseMap.get("output"));
+                                return testCase;
+                            })
+                            .collect(Collectors.toList());
+                    questionData.put("testCases", testCases);
+                }
+            }
+
+            questionResponseList.add(questionData);
+        }
+
+        // 题目乱序（和学生手动进入考试一致）
+        if (exam.getIsRandomOrder()) {
+            questionResponseList = shuffleQuestions(questionResponseList, studentId);
+        }
+
+        // 2. 构建paperContent（和学生手动进入考试的结构完全一致）
+        Map<String, Object> paperContent = new HashMap<>();
+        paperContent.put("questions", questionResponseList);
+        paperContent.put("paperName", paper.getPaperName());
+        paperContent.put("totalQuestions", paper.getTotalQuestions());
+        paperContent.put("totalPoints", paper.getTotalPoints());
+
+        // 3. 创建StudentAnswer对象
+        StudentAnswer studentAnswer = new StudentAnswer();
+        studentAnswer.setStudentExamId(studentExamId);
+        studentAnswer.setPaperContent(paperContent);
+        studentAnswer.setAnswerContent(new HashMap<>()); // 空的答题内容（未答题）
+        studentAnswer.setIpAddress("AUTO_SUBMIT"); // 标记为自动提交
+        studentAnswer.setTotalScore(BigDecimal.ZERO);
+        studentAnswer.setIsGraded(false); // 初始未判分
+        studentAnswer.setCreatedAt(LocalDateTime.now());
+        studentAnswer.setUpdatedAt(LocalDateTime.now());
+
+        return studentAnswer;
+    }
+
+    /**
+     * 复用的选择题判断方法
+     */
+    private boolean isChoiceQuestion(Question.QuestionType questionType) {
+        return questionType == Question.QuestionType.SINGLE_CHOICE ||
+                questionType == Question.QuestionType.MULTIPLE_CHOICE ||
+                questionType == Question.QuestionType.TRUE_FALSE;
+    }
+
+    /**
+     * 计算自动提交总分
+     */
+    private BigDecimal calculateAutoSubmitTotalScore(Map<String, Object> gradingDataMap) {
+        double total = 0.0;
+        for (Map.Entry<String, Object> entry : gradingDataMap.entrySet()) {
+            Map<String, Object> questionGrading = (Map<String, Object>) entry.getValue();
+            Double givenScore = (Double) questionGrading.get("givenScore");
+            if (givenScore != null) {
+                total += givenScore;
+            }
+        }
+        return BigDecimal.valueOf(total).setScale(2, BigDecimal.ROUND_HALF_UP);
+    }
     /**
      * 保存判卷结果（新设计：使用单条记录存储）
      */
