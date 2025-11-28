@@ -32,14 +32,15 @@ public class StudentExamController {
      */
     @Operation(summary = "获取学生考试列表", description = "获取学生的考试列表，按状态分类（未开始、进行中、已结束）")
     @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权")
     })
     @GetMapping
     @PreAuthorize("hasRole('USER')")
-    public ApiResponse<Map<String, Object>> getStudentExams(HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> getStudentExams(HttpServletRequest request,
+                                                            @RequestParam(required = false) Long courseId) {
         try {
-            Map<String, Object> response = studentExamService.getStudentExamsByStatus(request);
+            Map<String, Object> response = studentExamService.getStudentExamsByStatus(request,courseId);
             return ApiResponse.success("获取考试列表成功", response);
         } catch (Exception e) {
             return ApiResponse.error("获取考试列表失败: " + e.getMessage());

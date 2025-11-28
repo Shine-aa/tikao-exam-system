@@ -83,6 +83,8 @@ public class ExamService {
         Paper paper = paperRepository.findById(request.getPaperId())
                 .orElseThrow(() -> new RuntimeException("试卷不存在"));
 
+        Long courseId = paper.getCourseId();
+
         for(Long classId:request.getClassIds()){
             // 验证班级是否存在
             com.example.manger.entity.Class classEntity = classRepository.findById(classId)
@@ -114,6 +116,7 @@ public class ExamService {
         exam.setIsRandomOptions(request.getIsRandomOptions());
         exam.setAllowReview(request.getAllowReview());
         exam.setStatus(Exam.ExamStatus.SCHEDULED);
+        exam.setCourseId(courseId);
 
         for(Long classId:request.getClassIds()){
             Exam copyExam = new Exam();
@@ -277,6 +280,7 @@ public class ExamService {
                 //假如考生还没有开始考试，那么直接交卷判零。
                 if(studentExam.getStatus() == StudentExam.StudentExamStatus.NOT_STARTED){
                     autoSubmittResult(studentExam);
+                    studentExam.setTotalScore(BigDecimal.valueOf(0.0));
                 }
 
                 studentExam.setStatus(StudentExam.StudentExamStatus.SUBMITTED);

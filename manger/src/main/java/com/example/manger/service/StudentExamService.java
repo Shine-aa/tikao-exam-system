@@ -1,21 +1,17 @@
 package com.example.manger.service;
 
 import com.example.manger.dto.ExamResponse;
-import com.example.manger.entity.Exam;
-import com.example.manger.entity.Paper;
-import com.example.manger.entity.StudentExam;
-import com.example.manger.entity.StudentClass;
-import com.example.manger.entity.User;
+import com.example.manger.entity.*;
 import com.example.manger.exception.BusinessException;
 import com.example.manger.exception.ErrorCode;
 import com.example.manger.repository.*;
-import com.example.manger.entity.StudentAnswer;
 import com.example.manger.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.ObjectUtils;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -47,65 +43,97 @@ public class StudentExamService {
     
     @Autowired
     private ClassRepository classRepository;
+
+    @Autowired
+    private ClassCourseRepository classCourseRepository;
     
     @Autowired
     private JwtUtil jwtUtil;
 
     /**
-     * 获取学生的考试列表（按状态分类）
+     * 获取学生的考试列表（按状态分类 + 课程筛选）- 最终版（Exam 含 courseId 字段）
      */
-    public Map<String, Object> getStudentExamsByStatus(HttpServletRequest request) {
-        // 获取当前学生ID
+    public Map<String, Object> getStudentExamsByStatus(HttpServletRequest request, Long courseId) {
+        // 步骤1：获取当前学生ID
         String authorizationHeader = request.getHeader("Authorization");
-        String token = authorizationHeader != null && authorizationHeader.startsWith("Bearer ") 
-            ? authorizationHeader.substring(7) 
-            : authorizationHeader;
+        String token = authorizationHeader != null && authorizationHeader.startsWith("Bearer ")
+                ? authorizationHeader.substring(7)
+                : authorizationHeader;
         Long studentId = jwtUtil.getUserIdFromToken(token);
 
-        // 获取学生所在的班级
+        // 步骤2：获取学生所在的有效班级
         List<StudentClass> studentClasses = studentClassRepository.findByStudentIdAndIsActiveTrue(studentId);
         if (studentClasses.isEmpty()) {
             return Map.of(
-                "ongoing", new ArrayList<>(),
-                "upcoming", new ArrayList<>(),
-                "completed", new ArrayList<>()
+                    "ongoing", new ArrayList<>(),
+                    "upcoming", new ArrayList<>(),
+                    "completed", new ArrayList<>()
             );
         }
-
-        List<Long> classIds = studentClasses.stream()
+        List<Long> studentClassIds = studentClasses.stream()
                 .map(StudentClass::getClassId)
                 .collect(Collectors.toList());
 
-        // 获取学生相关的考试
-        List<Exam> exams = examRepository.findByClassIdInAndIsActiveTrueOrderByStartTimeDesc(classIds);
-        
-        // 获取学生的考试记录
+        // 步骤3：获取学生可访问的课程ID列表（通过班级-课程关联表，确保数据安全）
+        List<ClassCourse> studentClassCourses = classCourseRepository.findByClassIdInAndIsActiveTrue(studentClassIds);
+        Set<Long> accessibleCourseIds = studentClassCourses.stream()
+                .map(ClassCourse::getCourseId)
+                .collect(Collectors.toSet());
+
+        // 步骤4：验证筛选的 courseId 是否合法（学生必须有权访问该课程）
+        Long targetCourseId = null;
+        if (!ObjectUtils.isEmpty(courseId)) {
+            if (accessibleCourseIds.contains(courseId)) {
+                targetCourseId = courseId;
+            } else {
+                // 无权限，返回空结果
+                return Map.of(
+                        "ongoing", new ArrayList<>(),
+                        "upcoming", new ArrayList<>(),
+                        "completed", new ArrayList<>()
+                );
+            }
+        }
+
+        // 步骤5：核心查询（直接按「班级ID + 课程ID」筛选，精准高效）
+        List<Exam> filteredExams;
+        if (ObjectUtils.isEmpty(targetCourseId)) {
+            // 场景1：无课程筛选 → 查询学生所有班级下的所有可访问课程考试
+            filteredExams = examRepository.findByClassIdInAndCourseIdInAndIsActiveTrueOrderByStartTimeDesc(
+                    studentClassIds, accessibleCourseIds);
+        } else {
+            // 场景2：有课程筛选 → 仅查询「学生班级 + 目标课程」的考试
+            filteredExams = examRepository.findByClassIdInAndCourseIdAndIsActiveTrueOrderByStartTimeDesc(
+                    studentClassIds, targetCourseId);
+        }
+
+        // 步骤6：获取学生的考试记录（匹配成绩和个人考试状态）
         List<StudentExam> studentExams = studentExamRepository.findByStudentIdAndIsActiveTrueOrderByCreatedAtDesc(studentId);
         Map<Long, StudentExam> studentExamMap = studentExams.stream()
                 .collect(Collectors.toMap(StudentExam::getExamId, se -> se, (existing, replacement) -> existing));
 
-        // 按状态分类
+        // 步骤7：按状态分类考试（原有逻辑不变，确保兼容性）
         List<ExamResponse> ongoing = new ArrayList<>();
         List<ExamResponse> upcoming = new ArrayList<>();
         List<ExamResponse> completed = new ArrayList<>();
-
         LocalDateTime now = LocalDateTime.now();
 
-        for (Exam exam : exams) {
+        for (Exam exam : filteredExams) {
             ExamResponse examResponse = convertToResponse(exam);
             StudentExam studentExam = studentExamMap.get(exam.getId());
-            
+
+            // 补充学生个人成绩
             if (studentExam != null && studentExam.getTotalScore() != null) {
                 examResponse.setTotalScore(studentExam.getTotalScore().doubleValue());
             }
 
-            // 根据考试状态和学生考试状态分类
+            // 按考试状态 + 学生考试状态分类
             if (exam.getStatus() == Exam.ExamStatus.ONGOING) {
                 if (studentExam != null && studentExam.getStatus() == StudentExam.StudentExamStatus.IN_PROGRESS) {
                     ongoing.add(examResponse);
                 } else if (studentExam != null && studentExam.getStatus() == StudentExam.StudentExamStatus.SUBMITTED) {
                     completed.add(examResponse);
-                } else if (exam.getStartTime().isBefore(now) && exam.getEndTime().isAfter(now)) {
+                } else if (exam.getEndTime().isAfter(now)) {
                     ongoing.add(examResponse);
                 }
             } else if (exam.getStatus() == Exam.ExamStatus.SCHEDULED) {
@@ -120,9 +148,9 @@ public class StudentExamService {
         }
 
         return Map.of(
-            "ongoing", ongoing,
-            "upcoming", upcoming,
-            "completed", completed
+                "ongoing", ongoing,
+                "upcoming", upcoming,
+                "completed", completed
         );
     }
 

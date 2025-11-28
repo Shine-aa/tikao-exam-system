@@ -16,6 +16,13 @@ import java.util.Optional;
  */
 @Repository
 public interface ClassCourseRepository extends JpaRepository<ClassCourse, Long> {
+    // 1. 根据班级ID列表查询有效的班级-课程关联
+    List<ClassCourse> findByClassIdInAndIsActiveTrue(List<Long> classIds);
+
+    // 2. 根据班级ID列表 + 课程ID列表查询有效的班级-课程关联
+    // 根据班级ID列表 + 课程ID查询有效班级-课程关联
+    List<ClassCourse> findByClassIdInAndCourseIdAndIsActiveTrue(List<Long> classIds, Long courseId);
+
     
     /**
      * 根据班级ID查找所有关联的课程
