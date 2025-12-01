@@ -1348,7 +1348,7 @@ public class ExamService {
 
         // 3. 创建StudentAnswer对象
         StudentAnswer studentAnswer = new StudentAnswer();
-        studentAnswer.setStudentExamId(studentExamId);
+        studentAnswer.setStudentExamId(examId);
         studentAnswer.setPaperContent(paperContent);
         studentAnswer.setAnswerContent(new HashMap<>()); // 空的答题内容（未答题）
         studentAnswer.setIpAddress("AUTO_SUBMIT"); // 标记为自动提交
