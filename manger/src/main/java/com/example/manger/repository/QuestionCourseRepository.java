@@ -16,6 +16,8 @@ import java.util.Optional;
  */
 @Repository
 public interface QuestionCourseRepository extends JpaRepository<QuestionCourse, Long> {
+    // 按课程ID列表查询关联的题目（只取活跃的）
+    List<QuestionCourse> findByCourseIdInAndIsActiveTrue(List<Long> courseIds);
     
     /**
      * 根据题目ID查找所有关联的课程

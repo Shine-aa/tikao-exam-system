@@ -27,6 +27,7 @@ public class MenuController {
     private MenuService menuService;
     
     /**
+     * Author：李正阳
      * 创建菜单
      */
     @PostMapping
@@ -38,6 +39,7 @@ public class MenuController {
     }
     
     /**
+     * Author：李正阳
      * 更新菜单
      */
     @PutMapping("/{id}")
@@ -51,6 +53,7 @@ public class MenuController {
     }
     
     /**
+     * Author：李正阳
      * 删除菜单
      */
     @DeleteMapping("/{id}")
@@ -62,6 +65,7 @@ public class MenuController {
     }
     
     /**
+     * Author：李正阳
      * 根据ID获取菜单
      */
     @GetMapping("/{id}")
@@ -73,6 +77,7 @@ public class MenuController {
     }
     
     /**
+     * Author：李正阳
      * 获取所有菜单（树形结构）
      */
     @GetMapping
@@ -84,6 +89,7 @@ public class MenuController {
     }
     
     /**
+     * Author：李正阳
      * 获取启用的菜单（树形结构）
      */
     @GetMapping("/active")
@@ -94,6 +100,7 @@ public class MenuController {
     }
     
     /**
+     * Author：李正阳
      * 根据角色ID获取菜单
      */
     @GetMapping("/role/{roleId}")
@@ -106,6 +113,7 @@ public class MenuController {
     }
     
     /**
+     * Author：李正阳
      * 根据用户ID获取菜单
      */
     @GetMapping("/user/{userId}")
@@ -118,6 +126,7 @@ public class MenuController {
     }
     
     /**
+     * Author：李正阳
      * 为角色分配菜单
      */
     @PostMapping("/assign")
@@ -129,6 +138,7 @@ public class MenuController {
     }
     
     /**
+     * Author：李正阳
      * 获取角色的菜单ID列表
      */
     @GetMapping("/role/{roleId}/ids")

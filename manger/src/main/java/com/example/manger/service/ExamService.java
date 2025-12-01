@@ -1,5 +1,6 @@
 package com.example.manger.service;
 
+import com.example.manger.context.BaseContext;
 import com.example.manger.dto.ExamRequest;
 import com.example.manger.dto.ExamResponse;
 import com.example.manger.dto.PageResponse;
@@ -61,6 +62,9 @@ public class ExamService {
     
     @Autowired
     private StudentExamPaperService studentExamPaperService;
+
+    @Autowired
+    private QuestionService questionService;
     
     @Autowired
     private JwtUtil jwtUtil;
@@ -155,28 +159,53 @@ public class ExamService {
             examRepository.save(exam);
         }
     }
-    
-    /**
-     * 分页查询考试列表
-     */
-    public PageResponse<ExamResponse> getExamsWithPagination(int page, int size, String keyword, HttpServletRequest httpRequest) {
+
+    public PageResponse<ExamResponse> getExamsWithPagination(int page, int size, String keyword, String status, HttpServletRequest httpRequest) {
         Long teacherId = getCurrentUserId(httpRequest);
         Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "createdAt"));
-        
+
+        // 处理status参数（转换为枚举，空字符串或无效值视为null）
+        Exam.ExamStatus examStatus = null;
+        if (status != null && !status.trim().isEmpty()) {
+            try {
+                examStatus = Exam.ExamStatus.valueOf(status.trim().toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // 若传入无效status，可抛异常或忽略（这里选择忽略，视为无status条件）
+                examStatus = null;
+            }
+        }
+
+        // 处理keyword（去除首尾空格，空字符串视为null）
+        String trimmedKeyword = (keyword != null) ? keyword.trim() : null;
+        if (trimmedKeyword != null && trimmedKeyword.isEmpty()) {
+            trimmedKeyword = null;
+        }
+
         Page<Exam> examPage;
-        if (keyword != null && !keyword.trim().isEmpty()) {
-            examPage = examRepository.findByKeyword(teacherId, keyword.trim(), pageable);
+        // 分四种情况组合查询条件
+        if (trimmedKeyword != null && examStatus != null) {
+            // 既有关键词也有status
+            examPage = examRepository.findByTeacherIdAndIsActiveTrueAndStatusAndExamNameContainingIgnoreCase(
+                    teacherId, examStatus, trimmedKeyword, pageable);
+        } else if (trimmedKeyword != null) {
+            // 只有关键词
+            examPage = examRepository.findByTeacherIdAndIsActiveTrueAndExamNameContainingIgnoreCase(
+                    teacherId, trimmedKeyword, pageable);
+        } else if (examStatus != null) {
+            // 只有status
+            examPage = examRepository.findByTeacherIdAndIsActiveTrueAndStatus(
+                    teacherId, examStatus, pageable);
         } else {
+            // 既无关键词也无status（原逻辑）
             examPage = examRepository.findByTeacherIdAndIsActiveTrueOrderByCreatedAtDesc(teacherId, pageable);
         }
-        
+
         List<ExamResponse> examResponses = examPage.getContent().stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
-        
+
         return PageResponse.of(examResponses, page, size, examPage.getTotalElements());
     }
-    
     /**
      * 根据ID获取考试详情
      */
@@ -1328,7 +1357,9 @@ public class ExamService {
         long gradedCount = studentExams.stream()
                 .filter(se -> se.getTotalScore() != null)
                 .count();
-        
+
+        long completeCount = gradingResultRepository.countByExamIdAndIsGradingCompletedTrue(exam.getId());
+
         response.put("studentCount", exam.getStudentCount());
         response.put("participatedCount", (int) submittedCount);
         response.put("unsubmittedCount", (int) (studentExams.size() - submittedCount));
@@ -1337,9 +1368,9 @@ public class ExamService {
         response.put("duration", exam.getDurationMinutes());
         response.put("status", exam.getStatus().name());
         
-        int gradingProgress = studentExams.isEmpty() ? 0 : (int) (gradedCount * 100 / studentExams.size());
+        int gradingProgress = studentExams.isEmpty() ? 0 : (int) (completeCount * 100 / studentExams.size() );
         response.put("gradingProgress", gradingProgress);
-        response.put("gradedCount", (int) gradedCount);
+        response.put("gradedCount", (int) completeCount);
         
         return response;
     }
@@ -1556,13 +1587,14 @@ public class ExamService {
     /**
      * 获取老师端仪表盘统计数据
      */
-    public Map<String, Object> getDashboardStats(HttpServletRequest request) {
+    public Map<String, Object> getDashboardStats() {
         // 获取当前用户ID
-        Long teacherId = getCurrentUserId(request);
-        
-        // 获取题库总数
-        Long questionBankCount = questionRepository.count();
-        
+        Long teacherId = BaseContext.getCurrentId();
+
+        //Long questionBankCount = questionRepository.count();
+        // 获取我管理的题库总数
+        Long questionBankCount = questionService.getTotalOnMyManagement(teacherId);
+
         // 获取进行中的考试数量
         Long ongoingExams = examRepository.countByStatusAndIsActiveTrue(Exam.ExamStatus.ONGOING);
         

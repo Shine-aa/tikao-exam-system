@@ -1,8 +1,6 @@
 package com.example.manger.service;
 
-import com.example.manger.dto.AuthResponse;
-import com.example.manger.dto.LoginRequest;
-import com.example.manger.dto.RegisterRequest;
+import com.example.manger.dto.*;
 import com.example.manger.entity.Role;
 import com.example.manger.entity.User;
 import com.example.manger.entity.UserSession;
@@ -13,16 +11,14 @@ import com.example.manger.repository.UserRepository;
 import com.example.manger.repository.UserSessionRepository;
 import com.example.manger.util.JwtUtil;
 import com.example.manger.util.PasswordUtil;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +30,9 @@ public class UserService {
     private final PasswordUtil passwordUtil;
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, String> redisTemplate;
+    // 注入你配置的 ObjectMapper（支持 LocalDateTime）
+    private final ObjectMapper redisObjectMapper; // 对应 RedisConfig 中的 redisObjectMapper 方法
+    private final UserDtoConverter dtoConverter; // 注入转换工具
     
     /**
      * 用户注册
@@ -93,6 +92,9 @@ public class UserService {
      */
     @Transactional
     public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
+        // 选择过期时间
+        long ttlSeconds = Boolean.TRUE.equals(request.getRememberMe()) ? jwtUtil.getRememberExpiration() : jwtUtil.getExpiration();
+
         // 验证验证码（只有在提供验证码时才验证）
         if (request.getCaptcha() != null && !request.getCaptcha().isEmpty()) {
             String captchaKey = "captcha:" + request.getCaptchaId();
@@ -148,19 +150,26 @@ public class UserService {
         userRepository.save(user);
         
         // 生成令牌
-        String token = jwtUtil.generateToken(user.getUsername(), user.getId());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getUsername(), user.getId());
-        
+        // 生成 JWT Token（携带自定义过期时间）
+        String token = jwtUtil.generateToken((long) user.getId(), ttlSeconds);
+        // 转换为 DTO（剥离关联对象）
+        UserLoginDTO userDTO = dtoConverter.convertToLoginDTO(user);
+
+        // 转换 DTO 为 Map（无循环关联，不会栈溢出）
+        Map<String, Object> userStore = redisObjectMapper.convertValue(userDTO, Map.class);
+
+        // 存储会话至 Redis（使用同样的 TTL）
+        jwtUtil.storeSessionInRedis(token, userStore, ttlSeconds);
         // 保存会话信息
-        saveUserSession(user.getId(), token, refreshToken, ipAddress, userAgent, request.getRememberMe());
-        
+        saveUserSession(user.getId(), token, token, ipAddress, userAgent, request.getRememberMe());
+
         // 构建响应
         AuthResponse response = new AuthResponse();
         response.setToken(token);
-        response.setRefreshToken(refreshToken);
         
         AuthResponse.UserInfo userInfo = new AuthResponse.UserInfo();
         userInfo.setId(user.getId());
+        userInfo.setName(user.getName());
         userInfo.setUsername(user.getUsername());
         userInfo.setEmail(user.getEmail());
         userInfo.setCreateTime(user.getCreateTime().toString());
@@ -231,6 +240,7 @@ public class UserService {
      */
     @Transactional
     public void logout(String token) {
+        jwtUtil.inValidate(token);
         UserSession session = userSessionRepository.findBySessionToken(token)
                 .orElse(null);
         
@@ -239,35 +249,53 @@ public class UserService {
             userSessionRepository.save(session);
         }
     }
-    
+
     /**
-     * 刷新令牌
+     * 使用刷新令牌获取新的访问令牌
      */
+    @Transactional
     public String refreshToken(String refreshToken) {
-        if (!jwtUtil.validateToken(refreshToken)) {
-            throw new RuntimeException("刷新令牌已过期");
-        }
-        
+        // 查找会话
         UserSession session = userSessionRepository.findByRefreshToken(refreshToken)
-                .orElseThrow(() -> new RuntimeException("无效的刷新令牌"));
-        
-        if (!session.getIsActive()) {
-            throw new RuntimeException("会话已失效");
+                .orElse(null);
+        if (session == null) {
+            throw new BusinessException(1008, "刷新令牌无效");
         }
-        
-        if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException("会话已过期");
+
+        // 检查会话是否激活且未过期
+        if (!Boolean.TRUE.equals(session.getIsActive()) || session.getExpiresAt() == null
+                || session.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new BusinessException(1009, "会话已失效，请重新登录");
         }
-        
-        // 生成新的访问令牌
-        String username = jwtUtil.getUsernameFromToken(refreshToken);
-        Long userId = jwtUtil.getUserIdFromToken(refreshToken);
-        String newToken = jwtUtil.generateToken(username, userId);
-        
-        // 更新会话
+
+        // 查找用户
+        User user = userRepository.findById(session.getUserId()).orElse(null);
+        if (user == null) {
+            throw new BusinessException(1010, "用户不存在");
+        }
+
+        // 生成新的访问令牌，使用默认过期时间
+        long ttlSeconds = jwtUtil.getExpiration();
+        String newToken = jwtUtil.generateToken((long) user.getId(), ttlSeconds);
+
+        // 将新的会话信息写入 Redis（替换旧的 token 存储）
+        // 先删除旧 token 对应的 Redis 会话
+        try {
+            jwtUtil.inValidate(session.getSessionToken());
+        } catch (Exception ignored) {
+        }
+
+        // 构建用户信息存入 Redis
+        UserLoginDTO userDTO = dtoConverter.convertToLoginDTO(user);
+        Map<String, Object> userStore = redisObjectMapper.convertValue(userDTO, Map.class);
+        jwtUtil.storeSessionInRedis(newToken, userStore, ttlSeconds);
+
+        // 更新数据库中的会话记录
         session.setSessionToken(newToken);
+        // 续期会话过期时间（这里使用和 JWT 相同的 TTL）
+        session.setExpiresAt(LocalDateTime.now().plusSeconds(ttlSeconds));
         userSessionRepository.save(session);
-        
+
         return newToken;
     }
 }

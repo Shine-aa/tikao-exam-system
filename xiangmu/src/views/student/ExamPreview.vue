@@ -30,6 +30,8 @@
       </div>
     </div>
 
+
+
     <!-- 整卷内容 -->
     <div class="exam-content">
       <div 
@@ -327,6 +329,8 @@ import { ArrowLeft, Edit, View, Check, Refresh, Loading, CaretRight } from '@ele
 import { studentExamApi } from '@/api/admin'
 import { executeCode } from '@/api/user'
 import serverTimeSync from '@/utils/serverTime'
+import { createFullscreenMonitor, enterFullscreen } from '@/utils/fullscreenMonitor'
+
 
 // 导入 CodeMirror 6（轻量级、易配置、性能好，无需 worker 配置）
 import { EditorView, lineNumbers, keymap } from '@codemirror/view'
@@ -366,6 +370,9 @@ const codeResultDialog = ref({ // 代码执行结果对话框
     exitCode: 0
   }
 })
+
+// 全屏防切屏相关
+const fullscreenMonitor = ref(null)
 
 let timer = null
 
@@ -936,11 +943,36 @@ const continueEditorInit = async (questionIndex, language, editorElement, editor
 // 获取默认代码模板
 const getDefaultCodeTemplate = (language) => {
   const templates = {
-    'java': `public class Solution {\n    public static void main(String[] args) {\n        // 在此处编写你的代码\n    }\n}`,
-    'python': `# 在此处编写你的代码\ndef solution():\n    pass\n\nif __name__ == '__main__':\n    solution()`,
-    'cpp': `#include <iostream>\nusing namespace std;\n\nint main() {\n    // 在此处编写你的代码\n    return 0;\n}`,
-    'c': `#include <stdio.h>\n\nint main() {\n    // 在此处编写你的代码\n    return 0;\n}`,
-    'javascript': `// 在此处编写你的代码\nfunction solution() {\n    \n}\n\nsolution();`
+    'java': `public class Solution {
+    public static void main(String[] args) {
+        // 在此处编写你的代码
+    }
+}`,
+    'python': `# 在此处编写你的代码
+def solution():
+    pass
+
+if __name__ == '__main__':
+    solution()`,
+    'cpp': `#include <iostream>
+using namespace std;
+
+int main() {
+    // 在此处编写你的代码
+    return 0;
+}`,
+    'c': `#include <stdio.h>
+
+int main() {
+    // 在此处编写你的代码
+    return 0;
+}`,
+    'javascript': `// 在此处编写你的代码
+function solution() {
+    
+}
+
+solution();`
   }
   return templates[language] || templates['java']
 }
@@ -1574,10 +1606,39 @@ const goBack = () => {
   router.go(-1)
 }
 
+// 初始化全屏防切屏监控
+const initFullscreenMonitor = () => {
+  // 如果已经初始化，先停止
+  if (fullscreenMonitor.value) {
+    fullscreenMonitor.value.stop()
+  }
+  
+  // 创建监控器（仅保留全屏状态监控，无切屏计数和警告）
+  fullscreenMonitor.value = createFullscreenMonitor({
+    onFullscreenChange: (isFullscreen) => {
+      if (!isFullscreen) {
+        // 退出全屏时警告
+        ElMessage.warning('检测到退出全屏，请立即返回全屏模式')
+      }
+    }
+  })
+  
+  // 启动监控
+  fullscreenMonitor.value.start()
+}
+
+
+
 // 监听路由变化，确保切换考试时清空状态
 watch(() => route.params.id, async (newExamId, oldExamId) => {
   if (newExamId && oldExamId && newExamId !== oldExamId) {
     console.log('Exam ID changed from', oldExamId, 'to', newExamId, '- Clearing previous exam data')
+    
+    // 停止全屏监控
+    if (fullscreenMonitor.value) {
+      fullscreenMonitor.value.stop()
+      fullscreenMonitor.value = null
+    }
     
     // 清空之前考试的答案数据
     selectedAnswers.value = {}
@@ -1611,6 +1672,14 @@ watch(() => route.params.id, async (newExamId, oldExamId) => {
     
     // 重新加载新考试数据
     await loadExamData()
+    
+    // 重新进入全屏并启动监控
+    const fullscreenSuccess = await enterFullscreen()
+    if (!fullscreenSuccess) {
+      ElMessage.warning('无法自动进入全屏模式，请按F11手动进入全屏')
+    }
+    initFullscreenMonitor()
+    
     nextTick(() => {
       loadAnswersFromLocal()
     })
@@ -1622,6 +1691,13 @@ watch(() => route.path, (newPath, oldPath) => {
   // 如果离开考试预览页面，清理编辑器
   if (oldPath && oldPath.includes('/exam/') && !newPath.includes('/exam/')) {
     console.log('Leaving exam page, cleaning up editors')
+    
+    // 停止全屏监控
+    if (fullscreenMonitor.value) {
+      fullscreenMonitor.value.stop()
+      fullscreenMonitor.value = null
+    }
+    
     Object.entries(codeEditors.value).forEach(([key, editor]) => {
       if (editor && editor instanceof EditorView) {
         try {
@@ -1643,6 +1719,15 @@ onMounted(async () => {
     
     // 先加载考试数据
     await loadExamData()
+    
+    // 尝试进入全屏
+    const fullscreenSuccess = await enterFullscreen()
+    if (!fullscreenSuccess) {
+      ElMessage.warning('无法自动进入全屏模式，请按F11手动进入全屏，否则可能影响考试')
+    }
+    
+    // 初始化并启动全屏防切屏监控
+    initFullscreenMonitor()
     
     // 异步加载本地保存的答案（不阻塞界面）
     // 不使用 await，直接异步执行
@@ -1667,6 +1752,12 @@ const handleVisibilityChange = () => {
 
 // 组件销毁前清理资源
 onBeforeUnmount(() => {
+  // 停止全屏监控
+  if (fullscreenMonitor.value) {
+    fullscreenMonitor.value.stop()
+    fullscreenMonitor.value = null
+  }
+  
   // 清理代码编辑器实例
   Object.values(codeEditors.value).forEach(editor => {
     if (editor && editor instanceof EditorView) {
@@ -1746,6 +1837,8 @@ onUnmounted(() => {
   align-items: center;
   gap: 4px;
 }
+
+
 
 .exam-timer {
   text-align: center;

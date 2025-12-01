@@ -34,6 +34,9 @@ public class QuestionRequest {
     
     // 编程语言（仅程序题使用）：JAVA, PYTHON, CPP, C
     private String programmingLanguage;
+
+    //该问题所属题库（所属课程）;
+    private Long courseId;
     
     // 测试用例（仅程序题使用）
     // 格式：[{"input": "1\n2", "output": "3"}, {"input": "5\n7", "output": "12"}]

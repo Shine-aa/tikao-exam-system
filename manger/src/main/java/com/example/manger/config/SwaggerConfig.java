@@ -14,6 +14,9 @@ import org.springframework.context.annotation.Configuration;
 
 import java.util.List;
 
+/**
+ * Author：李正阳
+ */
 @Configuration
 public class SwaggerConfig {
     

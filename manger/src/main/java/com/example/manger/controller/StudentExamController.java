@@ -27,6 +27,7 @@ public class StudentExamController {
     private StudentExamService studentExamService;
 
     /**
+     * Author：李正阳，李子政
      * 获取学生的考试列表（按状态分类）
      */
     @Operation(summary = "获取学生考试列表", description = "获取学生的考试列表，按状态分类（未开始、进行中、已结束）")
@@ -46,6 +47,7 @@ public class StudentExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 获取学生考试详情
      */
     @GetMapping("/{examId}")
@@ -61,6 +63,7 @@ public class StudentExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 开始考试
      */
     @PostMapping("/{examId}/start")
@@ -76,6 +79,7 @@ public class StudentExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 提交考试答案
      */
     @PostMapping("/{examId}/submit")
@@ -91,6 +95,7 @@ public class StudentExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 保存答卷草稿（不提交）
      */
     @PostMapping("/{examId}/save")
@@ -106,6 +111,7 @@ public class StudentExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 获取学生考试统计
      */
     @GetMapping("/stats")

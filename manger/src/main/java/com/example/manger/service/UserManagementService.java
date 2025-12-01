@@ -116,14 +116,6 @@ public class UserManagementService {
             user.setIsActive(request.getIsActive());
         }
         
-        // 更新密码
-        if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
-            String salt = passwordUtil.generateSalt();
-            String hashedPassword = passwordUtil.hashPassword(request.getPassword(), salt);
-            user.setPassword(hashedPassword);
-            user.setSalt(salt);
-        }
-        
         // 更新角色
         if (request.getRoleIds() != null) {
             List<Role> roles = roleRepository.findAllById(request.getRoleIds());

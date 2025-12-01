@@ -123,6 +123,12 @@ const routes = [
         name: 'ExamResult',
         component: () => import('@/views/student/ExamResult.vue'),
         meta: { requiresAuth: true, role: 'USER' }
+      },
+      {
+        path: 'exam/:examId/review',
+        name: 'ExamReview',
+        component: () => import('@/views/student/ExamReview.vue'),
+        meta: { requiresAuth: true, role: 'USER' }
       }
     ]
   },
@@ -181,6 +187,12 @@ const routes = [
         path: 'exam-grouping',
         name: 'ExamGrouping',
         component: () => import('@/views/teacher/ExamGrouping.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'manual-paper-grouping',
+        name: 'ManualPaperGrouping',
+        component: () => import('@/views/teacher/ManualPaperGrouping.vue'),
         meta: { requiresAuth: true, role: 'TEACHER' }
       },
       {

@@ -73,4 +73,6 @@ public class ErrorCode {
     public static final int PAPER_NOT_FOUND = 5005;
     public static final int EXAM_NOT_FOUND = 5006;
     public static final int STUDENT_EXAM_NOT_FOUND = 5007;
+    public static final int PARAM_ERROR = 5008;
+
 }

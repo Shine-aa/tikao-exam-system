@@ -1,6 +1,7 @@
 package com.example.manger.controller;
 
 import com.example.manger.common.ApiResponse;
+import com.example.manger.context.BaseContext;
 import com.example.manger.dto.ClassRequest;
 import com.example.manger.dto.ClassResponse;
 import com.example.manger.dto.PageResponse;
@@ -27,6 +28,7 @@ public class ClassController {
     private final ClassService classService;
     
     /**
+     * Author：李正阳，郭依林
      * 创建班级
      */
     @PostMapping
@@ -37,6 +39,7 @@ public class ClassController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 更新班级
      */
     @PutMapping("/{id}")
@@ -49,6 +52,7 @@ public class ClassController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 删除班级
      */
     @DeleteMapping("/{id}")
@@ -59,6 +63,7 @@ public class ClassController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 根据ID获取班级
      */
     @GetMapping("/{id}")
@@ -69,6 +74,7 @@ public class ClassController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 分页获取教师的班级
      */
     @GetMapping("/page")
@@ -87,6 +93,7 @@ public class ClassController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取教师的所有班级
      */
     @GetMapping
@@ -98,6 +105,7 @@ public class ClassController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 根据专业ID获取班级
      */
     @GetMapping("/major/{majorId}")
@@ -109,6 +117,7 @@ public class ClassController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 批量删除班级
      */
     @DeleteMapping("/batch")
@@ -120,11 +129,8 @@ public class ClassController {
     
     /**
      * 获取当前用户ID
-     * TODO: 从JWT token中获取实际用户ID
      */
     private Long getCurrentUserId(Authentication authentication) {
-        // 这里应该从JWT token中解析用户ID
-        // 暂时返回1L作为示例
-        return 1L;
+        return BaseContext.getCurrentId();
     }
 }

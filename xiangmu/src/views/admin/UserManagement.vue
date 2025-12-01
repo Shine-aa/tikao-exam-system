@@ -5,7 +5,7 @@
         <div class="card-header">
           <span>用户管理</span>
           <div>
-            <el-button type="primary" @click="showCreateDialog = true">
+            <el-button type="primary" @click="handleShowCreateDialog">
               <el-icon>
                 <Plus />
               </el-icon>
@@ -77,9 +77,10 @@
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="scope">
             <el-button size="small" @click="editUser(scope.row)">编辑</el-button>
+            <el-button size="small" type="primary" @click="showChangePassword(scope.row)">修改密码</el-button>
             <el-button size="small" :type="scope.row.isActive ? 'warning' : 'success'"
                        @click="toggleUserStatus(scope.row)">
               {{ scope.row.isActive ? '禁用' : '启用' }}
@@ -106,7 +107,7 @@
         <el-form-item label="用户名" prop="username">
           <el-input v-model="userForm.username" placeholder="请输入用户名" />
         </el-form-item>
-        <el-form-item label="密码" prop="password">
+        <el-form-item v-if="!editingUser" label="密码" prop="password">
           <el-input v-model="userForm.password" type="password" placeholder="请输入密码" show-password />
         </el-form-item>
         <el-form-item label="邮箱" prop="email">
@@ -127,12 +128,17 @@
 
     <!-- 导入用户对话框（手动上传模式） -->
     <el-dialog v-model="showImportDialog" title="导入用户" width="500px">
-      <el-upload ref="uploadRef" drag :before-upload="beforeUpload" :show-file-list="true" :auto-upload="false"
+      <div style="display: flex; flex-direction: column; gap: 16px;">
+        <el-upload ref="uploadRef" drag :before-upload="beforeUpload" :show-file-list="true" :auto-upload="false"
                  accept=".csv,.xlsx" :on-change="handleFileChange">
-        <i class="el-icon-upload"></i>
-        <div class="el-upload__text">拖拽文件到这里，或<em>点击上传</em></div>
-        <div class="el-upload__tip" slot="tip">只支持 CSV 或 Excel 文件</div>
-      </el-upload>
+          <i class="el-icon-upload"></i>
+          <div class="el-upload__text">拖拽文件到这里，或<em>点击上传</em></div>
+          <div class="el-upload__tip" slot="tip">只支持 CSV 或 Excel 文件</div>
+        </el-upload>
+        <el-button type="info" @click="handleDownloadTemplate" style="align-self: flex-start;">
+          下载导入模板
+        </el-button>
+      </div>
 
       <template #footer>
         <el-button @click="showImportDialog = false">取消</el-button>
@@ -154,6 +160,23 @@
         <el-button @click="showErrorDialog = false">关闭</el-button>
       </template>
     </el-dialog>
+    
+    <!-- 修改密码对话框 -->
+    <el-dialog v-model="showChangePasswordDialog" title="修改密码" width="400px">
+      <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordFormRules" label-width="80px">
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" show-password />
+        </el-form-item>
+        <el-form-item label="确认密码" prop="confirmPassword">
+          <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请确认新密码" show-password />
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="showChangePasswordDialog = false">取消</el-button>
+        <el-button type="primary" @click="submitChangePassword">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -168,7 +191,8 @@ import {
   deleteUser as deleteUserAPI,
   batchDeleteUsers as batchDeleteUsersAPI,
   toggleUserStatus as toggleUserStatusAPI,
-  importUsers
+  importUsers,
+  changeUserPassword
 } from '@/api/admin'
 import { getRoleList } from '@/api/admin'
 
@@ -186,6 +210,35 @@ const selectedFile = ref(null) // 导入 Excel 文件
 
 const showErrorDialog = ref(false)
 const importErrors = ref([])
+
+// 修改密码相关
+const showChangePasswordDialog = ref(false)
+const selectedUserForPasswordChange = ref(null)
+const passwordFormRef = ref()
+const passwordForm = reactive({
+  newPassword: '',
+  confirmPassword: ''
+})
+
+const passwordFormRules = {
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认密码', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (value !== passwordForm.newPassword) {
+          callback(new Error('两次输入的密码不一致'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ]
+}
 
 const searchForm = reactive({
   name: '',
@@ -217,8 +270,24 @@ const userFormRules = {
     { min: 3, max: 50, message: '用户名长度在 3 到 50 个字符', trigger: 'blur' }
   ],
   password: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
+    { 
+      required: () => !editingUser.value, 
+      message: '请输入密码', 
+      trigger: 'blur' 
+    },
+    { 
+      validator: (rule, value, callback) => {
+        if (editingUser.value && !value) {
+          // 编辑模式下可以不输入密码
+          callback();
+        } else if (value && (value.length < 6 || value.length > 20)) {
+          callback(new Error('密码长度在 6 到 20 个字符'));
+        } else {
+          callback();
+        }
+      },
+      trigger: 'blur'
+    }
   ],
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
@@ -363,6 +432,12 @@ const deleteUser = async (user) => {
   }
 }
 
+// 处理显示创建对话框
+const handleShowCreateDialog = () => {
+  resetForm()
+  showCreateDialog.value = true
+}
+
 // 重置表单
 const resetForm = () => {
   editingUser.value = null
@@ -371,6 +446,35 @@ const resetForm = () => {
   userForm.email = ''
   userForm.roleIds = []
   userFormRef.value?.resetFields()
+}
+
+// 修改密码相关函数
+const showChangePassword = (user) => {
+  selectedUserForPasswordChange.value = user
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+  showChangePasswordDialog.value = true
+}
+
+const submitChangePassword = async () => {
+  try {
+    if (!selectedUserForPasswordChange.value) return
+    
+    // 验证表单
+    await passwordFormRef.value.validate()
+    
+    await changeUserPassword(selectedUserForPasswordChange.value.id, {
+      password: passwordForm.newPassword // 注意：根据后端接口，参数名可能需要调整
+    })
+    
+    ElMessage.success('密码修改成功')
+    showChangePasswordDialog.value = false
+  } catch (error) {
+    // 表单验证失败不显示错误提示
+    if (error.name !== 'Error') {
+      ElMessage.error('密码修改失败: ' + (error.response?.data?.message || error.message))
+    }
+  }
 }
 
 // 处理表格选择变化
@@ -430,6 +534,22 @@ const beforeUpload = (file) => {
 
 const handleFileChange = (file) => {
   selectedFile.value = file.raw
+}
+
+// 下载用户导入模板
+const handleDownloadTemplate = () => {
+  try {
+    // 创建一个临时链接下载模板文件
+    const link = document.createElement('a')
+    link.href = '/templates/用户导入模板.xlsx'
+    link.download = '用户导入模板.xlsx'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  } catch (error) {
+    console.error('下载模板失败:', error)
+    ElMessage.error('下载模板失败，请重试')
+  }
 }
 
 const submitUpload = async () => {

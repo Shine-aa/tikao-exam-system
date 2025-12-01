@@ -82,6 +82,15 @@ export function resetUserPassword(id, data) {
   })
 }
 
+// 修改用户密码
+export function changeUserPassword(id, data) {
+  return request({
+    url: `/api/admin/users/${id}/change-password`,
+    method: 'put',
+    data
+  })
+}
+
 // 为用户分配角色
 export function assignUserRoles(id, data) {
   return request({
@@ -193,6 +202,15 @@ export function togglePermissionStatus(id) {
 // ==================== 题库管理相关API ====================
 
 // 获取题目列表
+export function getQuestionsForManual(params) {
+  return request({
+    url: '/api/questions/courses/questions',
+    method: 'get',
+    params
+  })
+}
+
+// 获取题目列表
 export function getQuestions(params) {
   return request({
     url: '/api/questions',
@@ -253,11 +271,12 @@ export function getQuestionStatistics() {
 }
 
 // 导入题目
-export function importQuestions(formData) {
+export function importQuestions(formData, courseId) {
   return request({
     url: '/api/questions/import',
     method: 'post',
     data: formData,
+    params: { courseId },
     headers: {
       'Content-Type': 'multipart/form-data'
     }
@@ -501,6 +520,23 @@ export function getCourses() {
   })
 }
 
+// 获取课程教师授权信息（已授权教师 + 所有教师）
+export function getAuthorizedTeachers(courseId) {
+  return request({
+    url: `/api/courses/${courseId}/authorized-teachers`,
+    method: 'get'
+  })
+}
+
+// 授权教师到课程
+export function authorizeTeachers(courseId, teacherIds) {
+  return request({
+    url: `/api/courses/${courseId}/authorize-teachers`,
+    method: 'post',
+    data: { teacherIds }
+  })
+}
+
 // ==================== 班级管理 API ====================
 
 // 创建班级
@@ -602,6 +638,7 @@ export const userApi = {
   batchDeleteUsers,
   toggleUserStatus,
   resetUserPassword,
+  changeUserPassword,
   assignUserRoles,
   getStudents,
   getStudentsWithPagination,
@@ -804,6 +841,15 @@ export function generatePaper(data) {
   })
 }
 
+// 手动组卷创建试卷
+export function createManualPaper(data) {
+  return request({
+    url: '/api/papers/manual/create',
+    method: 'post',
+    data
+  })
+}
+
 // 分页获取试卷列表
 export function getPapersWithPagination(page, size, keyword) {
   return request({
@@ -831,6 +877,7 @@ export function deletePaper(id) {
 
 export const paperApi = {
   generatePaper,
+  createManualPaper,
   getPapersWithPagination,
   getPaperById,
   deletePaper
@@ -848,11 +895,11 @@ export function createExam(data) {
 }
 
 // 分页获取考试列表
-export function getExamsWithPagination(page, size, keyword) {
+export function getExamsWithPagination(page, size, keyword, status) {
   return request({
     url: '/api/exams/page',
     method: 'get',
-    params: { page, size, keyword }
+    params: { page, size, keyword, status } 
   })
 }
 
@@ -927,6 +974,14 @@ export function getExamStudentsForGrading(examId, page, size, keyword, status, g
 export function getStudentAnswers(examId, studentId) {
   return request({
     url: `/api/exams/${examId}/students/${studentId}/answers`,
+    method: 'get'
+  })
+}
+
+// 学生获取自己答案
+export function getOwnAnswers(examId) {
+  return request({
+    url: `/api/exams/${examId}/students/answers`,
     method: 'get'
   })
 }
@@ -1087,7 +1142,8 @@ export const studentExamApi = {
   submitStudentExam,
   saveStudentExamDraft,
   getStudentExamStats,
-  getStudentExamPaper
+  getStudentExamPaper,
+  getStudentExamResult
 }
 
 // ==================== 题库API对象 ====================
