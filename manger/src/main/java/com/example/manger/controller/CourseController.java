@@ -3,7 +3,11 @@ package com.example.manger.controller;
 import com.example.manger.common.ApiResponse;
 import com.example.manger.context.BaseContext;
 import com.example.manger.dto.*;
-import com.example.manger.service.CourseService;
+import com.example.manger.entity.ClassCourse;
+import com.example.manger.entity.Course;
+import com.example.manger.entity.User;
+import com.example.manger.repository.UserRepository;
+import com.example.manger.service.*;
 import com.example.manger.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -14,7 +18,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 课程管理控制器
@@ -26,6 +32,14 @@ import java.util.List;
 public class CourseController {
     
     private final CourseService courseService;
+
+    private final ClassCourseService classCourseService;
+
+    private final ClassService classService;
+
+    private final UserManagementService userManagementService;
+
+    private final UserRepository userRepository;
     
     /**
      * Author：李正阳
@@ -101,6 +115,25 @@ public class CourseController {
     public ApiResponse<List<CourseResponse>> getCoursesByTeacher() {
         Long teacherId = getCurrentUserId();
         List<CourseResponse> response = courseService.getCoursesByTeacher(teacherId);
+        return ApiResponse.success("获取课程列表成功", response);
+    }
+
+    /**
+     * Author：李子政
+     * 获取学生所在班级内的课程
+     */
+
+    @GetMapping("/students")
+    @Operation(summary = "获取所有课程", description = "获取当前学生班级的所有课程")
+    public ApiResponse<List<CourseResponse>> getCoursesByClassId() {
+        User student = userRepository.findById(BaseContext.getCurrentId()).orElse(null);;
+        List<ClassCourseResponse> classCourseList = classCourseService.getClassCoursesByClassId(student.getClassId());
+        //有课程列表了
+        List<CourseResponse> response = new ArrayList<>();
+        for(ClassCourseResponse classCourseResponse:classCourseList){
+            CourseResponse re =  courseService.getCourseById(classCourseResponse.getCourseId());
+            response.add(re);
+        }
         return ApiResponse.success("获取课程列表成功", response);
     }
 

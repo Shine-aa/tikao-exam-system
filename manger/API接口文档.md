@@ -163,19 +163,6 @@ Authorization: Bearer {token}
 }
 ```
 
----
-
-### 1.5 刷新令牌
-
-**接口**: `POST /api/auth/refresh`
-
-**描述**: 使用刷新令牌获取新的访问令牌
-
-**请求参数**:
-```
-refreshToken: string
-```
-
 **响应示例**:
 ```json
 {

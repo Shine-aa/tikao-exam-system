@@ -33,7 +33,7 @@ public class ExamController {
     private ExamService examService;
     
     /**
-     * Author：李正阳，郭依林
+     * Author：李正阳，李子政
      * 创建考试
      */
     @Operation(summary = "创建考试", description = "老师或管理员创建新的考试")
@@ -45,13 +45,12 @@ public class ExamController {
     })
     @PostMapping
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ApiResponse<ExamResponse> createExam(
+    public ApiResponse<String> createExam(
             @Parameter(description = "考试创建请求", required = true) 
-            @Valid @RequestBody ExamRequest request, 
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody ExamRequest request) {
         try {
-            ExamResponse exam = examService.createExam(request, httpRequest);
-            return ApiResponse.success("考试创建成功", exam);
+            examService.createExam(request);
+            return ApiResponse.success("考试创建成功");
         } catch (Exception e) {
             return ApiResponse.error("考试创建失败: " + e.getMessage());
         }
@@ -305,7 +304,7 @@ public class ExamController {
             @PathVariable Long examId, 
             HttpServletRequest request) {
         try {
-            Map<String, Object> result = examService.getStudentExamResult(examId, request);
+            Map<String, Object> result = examService.getStudentExamResult(examId);
             return ApiResponse.success("获取考试结果成功", result);
         } catch (Exception e) {
             return ApiResponse.error("获取考试结果失败: " + e.getMessage());

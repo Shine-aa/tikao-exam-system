@@ -329,16 +329,6 @@ const handleLogin = async () => {
     localStorage.setItem('token', response.data.token)
     localStorage.setItem('userInfo', JSON.stringify(response.data.userInfo))
     
-    // 如果选择记住我，保存refreshToken到localStorage
-    if (loginForm.rememberMe && response.data.refreshToken) {
-      localStorage.setItem('remember_token', response.data.refreshToken)
-      localStorage.setItem('remember_me', 'true')
-    } else {
-      // 如果没有选择记住我，清除相关存储
-      localStorage.removeItem('remember_token')
-      localStorage.removeItem('remember_me')
-    }
-    
     ElMessage.success('登录成功！')
     
     // 跳转到成功页面，显示用户信息

@@ -66,6 +66,19 @@ const routes = [
         meta: { requiresAuth: true, role: 'SUPER_ADMIN' }
       },
       {
+        path: 'major-management',
+        name: 'AdminMajorManagement',
+        component: () => import('../views/teacher/MajorManagement.vue'),
+        meta: { requiresAuth: true, role: 'SUPER_ADMIN' }
+      },
+      {
+        path: 'class-management',
+        name: 'AdminClassManagement',
+        // 修正后（相对路径，和路由文件位置对应）
+        component: () => import('../views/teacher/ClassManagement.vue'),
+        meta: { requiresAuth: true, role: 'SUPER_ADMIN'}
+      },
+      {
         path: 'roles',
         name: 'RoleManagement',
         component: RoleManagement,
@@ -135,7 +148,7 @@ const routes = [
   {
     path: '/teacher',
     component: TeacherLayout,
-    meta: { requiresAuth: true, role: 'TEACHER' },
+    meta: { requiresAuth: true, role: ['TEACHER'] },
     children: [
       {
         path: '',

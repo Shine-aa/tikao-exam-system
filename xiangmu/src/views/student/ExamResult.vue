@@ -269,7 +269,7 @@ const viewExamDetails = () => {
 
 // 返回上一页
 const goBack = () => {
-  router.go(-1)
+  router.push(`/user/exam/`)
 }
 
 onMounted(() => {

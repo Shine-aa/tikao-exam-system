@@ -520,6 +520,14 @@ export function getCourses() {
   })
 }
 
+// 获取学生班级下的所有课程
+export function getStudentCourses() {
+  return request({
+    url: '/api/courses/students',
+    method: 'get'
+  })
+}
+
 // 获取课程教师授权信息（已授权教师 + 所有教师）
 export function getAuthorizedTeachers(courseId) {
   return request({
@@ -599,6 +607,14 @@ export function getClasses() {
   })
 }
 
+// 获取所有班级
+export function getAllClasses() {
+  return request({
+    url: '/api/classes/getAll',
+    method: 'get'
+  })
+}
+
 // 根据课程获取班级
 export function getClassesByCourse(courseId) {
   return request({
@@ -615,7 +631,8 @@ export const courseApi = {
   deleteCourse,
   getCourseById,
   getCoursesWithPagination,
-  getCourses
+  getCourses,
+  getStudentCourses
 }
 
 export const classApi = {
@@ -626,6 +643,7 @@ export const classApi = {
   getClassById,
   getClassesWithPagination,
   getClasses,
+  getAllClasses,
   getClassesByCourse
 }
 
@@ -1067,10 +1085,11 @@ export const examApi = {
 // ==================== 学生端考试 API ====================
 
 // 获取学生的考试列表（按状态分类）
-export function getStudentExams() {
+export function getStudentExams(params) {
   return request({
     url: '/api/student/exams',
-    method: 'get'
+    method: 'get',
+    params
   })
 }
 

@@ -44,7 +44,7 @@
             <span>快速操作</span>
           </div>
           <div class="quick-actions">
-            <div class="action-btn" @click="startExam">
+            <!-- <div class="action-btn" @click="startExam">
               <div class="action-icon">🚀</div>
               <div class="action-text">开始考试</div>
             </div>
@@ -59,7 +59,7 @@
             <div class="action-btn" @click="viewHistory">
               <div class="action-icon">📋</div>
               <div class="action-text">考试历史</div>
-            </div>
+            </div> -->
           </div>
         </div>
       </div>
@@ -70,6 +70,27 @@
           <div class="card-title">
             <span class="card-icon">📋</span>
             <span>{{ getCurrentTabTitle() }}</span>
+          </div>
+          <!-- 课程筛选 -->
+          <div class="course-filter">
+            <el-select
+              v-model="selectedCourseId"
+              placeholder="全部课程"
+              clearable
+              @change="handleCourseChange"
+              class="course-select"
+            >
+              <el-option
+                label="全部课程"
+                :value="null"
+              />
+              <el-option
+                v-for="course in courseList"
+                :key="course.id"
+                :label="course.courseName"
+                :value="course.id"
+              />
+            </el-select>
           </div>
           <div class="exam-list" v-loading="loading">
             <div 
@@ -95,7 +116,7 @@
             <!-- 空状态 -->
             <div v-if="getCurrentExams().length === 0" class="empty-state">
               <div class="empty-icon">📝</div>
-              <div class="empty-text">暂无{{ getCurrentTabTitle() }}的考试</div>
+              <div class="empty-text">{{ getEmptyStateText() }}</div>
             </div>
           </div>
         </div>
@@ -183,7 +204,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { studentExamApi } from '@/api/admin'
+import { studentExamApi, courseApi } from '@/api/admin'
 
 const router = useRouter()
 
@@ -195,6 +216,12 @@ const userInfo = ref({
 
 // 当前选中的标签页
 const currentTab = ref('ongoing')
+
+// 当前选中的课程ID
+const selectedCourseId = ref(null)
+
+// 课程列表
+const courseList = ref([])
 
 // 加载状态
 const loading = ref(false)
@@ -215,14 +242,34 @@ const stats = ref({
 // 通知数据
 const notifications = ref([])
 
+// 加载课程列表
+const loadCourseList = async () => {
+  try {
+    const response = await courseApi.getStudentCourses()
+    if (response.code === 200) {
+      courseList.value = response.data || []
+    }
+  } catch (error) {
+    console.error('Load course list error:', error)
+    ElMessage.error('加载课程列表失败')
+  }
+}
+
 // 加载考试数据
 const loadExamData = async () => {
   try {
     loading.value = true
-    const response = await studentExamApi.getStudentExams()
+    // 构建请求参数，如果选中了课程则传递courseId
+    const params = {}
+    if (selectedCourseId.value !== null) {
+      params.courseId = selectedCourseId.value
+    }
+    
+    const response = await studentExamApi.getStudentExams(params)
     
     if (response.code === 200) {
       const data = response.data
+      // 直接使用后端返回的筛选后数据
       ongoingExams.value = data.ongoing || []
       upcomingExams.value = data.upcoming || []
       completedExams.value = data.completed || []
@@ -235,6 +282,12 @@ const loadExamData = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 处理课程筛选变化
+const handleCourseChange = () => {
+  // 课程切换时重新加载考试数据，后端会根据courseId筛选
+  loadExamData()
 }
 
 // 加载统计数据
@@ -263,6 +316,21 @@ const getCurrentTabTitle = () => {
     completed: '已完成的考试'
   }
   return titles[currentTab.value] || '考试列表'
+}
+
+// 获取空状态文本
+const getEmptyStateText = () => {
+  if (selectedCourseId.value !== null) {
+    const course = courseList.value.find(c => c.id === selectedCourseId.value)
+    const courseName = course ? course.courseName : '该课程'
+    const tabText = {
+      ongoing: '进行中',
+      upcoming: '即将开始',
+      completed: '已完成'
+    }[currentTab.value] || ''
+    return `${courseName}暂无${tabText}的考试`
+  }
+  return `暂无${getCurrentTabTitle()}的考试`
 }
 
 // 获取当前标签页的考试列表
@@ -363,6 +431,7 @@ onMounted(() => {
   }
   
   // 加载数据
+  loadCourseList()
   loadExamData()
   loadStats()
 })
@@ -540,6 +609,34 @@ onMounted(() => {
   padding: 24px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* 课程筛选 */
+.course-filter {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.course-select {
+  width: 240px;
+}
+
+.course-select :deep(.el-input__wrapper) {
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+}
+
+.course-select :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.2);
+  border-color: #409EFF;
+}
+
+.course-select :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.3);
+  border-color: #409EFF;
 }
 
 .exam-list {
