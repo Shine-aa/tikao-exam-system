@@ -122,6 +122,7 @@ public class CourseController {
      * Author：李子政
      * 获取学生所在班级内的课程
      */
+
     @GetMapping("/students")
     @Operation(summary = "获取所有课程", description = "获取当前学生班级的所有课程")
     public ApiResponse<List<CourseResponse>> getCoursesByClassId() {
