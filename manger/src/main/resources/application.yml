@@ -14,7 +14,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://localhost:3306/user_auth_db?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
     username: root
-    password:
+    password: your_password
   
   # JPA配置
   jpa:
@@ -46,7 +46,7 @@ spring:
     uri: bolt://localhost:7687
     authentication:
       username: neo4j
-      password:  # 请修改为您的Neo4j密码
+      password: your_password # 请修改为您的Neo4j密码
 
 # JWT配置
 jwt:
