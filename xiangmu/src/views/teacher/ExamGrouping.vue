@@ -495,8 +495,6 @@ import { paperApi, classApi, courseApi, examApi, userApi } from '@/api/admin'
 
 const router = useRouter()
 
-const router = useRouter()
-
 // 响应式数据
 const loading = ref(false)
 const submitting = ref(false)
