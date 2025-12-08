@@ -120,6 +120,17 @@ public class QuestionImportService {
                     option.put("key", optionKeys[i]);
                     option.put("content", optionContent.trim());
                     option.put("correct", 0); // 默认不正确，后续根据正确答案设置
+
+                    // 解析正确答案
+                    String correctAnswer = getCellValueAsString(row, 7);
+                    if (correctAnswer == null || correctAnswer.trim().isEmpty()) {
+                        throw new Exception("正确答案不能为空");
+                    }
+                    List<String> correctAnswers = Arrays.asList(correctAnswer.split(";"));
+                    if (correctAnswers.contains(optionContent.trim())) {
+                        option.put("correct", 1);
+                    }
+
                     options.add(option);
                 }
             }

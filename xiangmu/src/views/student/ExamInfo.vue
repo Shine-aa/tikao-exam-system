@@ -137,7 +137,7 @@ const canStartExam = computed(() => {
   }
   
   // 考试状态必须是SCHEDULED或ONGOING，且在考试时间范围内
-  return (status === 'SCHEDULED' || status === 'ONGOING') &&
+  return (status === 'SCHEDULED' || status === 'ONGOING') ||
          now >= startTime && now <= endTime
 })
 

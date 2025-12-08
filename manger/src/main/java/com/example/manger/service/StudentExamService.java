@@ -209,15 +209,12 @@ public class StudentExamService {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.EXAM_NOT_FOUND, "考试不存在"));
 
-        // 允许SCHEDULED和ONGOING状态的考试开始
-        if (exam.getStatus() != Exam.ExamStatus.SCHEDULED && exam.getStatus() != Exam.ExamStatus.ONGOING) {
+        // 允许ONGOING状态的考试开始
+        if (exam.getStatus() != Exam.ExamStatus.ONGOING) {
             throw new BusinessException(ErrorCode.INVALID_OPERATION, "考试未开始或已结束");
         }
 
         LocalDateTime now = LocalDateTime.now();
-        if (now.isBefore(exam.getStartTime()) || now.isAfter(exam.getEndTime())) {
-            throw new BusinessException(ErrorCode.INVALID_OPERATION, "不在考试时间内");
-        }
 
         // 获取或创建学生考试记录
         StudentExam studentExam = studentExamRepository.findByExamIdAndStudentIdAndIsActiveTrue(examId, studentId)

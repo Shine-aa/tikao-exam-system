@@ -970,6 +970,15 @@ export function updateExam(examId, examData) {
   })
 }
 
+// 更新考试的允许查看答案设置
+export function updateExamAllowReview(examId, allowReview) {
+  return request({
+    url: `/api/exams/${examId}/allow-review`,
+    method: 'put',
+    data: { allowReview }
+  })
+}
+
 // 获取判卷考试列表
 export function getGradingExams(page, size, keyword, classId, status) {
   return request({
@@ -1067,6 +1076,7 @@ export const examApi = {
   getExamsWithPagination,
   getExamById,
   updateExam,
+  updateExamAllowReview,
   deleteExam,
   startExam,
   endExam,

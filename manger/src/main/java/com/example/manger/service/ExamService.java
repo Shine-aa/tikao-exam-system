@@ -1,5 +1,6 @@
 package com.example.manger.service;
 
+import com.example.manger.dto.ExamUpdateRequest;
 import org.springframework.util.CollectionUtils;
 
 import com.example.manger.context.BaseContext;
@@ -71,7 +72,18 @@ public class ExamService {
     
     @Autowired
     private JwtUtil jwtUtil;
-    
+
+    /**
+     * 学生答完是否可查看答案
+     */
+    public void updateAnswerViewable(Long examId, boolean viewable){
+        Exam exam = examRepository.findById(examId)
+                .orElseThrow(() -> new RuntimeException("考试不存在"));
+        exam.setAllowReview(viewable);
+
+        examRepository.save(exam);
+    }
+
     /**
      * 创建考试
      */
@@ -303,7 +315,7 @@ public class ExamService {
     /**
      * 更新考试
      */
-    public ExamResponse updateExam(Long examId, ExamRequest request) {
+    public ExamResponse updateExam(Long examId, ExamUpdateRequest request) {
         Exam exam = examRepository.findById(examId)
                 .orElseThrow(() -> new RuntimeException("考试不存在"));
         
