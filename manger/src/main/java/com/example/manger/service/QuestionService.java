@@ -103,7 +103,7 @@ public class QuestionService {
         questionCourse.setCourseId(request.getCourseId());
         questionCourseRepository.save(questionCourse);
         
-        return convertToResponse(question);
+        return convertToResponse(question, request.getCourseId());
     }
     
     /**
@@ -191,14 +191,16 @@ public class QuestionService {
         question = questionRepository.save(question);
 
         // 保存更新后的question
+        Long courseId = questionCourseRepository.findByQuestionIdAndIsActiveTrue(question.getId());
         question = questionRepository.save(question);
+        if(!(courseId==request.getCourseId())) questionCourseRepository.deleteByQuestionIdAndCourseId(question.getId(), courseId);
 
         QuestionCourse questionCourse = new QuestionCourse();
         questionCourse.setQuestionId(question.getId());
         questionCourse.setCourseId(request.getCourseId());
         questionCourseRepository.save(questionCourse);
         
-        return convertToResponse(question);
+        return convertToResponse(question, request.getCourseId());
     }
     
     /**
@@ -224,8 +226,8 @@ public class QuestionService {
     public QuestionResponse getQuestionById(Long id) {
         Question question = questionRepository.findById(id)
             .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND, "题目不存在"));
-        
-        return convertToResponse(question);
+        Long courseId = questionCourseRepository.findByQuestionIdAndIsActiveTrue(id);
+        return convertToResponse(question,courseId);
     }
 
 
@@ -281,9 +283,10 @@ public class QuestionService {
                     .getContent();
         }
 
+
         // 4. 转换为响应DTO
         List<QuestionResponse> responses = currentPageQuestions.stream()
-                .map(this::convertToResponse)
+                .map(question -> convertToResponse(question, questionCourseRepository.findByQuestionIdAndIsActiveTrue(question.getId())))
                 .collect(Collectors.toList());
 
         // 5. 构建分页响应（基于真实总数和总页数）
@@ -367,7 +370,7 @@ public class QuestionService {
 
         // 5. 转换为响应DTO（复用原有逻辑）
         List<QuestionResponse> responses = questionPage.getContent().stream()
-                .map(this::convertToResponse)
+                .map(question -> convertToResponse(question, questionCourseRepository.findByQuestionIdAndIsActiveTrue(question.getId())))
                 .collect(Collectors.toList());
 
         // 6. 构建分页响应
@@ -505,7 +508,7 @@ public class QuestionService {
     /**
      * 转换为响应对象
      */
-    private QuestionResponse convertToResponse(Question question) {
+    private QuestionResponse convertToResponse(Question question,Long courseId) {
         QuestionResponse response = new QuestionResponse();
         response.setId(question.getId());
         response.setTitle(question.getTitle());
@@ -516,6 +519,8 @@ public class QuestionService {
         response.setDifficulty(question.getDifficulty());
         response.setDifficultyDescription(question.getDifficulty().getDescription());
         response.setPoints(question.getPoints());
+
+        response.setCourseId(courseId);
         // knowledge_point_id 已删除，改用 question_knowledge_points 关联表
         // response.setKnowledgePointId(question.getKnowledgePointId());
         response.setTags(question.getTags());
@@ -548,7 +553,27 @@ public class QuestionService {
                     QuestionResponse.QuestionOptionResponse optionResponse = new QuestionResponse.QuestionOptionResponse();
                     optionResponse.setOptionKey(String.valueOf(optionMap.get("key")));
                     optionResponse.setOptionContent(String.valueOf(optionMap.get("content")));
-                    optionResponse.setIsCorrect(Boolean.valueOf(String.valueOf(optionMap.get("correct"))));
+                    // 核心：兼容 Boolean/Integer/String 三种类型，覆盖 true/false、1/0、"1"/"0"、"true"/"false"
+                    Object correctObj = optionMap.get("correct");
+                    boolean isCorrect = false;
+
+                    if (correctObj != null) {
+                        // 场景1：原生 Boolean 类型（true/false）- 直接使用
+                        if (correctObj instanceof Boolean) {
+                            isCorrect = (Boolean) correctObj;
+                        }
+                        // 场景2：Integer 类型（1/0）- 1=正确，0=错误
+                        else if (correctObj instanceof Integer) {
+                            isCorrect = correctObj.equals(1);
+                        }
+                        // 场景3：String 类型（"1"/"0" 或 "true"/"false"，忽略大小写）
+                        else if (correctObj instanceof String) {
+                            String correctStr = ((String) correctObj).trim().toLowerCase();
+                            isCorrect = "1".equals(correctStr) || "true".equals(correctStr);
+                        }
+                    }
+
+                    optionResponse.setIsCorrect(isCorrect);
                     return optionResponse;
                 })
                 .collect(Collectors.toList());
@@ -576,7 +601,7 @@ public class QuestionService {
     public List<QuestionResponse> getQuestionsByCourseId(Long courseId) {
         List<Question> questions = questionRepository.findByCourseIdAndIsActiveTrue(courseId);
         return questions.stream()
-            .map(this::convertToResponse)
-            .collect(Collectors.toList());
+                .map(question -> convertToResponse(question, courseId))
+                .collect(Collectors.toList());
     }
 }
