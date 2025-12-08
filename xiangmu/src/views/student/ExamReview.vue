@@ -148,7 +148,7 @@
             <div v-if="(question.correctAnswer || question.referenceAnswer || question.answers) && showAnswers" class="answer-hint">
               <span class="hint-label">参考答案：</span>
               <span class="correct-answer">
-                {{ question.correctAnswer || question.referenceAnswer || (Array.isArray(question.answers) ? question.answers.join('；') : question.answers) || '无' }}
+                {{ question.answers[0].answerContent || question.referenceAnswer || (Array.isArray(question.answers) ? question.answers.join('；') : question.answers) || '无' }}
               </span>
             </div>
           </div>

@@ -1,13 +1,22 @@
 <template>
   <div>
     <!-- 悬浮按钮 -->
-    <div class="ai-assistant-float-btn" v-if="!visible" @click="visible = true">
+    <div 
+      class="ai-assistant-float-btn" 
+      v-if="!visible" 
+      @click="visible = true"
+      :style="floatButtonStyle"
+    >
       <img src="/src/assets/vue.svg" alt="AI助手" class="ai-logo" />
       <span>AI助手</span>
     </div>
     <!-- 对话框 -->
     <transition name="ai-dialog">
-      <div class="ai-assistant-dialog" v-if="visible">
+      <div 
+        class="ai-assistant-dialog" 
+        v-if="visible"
+        :style="dialogStyle"
+      >
         <div class="ai-header">
           <img src="/src/assets/vue.svg" alt="logo" class="ai-logo" />
           <span class="ai-title">你好，我是钛考 AI 助理</span>
@@ -36,14 +45,30 @@
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import { callChatMemory } from '@/api/chatMemory'
 
 const visible = ref(false)
 const input = ref('')
 const messages = ref([])
 const chatBody = ref(null)
+const scrollTop = ref(0)
 
+// 计算悬浮按钮和对话框的位置样式
+const floatButtonStyle = computed(() => ({
+  transform: `translateY(${scrollTop.value}px)`
+}))
+
+const dialogStyle = computed(() => ({
+  transform: `translateY(${scrollTop.value}px)`
+}))
+
+// 处理滚动事件
+const handleScroll = () => {
+  scrollTop.value = window.scrollY || document.documentElement.scrollTop
+}
+
+// 发送消息
 function send() {
   console.log('send方法被调用')
   if (!input.value.trim()) return
@@ -65,6 +90,18 @@ function send() {
       console.log('请求失败', err)
     })
 }
+
+// 组件挂载时添加滚动监听
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll)
+  // 初始化位置
+  handleScroll()
+})
+
+// 组件卸载时移除滚动监听
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
+})
 </script>
 
 <style scoped>
@@ -81,6 +118,7 @@ function send() {
   cursor: pointer;
   z-index: 9999;
   transition: box-shadow 0.2s;
+  will-change: transform;
 }
 .ai-assistant-float-btn:hover {
   box-shadow: 0 4px 16px rgba(0,0,0,0.18);
@@ -103,6 +141,7 @@ function send() {
   flex-direction: column;
   overflow: hidden;
   animation: fadeIn 0.3s;
+  will-change: transform;
 }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(40px);}

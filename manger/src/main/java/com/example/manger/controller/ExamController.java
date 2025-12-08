@@ -4,6 +4,7 @@ import com.example.manger.common.ApiResponse;
 import com.example.manger.context.BaseContext;
 import com.example.manger.dto.ExamRequest;
 import com.example.manger.dto.ExamResponse;
+import com.example.manger.dto.ExamUpdateRequest;
 import com.example.manger.dto.PageResponse;
 import com.example.manger.service.ExamService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -104,7 +105,7 @@ public class ExamController {
     @PutMapping("/{id}")
     @Operation(summary = "更新考试", description = "更新指定考试的信息")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ApiResponse<ExamResponse> updateExam(@PathVariable Long id, @Valid @RequestBody ExamRequest request) {
+    public ApiResponse<ExamResponse> updateExam(@PathVariable Long id, @Valid @RequestBody ExamUpdateRequest request) {
         try {
             ExamResponse exam = examService.updateExam(id, request);
             return ApiResponse.success("考试更新成功", exam);
@@ -112,7 +113,22 @@ public class ExamController {
             return ApiResponse.error("考试更新失败: " + e.getMessage());
         }
     }
-    
+
+    /**
+     * Author：李子政
+     * 修改 答完是否可查看答案字段
+     */
+    @PutMapping("/{id}/allow-review")
+    public ApiResponse<String> updateAnswerViewable(@PathVariable Long id, @RequestBody Map<String, Object> request) {
+        try {
+            examService.updateAnswerViewable(id, (Boolean) request.get("allowReview"));
+            return ApiResponse.success("更新成功", null);
+        } catch (Exception e) {
+            return ApiResponse.error("更新失败: " + e.getMessage());
+        }
+    }
+
+
     /**
      * Author：李正阳
      * 删除考试

@@ -186,6 +186,10 @@
                       <el-icon><User /></el-icon>
                       查看学生
                     </el-dropdown-item>
+                    <el-dropdown-item command="toggleReview">
+                      <el-icon><View /></el-icon>
+                      {{ row.allowReview ? '禁止查看答案' : '允许查看答案' }}
+                    </el-dropdown-item>
                     <el-dropdown-item command="delete" divided>
                       <el-icon><Delete /></el-icon>
                       删除
@@ -320,7 +324,7 @@
           <span class="form-tip">考试时长（1-480分钟）</span>
         </el-form-item>
         
-        <el-form-item label="最大尝试次数" prop="maxAttempts">
+        <!-- <el-form-item label="最大尝试次数" prop="maxAttempts">
           <el-input-number
             v-model="editForm.maxAttempts"
             :min="1"
@@ -329,7 +333,7 @@
             style="width: 100%"
           />
           <span class="form-tip">学生最多可尝试的次数（1-10次）</span>
-        </el-form-item>
+        </el-form-item> -->
         
         <el-form-item label="题目乱序" prop="isRandomOrder">
           <el-switch
@@ -644,10 +648,10 @@ const editRules = {
     { required: true, message: '请输入考试时长', trigger: 'blur' },
     { type: 'number', min: 1, max: 480, message: '考试时长必须在 1-480 分钟之间', trigger: 'blur' }
   ],
-  maxAttempts: [
-    { required: true, message: '请输入最大尝试次数', trigger: 'blur' },
-    { type: 'number', min: 1, max: 10, message: '最大尝试次数必须在 1-10 次之间', trigger: 'blur' }
-  ]
+  // maxAttempts: [
+  //   { required: true, message: '请输入最大尝试次数', trigger: 'blur' },
+  //   { type: 'number', min: 1, max: 10, message: '最大尝试次数必须在 1-10 次之间', trigger: 'blur' }
+  // ]
 }
 
 // 统计数据
@@ -828,6 +832,9 @@ const handleActionCommand = async (command, row) => {
     case 'students':
       await handleViewStudents(row)
       break
+    case 'toggleReview':
+      await handleToggleAllowReview(row)
+      break
     case 'delete':
       await handleDeleteExam(row)
       break
@@ -917,6 +924,20 @@ const handleDeleteExam = async (row) => {
       console.error('Delete exam error:', error)
       ElMessage.error('删除失败')
     }
+  }
+}
+
+// 切换考试的允许查看答案设置
+const handleToggleAllowReview = async (row) => {
+  try {
+    const newAllowReview = !row.allowReview
+    await examApi.updateExamAllowReview(row.id, newAllowReview)
+    ElMessage.success(`${newAllowReview ? '已允许' : '已禁止'}查看答案`)
+    // 更新本地数据
+    row.allowReview = newAllowReview
+  } catch (error) {
+    console.error('Toggle allow review error:', error)
+    ElMessage.error('更新查看答案设置失败')
   }
 }
 
