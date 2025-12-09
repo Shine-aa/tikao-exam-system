@@ -43,7 +43,7 @@ public interface QuestionCourseRepository extends JpaRepository<QuestionCourse, 
     /**
      * 根据题目ID和课程ID查找关联
      */
-    Long findByQuestionIdAndCourseId(Long questionId, Long courseId);
+    QuestionCourse findByQuestionIdAndCourseId(Long questionId, Long courseId);
     
     /**
      * 根据题目ID删除所有关联
