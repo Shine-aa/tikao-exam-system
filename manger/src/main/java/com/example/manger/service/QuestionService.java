@@ -195,10 +195,13 @@ public class QuestionService {
         question = questionRepository.save(question);
         if(!(courseId==request.getCourseId())) questionCourseRepository.deleteByQuestionIdAndCourseId(question.getId(), courseId);
 
-        QuestionCourse questionCourse = new QuestionCourse();
-        questionCourse.setQuestionId(question.getId());
-        questionCourse.setCourseId(request.getCourseId());
-        questionCourseRepository.save(questionCourse);
+
+        QuestionCourse questionCourse = questionCourseRepository.findByQuestionIdAndCourseId(question.getId(), request.getCourseId());
+        if(questionCourse==null){
+            questionCourse.setQuestionId(question.getId());
+            questionCourse.setCourseId(request.getCourseId());
+            questionCourseRepository.save(questionCourse);
+        }
         
         return convertToResponse(question, request.getCourseId());
     }
