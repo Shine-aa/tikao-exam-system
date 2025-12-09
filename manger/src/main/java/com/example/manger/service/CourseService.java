@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -259,10 +260,21 @@ public class CourseService {
 
         // 6. 执行新增：创建新的关联记录
         for (Long teacherId : toAdd) {
+            // 1. 先获取 Optional 容器
+            Optional<TeacherCourse> optionalTeacherCourse = teacherCourseRepository.findByTeacherIdAndCourseId(teacherId, courseId);
+
             TeacherCourse newRelation = new TeacherCourse();
-            newRelation.setTeacherId(teacherId);
-            newRelation.setCourseId(courseId);
-            newRelation.setIsActive(true);
+            // 2. 判断 Optional 中是否有值（替代 !=null）
+            if (optionalTeacherCourse.isPresent()) {
+                // 3. 从 Optional 中取出实体
+                newRelation = optionalTeacherCourse.get();
+                newRelation.setIsActive(true);
+            } else{
+                newRelation.setTeacherId(teacherId);
+                newRelation.setCourseId(courseId);
+                newRelation.setIsActive(true);
+            }
+
             // createdAt/updatedAt由注解自动填充，无需手动设置
             teacherCourseRepository.save(newRelation);
         }
