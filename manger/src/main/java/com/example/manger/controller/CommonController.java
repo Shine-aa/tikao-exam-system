@@ -22,6 +22,7 @@ import java.util.Map;
 public class CommonController {
 
     /**
+     * Author：李正阳，李子政，郭依林
      * 获取客户端IP地址
      */
     @GetMapping("/client-ip")
@@ -32,6 +33,7 @@ public class CommonController {
     }
 
     /**
+     * Author：李正阳，李子政，郭依林
      * 获取服务器当前时间
      */
     @GetMapping("/server-time")
@@ -48,6 +50,7 @@ public class CommonController {
     }
 
     /**
+     * Author：李正阳，李子政，郭依林
      * 获取客户端真实IP地址
      */
     private String getClientIpAddress(HttpServletRequest request) {

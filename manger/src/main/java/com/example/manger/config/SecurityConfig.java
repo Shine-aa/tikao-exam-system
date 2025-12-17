@@ -12,6 +12,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfigurationSource;
 
+/**
+ * Author：李正阳
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true)
@@ -33,7 +36,9 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(authz -> authz
-            .requestMatchers("/api/auth/**", "/api/captcha/**").permitAll()
+// 解决冲突
+            .requestMatchers("/api/auth/**", "/api/auth/captcha").permitAll()
+            // .requestMatchers("/api/auth/**", "/api/captcha/**").permitAll()
             .requestMatchers("/api/code/**").permitAll()  // 暂时允许匿名访问代码执行接口以便测试
             .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/api-docs/**", "/v3/api-docs/**").permitAll()
             .requestMatchers("OPTIONS", "/**").permitAll()

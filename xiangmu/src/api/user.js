@@ -60,15 +60,6 @@ export function changePassword(data) {
   })
 }
 
-// 刷新token
-export function refreshToken(refreshToken) {
-  return request({
-    url: '/api/auth/refresh',
-    method: 'post',
-    params: { refreshToken }
-  })
-}
-
 // 获取仪表盘统计数据
 export function getDashboardStats() {
   return request({

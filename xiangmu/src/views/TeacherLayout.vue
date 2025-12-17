@@ -31,10 +31,10 @@
           <el-icon><Reading /></el-icon>
           <span>专业管理</span>
         </el-menu-item> -->
-        <el-menu-item index="class-management">
+        <!-- <el-menu-item index="class-management">
           <el-icon><School /></el-icon>
           <span>班级管理</span>
-        </el-menu-item>
+        </el-menu-item> -->
         <el-menu-item index="exam-grouping">
           <el-icon><Document /></el-icon>
           <span>组卷管理</span>

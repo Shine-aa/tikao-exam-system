@@ -9,7 +9,11 @@
     <div class="action-bar">
       <el-button type="primary" @click="handleCreatePaper">
         <el-icon><Plus /></el-icon>
-        新建试卷
+        智能组卷
+      </el-button>
+      <el-button type="primary" @click="handleManualCreatePaper">
+        <el-icon><List /></el-icon>
+        手动组卷
       </el-button>
       <el-button @click="loadPaperList">
         <el-icon><Refresh /></el-icon>
@@ -306,8 +310,14 @@
           />
         </el-form-item>
         
-        <el-form-item label="班级" prop="classId">
-          <el-select v-model="createExamForm.classId" placeholder="请选择班级" style="width: 100%">
+        <el-form-item label="班级" prop="classIds">
+          <el-select 
+            v-model="createExamForm.classIds" 
+            placeholder="请选择班级" 
+            style="width: 100%"
+            multiple
+            collapse-tags
+          >
             <el-option
               v-for="classItem in classList"
               :key="classItem.id"
@@ -356,7 +366,7 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12">
+          <!-- <el-col :span="12">
             <el-form-item label="最大尝试次数" prop="maxAttempts">
               <el-input-number
                 v-model="createExamForm.maxAttempts"
@@ -366,7 +376,7 @@
                 style="width: 100%"
               />
             </el-form-item>
-          </el-col>
+          </el-col> -->
         </el-row>
         
         <el-form-item label="乱序设置">
@@ -413,7 +423,7 @@
             <div v-for="(question, index) in getQuestionsByType(typeKey)" :key="question.questionId" class="question-detail-item">
               <div class="question-header">
                 <div class="question-info">
-                  <span class="question-number">{{ getGlobalQuestionNumber(question) }}.</span>
+                  <span class="question-number">{{ getGlobalQuestionNumber(question)}}.</span>
                   <span class="question-type">{{ getQuestionTypeLabel(question.questionType) }}</span>
                   <span class="question-difficulty">{{ getDifficultyLabel(question.difficulty) }}</span>
                   <span class="question-points">{{ question.points }}分</span>
@@ -478,9 +488,12 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh, ArrowDown, Delete } from '@element-plus/icons-vue'
-import { paperApi, classApi, courseApi, examApi } from '@/api/admin'
+import { Plus, Refresh, ArrowDown, Delete, List } from '@element-plus/icons-vue'
+import { paperApi, classApi, courseApi, examApi, userApi } from '@/api/admin'
+
+const router = useRouter()
 
 // 响应式数据
 const loading = ref(false)
@@ -504,11 +517,11 @@ const createExamForm = reactive({
   examName: '',
   description: '',
   paperId: null,
-  classId: null,
+  classIds: [],
   startTime: '',
   endTime: '',
   durationMinutes: 120,
-  maxAttempts: 1,
+  maxAttempts: 1,//模板数据，现没有真实意义。
   isRandomOrder: true,
   isRandomOptions: true,
   allowReview: true
@@ -519,8 +532,9 @@ const createExamFormRules = {
   examName: [
     { required: true, message: '请输入考试名称', trigger: 'blur' }
   ],
-  classId: [
-    { required: true, message: '请选择班级', trigger: 'change' }
+  classIds: [
+    { required: true, message: '请选择班级', trigger: 'change' },
+    { type: 'array', min: 1, message: '至少选择一个班级', trigger: 'change' }
   ],
   startTime: [
     { required: true, message: '请选择开始时间', trigger: 'change' }
@@ -532,6 +546,8 @@ const createExamFormRules = {
     { required: true, message: '请输入考试时长', trigger: 'blur' }
   ]
 }
+
+// 手动组卷表单验证规则已移除（移动到独立组件）
 
 // 搜索表单
 const searchForm = reactive({
@@ -643,9 +659,9 @@ const loadPaperList = async () => {
 
 const loadClassList = async () => {
   try {
-    const response = await classApi.getClassesWithPagination(1, 1000, '', null, null, '')
+    const response = await classApi.getAllClasses()
     if (response.code === 200) {
-      classList.value = response.data.content || []
+      classList.value = response.data || []
     }
   } catch (error) {
     console.error('Load class list error:', error)
@@ -716,7 +732,7 @@ const handleViewQuestions = async (row) => {
 const handleCreateExam = (row) => {
   currentPaperForExam.value = row
   createExamForm.paperId = row.id
-  createExamForm.classId = null // 不再从试卷继承，需要手动选择班级
+  createExamForm.classIds = [] // 不再从试卷继承，需要手动选择班级
   createExamForm.examName = `${row.paperName} - 考试`
   createExamForm.durationMinutes = row.durationMinutes
   createExamDialogVisible.value = true
@@ -870,7 +886,7 @@ const resetCreateExamForm = () => {
   createExamForm.examName = ''
   createExamForm.description = ''
   createExamForm.paperId = null
-  createExamForm.classId = null
+  createExamForm.classIds = []
   createExamForm.startTime = ''
   createExamForm.endTime = ''
   createExamForm.durationMinutes = 120
@@ -879,6 +895,11 @@ const resetCreateExamForm = () => {
   createExamForm.isRandomOptions = true
   createExamForm.allowReview = true
   currentPaperForExam.value = null
+}
+
+// 手动组卷方法（跳转到独立页面）
+const handleManualCreatePaper = () => {
+  router.push('/teacher/manual-paper-grouping')
 }
 
 // 生命周期
@@ -1089,133 +1110,5 @@ onMounted(() => {
 
 .question-options, .question-answers, .question-explanation, .question-tags {
   margin-top: 15px;
-}
-
-.question-options h5, .question-answers h5, .question-explanation h5, .question-tags h5 {
-  margin: 0 0 10px 0;
-  color: #303133;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.options-list, .answers-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.option-item, .answer-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  background: white;
-  border-radius: 4px;
-  border: 1px solid #dcdfe6;
-}
-
-.correct-option {
-  border-color: #67c23a !important;
-  background: #f0f9ff !important;
-}
-
-.option-key, .answer-type {
-  font-weight: bold;
-  color: #409eff;
-  min-width: 20px;
-}
-
-.option-content, .answer-content {
-  flex: 1;
-  color: #606266;
-}
-
-.question-explanation p {
-  margin: 0;
-  padding: 10px;
-  background: white;
-  border-radius: 4px;
-  border: 1px solid #dcdfe6;
-  line-height: 1.6;
-  color: #606266;
-}
-
-.question-tags .el-tag {
-  margin-bottom: 5px;
-}
-
-.no-questions {
-  text-align: center;
-  color: #909399;
-  font-size: 14px;
-  padding: 40px 0;
-}
-
-/* 题型分组样式 */
-.question-type-section {
-  margin-bottom: 30px;
-}
-
-.type-section-header {
-  margin-bottom: 15px;
-  padding: 10px 15px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 8px;
-  color: white;
-}
-
-.type-section-header h3 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.paper-info {
-  margin-bottom: 20px;
-}
-
-.questions-list h4 {
-  margin: 0 0 15px 0;
-  color: #303133;
-}
-
-.question-item {
-  margin-bottom: 15px;
-  padding: 15px;
-  background: #f8f9fa;
-  border-radius: 4px;
-}
-
-.question-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.question-number {
-  font-weight: bold;
-  color: #409eff;
-}
-
-.question-type {
-  background: #e1f3d8;
-  color: #67c23a;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-}
-
-.question-points {
-  background: #fdf6ec;
-  color: #e6a23c;
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-}
-
-.question-content {
-  color: #606266;
-  line-height: 1.6;
 }
 </style>

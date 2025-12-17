@@ -66,6 +66,19 @@ const routes = [
         meta: { requiresAuth: true, role: 'SUPER_ADMIN' }
       },
       {
+        path: 'major-management',
+        name: 'AdminMajorManagement',
+        component: () => import('../views/teacher/MajorManagement.vue'),
+        meta: { requiresAuth: true, role: 'SUPER_ADMIN' }
+      },
+      {
+        path: 'class-management',
+        name: 'AdminClassManagement',
+        // 修正后（相对路径，和路由文件位置对应）
+        component: () => import('../views/teacher/ClassManagement.vue'),
+        meta: { requiresAuth: true, role: 'SUPER_ADMIN'}
+      },
+      {
         path: 'roles',
         name: 'RoleManagement',
         component: RoleManagement,
@@ -123,13 +136,19 @@ const routes = [
         name: 'ExamResult',
         component: () => import('@/views/student/ExamResult.vue'),
         meta: { requiresAuth: true, role: 'USER' }
+      },
+      {
+        path: 'exam/:examId/review',
+        name: 'ExamReview',
+        component: () => import('@/views/student/ExamReview.vue'),
+        meta: { requiresAuth: true, role: 'USER' }
       }
     ]
   },
   {
     path: '/teacher',
     component: TeacherLayout,
-    meta: { requiresAuth: true, role: 'TEACHER' },
+    meta: { requiresAuth: true, role: ['TEACHER'] },
     children: [
       {
         path: '',
@@ -181,6 +200,12 @@ const routes = [
         path: 'exam-grouping',
         name: 'ExamGrouping',
         component: () => import('@/views/teacher/ExamGrouping.vue'),
+        meta: { requiresAuth: true, role: 'TEACHER' }
+      },
+      {
+        path: 'manual-paper-grouping',
+        name: 'ManualPaperGrouping',
+        component: () => import('@/views/teacher/ManualPaperGrouping.vue'),
         meta: { requiresAuth: true, role: 'TEACHER' }
       },
       {

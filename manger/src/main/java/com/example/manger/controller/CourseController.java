@@ -1,10 +1,13 @@
 package com.example.manger.controller;
 
 import com.example.manger.common.ApiResponse;
-import com.example.manger.dto.CourseRequest;
-import com.example.manger.dto.CourseResponse;
-import com.example.manger.dto.PageResponse;
-import com.example.manger.service.CourseService;
+import com.example.manger.context.BaseContext;
+import com.example.manger.dto.*;
+import com.example.manger.entity.ClassCourse;
+import com.example.manger.entity.Course;
+import com.example.manger.entity.User;
+import com.example.manger.repository.UserRepository;
+import com.example.manger.service.*;
 import com.example.manger.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,7 +18,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 课程管理控制器
@@ -27,19 +32,29 @@ import java.util.List;
 public class CourseController {
     
     private final CourseService courseService;
-    private final JwtUtil jwtUtil;
+
+    private final ClassCourseService classCourseService;
+
+    private final ClassService classService;
+
+    private final UserManagementService userManagementService;
+
+    private final UserRepository userRepository;
     
     /**
+     * Author：李正阳
      * 创建课程
      */
     @PostMapping
     @Operation(summary = "创建课程", description = "创建新的课程")
     public ApiResponse<CourseResponse> createCourse(@Valid @RequestBody CourseRequest request) {
+        //会自动将创建者添加至该课程的教师列表。
         CourseResponse response = courseService.createCourse(request);
         return ApiResponse.success("课程创建成功", response);
     }
     
     /**
+     * Author：李正阳
      * 更新课程
      */
     @PutMapping("/{id}")
@@ -52,6 +67,7 @@ public class CourseController {
     }
     
     /**
+     * Author：李正阳
      * 删除课程
      */
     @DeleteMapping("/{id}")
@@ -62,6 +78,7 @@ public class CourseController {
     }
     
     /**
+     * Author：李正阳
      * 根据ID获取课程
      */
     @GetMapping("/{id}")
@@ -72,6 +89,7 @@ public class CourseController {
     }
     
     /**
+     * Author：李正阳
      * 分页获取教师的课程
      */
     @GetMapping("/page")
@@ -79,36 +97,76 @@ public class CourseController {
     public ApiResponse<PageResponse<CourseResponse>> getCoursesWithPagination(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "10") int size,
-            @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
-            HttpServletRequest request) {
+            @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword) {
         
         // 获取当前用户ID
-        Long teacherId = getCurrentUserId(request);
+        Long teacherId = getCurrentUserId();
         
         PageResponse<CourseResponse> response = courseService.getCoursesWithPagination(teacherId, page, size, keyword);
         return ApiResponse.success("获取课程列表成功", response);
     }
     
     /**
+     * Author：李子政
      * 获取教师的所有课程
      */
     @GetMapping
     @Operation(summary = "获取所有课程", description = "获取当前教师的所有课程")
-    public ApiResponse<List<CourseResponse>> getCoursesByTeacher(HttpServletRequest request) {
-        Long teacherId = getCurrentUserId(request);
+    public ApiResponse<List<CourseResponse>> getCoursesByTeacher() {
+        Long teacherId = getCurrentUserId();
         List<CourseResponse> response = courseService.getCoursesByTeacher(teacherId);
         return ApiResponse.success("获取课程列表成功", response);
     }
-    
+
+    /**
+     * Author：李子政
+     * 获取学生所在班级内的课程
+     */
+
+    @GetMapping("/students")
+    @Operation(summary = "获取所有课程", description = "获取当前学生班级的所有课程")
+    public ApiResponse<List<CourseResponse>> getCoursesByClassId() {
+        User student = userRepository.findById(BaseContext.getCurrentId()).orElse(null);;
+        List<ClassCourseResponse> classCourseList = classCourseService.getClassCoursesByClassId(student.getClassId());
+        //有课程列表了
+        List<CourseResponse> response = new ArrayList<>();
+        for(ClassCourseResponse classCourseResponse:classCourseList){
+            CourseResponse re =  courseService.getCourseById(classCourseResponse.getCourseId());
+            response.add(re);
+        }
+        return ApiResponse.success("获取课程列表成功", response);
+    }
+
+    /**
+     * Author：李子政
+     * 获取课程教师授权信息（已授权教师 + 所有教师）
+     */
+    @GetMapping("/{courseId}/authorized-teachers")
+    @Operation(summary = "获取课程教师授权信息", description = "返回课程已授权的教师列表和系统中所有教师列表")
+    public ApiResponse<CourseTeacherAuthDTO> getAuthorizedTeachers(
+            @Parameter(description = "课程ID") @PathVariable Long courseId) {
+        CourseTeacherAuthDTO authInfo = courseService.getCourseTeacherAuthInfo(courseId);
+        return ApiResponse.success("获取教师授权信息成功", authInfo);
+    }
+
+    /**
+     * Author：李子政
+     * 授权教师到课程
+     */
+    @PostMapping("/{courseId}/authorize-teachers")
+    @Operation(summary = "授权教师到课程", description = "批量授权教师管理指定课程")
+    public ApiResponse<Void> authorizeTeachers(
+            @Parameter(description = "课程ID") @PathVariable Long courseId,
+            @Parameter(description = "教师ID列表") @RequestBody AuthorizeTeacherRequest request) {
+        courseService.authorizeTeachers(courseId, request.getTeacherIds());
+        return ApiResponse.success("教师授权成功", null);
+    }
+
+
     /**
      * 获取当前用户ID
      */
-    private Long getCurrentUserId(HttpServletRequest request) {
-        String token = request.getHeader("Authorization");
-        if (token != null && token.startsWith("Bearer ")) {
-            token = token.substring(7);
-            return jwtUtil.getUserIdFromToken(token);
-        }
-        throw new RuntimeException("无法获取用户信息");
+    private Long getCurrentUserId() {
+        return BaseContext.getCurrentId();
     }
 }

@@ -44,15 +44,6 @@ export function smsLogin(data) {
   })
 }
 
-// 刷新Token
-export function refreshToken(refreshToken) {
-  return request({
-    url: '/api/auth/refresh',
-    method: 'post',
-    data: { refreshToken }
-  })
-}
-
 // 用户登出
 export function logout() {
   return request({

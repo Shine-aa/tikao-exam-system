@@ -29,6 +29,7 @@ public class AuthController {
     private final SmsService smsService;
     
     /**
+     * Author：李正阳，郭依林
      * 用户注册
      */
     @PostMapping("/register")
@@ -44,6 +45,7 @@ public class AuthController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 用户登录
      */
     @PostMapping("/login")
@@ -63,6 +65,7 @@ public class AuthController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取验证码
      */
     @GetMapping("/captcha")
@@ -77,6 +80,7 @@ public class AuthController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 退出登录
      */
     @PostMapping("/logout")
@@ -92,20 +96,7 @@ public class AuthController {
     }
     
     /**
-     * 刷新令牌
-     */
-    @PostMapping("/refresh")
-    @Operation(summary = "刷新令牌", description = "使用刷新令牌获取新的访问令牌")
-    public ApiResponse<String> refreshToken(@RequestParam String refreshToken) {
-        try {
-            String newToken = userService.refreshToken(refreshToken);
-            return ApiResponse.success("令牌刷新成功", newToken);
-        } catch (Exception e) {
-            return ApiResponse.error(e.getMessage());
-        }
-    }
-    
-    /**
+     * Author：李正阳，郭依林
      * 获取客户端IP地址
      */
     private String getClientIpAddress(HttpServletRequest request) {
@@ -123,6 +114,7 @@ public class AuthController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 发送短信验证码
      */
     @PostMapping("/sms/send")
@@ -162,6 +154,7 @@ public class AuthController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 验证短信验证码
      */
     @PostMapping("/sms/verify")

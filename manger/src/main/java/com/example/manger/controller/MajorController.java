@@ -26,6 +26,7 @@ public class MajorController {
     private MajorService majorService;
     
     /**
+     * Author：郭依林
      * 创建专业
      */
     @PostMapping
@@ -36,6 +37,7 @@ public class MajorController {
     }
     
     /**
+     * Author：郭依林
      * 更新专业
      */
     @PutMapping("/{id}")
@@ -48,6 +50,7 @@ public class MajorController {
     }
     
     /**
+     * Author：郭依林
      * 删除专业
      */
     @DeleteMapping("/{id}")
@@ -58,6 +61,7 @@ public class MajorController {
     }
     
     /**
+     * Author：郭依林
      * 批量删除专业
      */
     @DeleteMapping("/batch")
@@ -68,6 +72,7 @@ public class MajorController {
     }
     
     /**
+     * Author：郭依林
      * 根据ID获取专业
      */
     @GetMapping("/{id}")
@@ -78,6 +83,7 @@ public class MajorController {
     }
     
     /**
+     * Author：郭依林
      * 获取所有专业
      */
     @GetMapping
@@ -88,6 +94,7 @@ public class MajorController {
     }
     
     /**
+     * Author：郭依林
      * 分页获取专业
      */
     @GetMapping("/page")

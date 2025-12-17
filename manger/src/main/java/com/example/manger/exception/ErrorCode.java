@@ -18,6 +18,8 @@ public class ErrorCode {
     public static final int PHONE_USED = 1010;
     public static final int PASSWORD_ERROR = 1011;
     public static final int PASSWORD_SAME = 1012;
+    public static final int PASSWORD_BLANK = 1013;
+    public static final int ROLE_BLANK = 1014;
     
     // 货物相关错误码 (2000-2999)
     public static final int GOODS_CODE_EXISTS = 2001;
@@ -71,4 +73,6 @@ public class ErrorCode {
     public static final int PAPER_NOT_FOUND = 5005;
     public static final int EXAM_NOT_FOUND = 5006;
     public static final int STUDENT_EXAM_NOT_FOUND = 5007;
+    public static final int PARAM_ERROR = 5008;
+
 }

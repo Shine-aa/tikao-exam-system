@@ -12,13 +12,30 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 考试Repository
  */
 @Repository
 public interface ExamRepository extends JpaRepository<Exam, Long>, JpaSpecificationExecutor<Exam> {
-    
+    // 新增：按班级ID列表 + 课程ID列表查询考试（无筛选时使用）
+    List<Exam> findByClassIdInAndCourseIdInAndIsActiveTrueOrderByStartTimeDesc(List<Long> classIds, Set<Long> courseIds);
+
+    // 新增：按班级ID列表 + 单个课程ID查询考试（有筛选时使用）
+    List<Exam> findByClassIdInAndCourseIdAndIsActiveTrueOrderByStartTimeDesc(List<Long> classIds, Long courseId);
+    // 原关键词查询（增加status参数）
+    Page<Exam> findByTeacherIdAndIsActiveTrueAndStatusAndExamNameContainingIgnoreCase(
+            Long teacherId, Exam.ExamStatus status, String keyword, Pageable pageable);
+
+    // 原关键词查询（无status参数，保持兼容）
+    Page<Exam> findByTeacherIdAndIsActiveTrueAndExamNameContainingIgnoreCase(
+            Long teacherId, String keyword, Pageable pageable);
+
+    // 无关键词但有status的查询
+    Page<Exam> findByTeacherIdAndIsActiveTrueAndStatus(
+            Long teacherId, Exam.ExamStatus status, Pageable pageable);
+
     /**
      * 根据教师ID分页查询考试
      */

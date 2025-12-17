@@ -2,6 +2,9 @@ package com.example.manger.common;
 
 import lombok.Data;
 
+/**
+ * Author：李正阳，郭依林
+ */
 @Data
 public class ApiResponse<T> {
     private Integer code;

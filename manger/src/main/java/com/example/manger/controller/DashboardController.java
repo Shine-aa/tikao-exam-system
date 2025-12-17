@@ -23,6 +23,7 @@ public class DashboardController {
     private final DashboardService dashboardService;
     
     /**
+     * Author：李正阳，郭依林
      * 获取仪表盘统计数据
      */
     @GetMapping("/stats")

@@ -30,6 +30,10 @@ public class Exam {
     @Column(name = "paper_id", nullable = false)
     private Long paperId;
 
+    @Column(name = "course_id", nullable = false)
+    private Long courseId;
+
+
     @Column(name = "class_id", nullable = false)
     private Long classId;
 

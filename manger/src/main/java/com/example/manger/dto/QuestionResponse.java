@@ -34,6 +34,8 @@ public class QuestionResponse {
     private String createdByName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    //课程id
+    private Long courseId;
     
     // 选择题选项
     private List<QuestionOptionResponse> options;

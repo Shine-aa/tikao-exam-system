@@ -82,8 +82,11 @@ public class ExamSchedulerService {
                     try {
                         logger.info("自动开始考试: ID={}, 名称={}, 开始时间={}", 
                                 exam.getId(), exam.getExamName(), exam.getStartTime());
-                        
-                        examService.startExam(exam.getId());
+
+                        //考试开始时间大于当前时间
+                        if (!LocalDateTime.now().isBefore(exam.getStartTime())) {
+                            examService.startExam(exam.getId());
+                        }
                         
                         logger.info("考试 {} 已自动开始", exam.getId());
                     } catch (Exception e) {

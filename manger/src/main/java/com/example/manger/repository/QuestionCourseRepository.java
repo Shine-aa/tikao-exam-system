@@ -9,18 +9,26 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * 题目课程关联Repository
  */
 @Repository
 public interface QuestionCourseRepository extends JpaRepository<QuestionCourse, Long> {
+
+    //根据课程id和题目id删除关联
+    void deleteByQuestionIdAndCourseId(Long questionId, Long courseId);
+
+    // 按课程ID列表查询关联的题目（只取活跃的）
+    List<QuestionCourse> findByCourseIdInAndIsActiveTrue(List<Long> courseIds);
     
     /**
-     * 根据题目ID查找所有关联的课程
+     * 根据题目ID查找关联的课程
      */
-    List<QuestionCourse> findByQuestionIdAndIsActiveTrue(Long questionId);
+    @Query("SELECT qc.courseId FROM QuestionCourse qc " +
+           "WHERE qc.questionId = :questionId " +
+           "AND qc.isActive = true")
+    Long findByQuestionIdAndIsActiveTrue(Long questionId);
     
     /**
      * 根据课程ID查找所有关联的题目
@@ -35,7 +43,7 @@ public interface QuestionCourseRepository extends JpaRepository<QuestionCourse, 
     /**
      * 根据题目ID和课程ID查找关联
      */
-    Optional<QuestionCourse> findByQuestionIdAndCourseId(Long questionId, Long courseId);
+    QuestionCourse findByQuestionIdAndCourseId(Long questionId, Long courseId);
     
     /**
      * 根据题目ID删除所有关联

@@ -59,6 +59,17 @@
             <span class="breakdown-value">{{ subjectiveStats.graded }}/{{ subjectiveStats.total }} 题已判</span>
           </div>
         </div>
+        
+        <div class="action-buttons-score-card">
+          <el-button 
+            type="primary" 
+            size="large"
+            @click="viewExamDetails"
+          >
+            <el-icon><View /></el-icon>
+            查看考试详情
+          </el-button>
+        </div>
       </div>
 
       <!-- 题目得分详情 -->
@@ -97,7 +108,7 @@
           <el-icon><ArrowLeft /></el-icon>
           返回
         </el-button>
-        <el-button 
+        <!-- <el-button 
           type="primary" 
           size="large" 
           @click="downloadResult"
@@ -105,7 +116,7 @@
         >
           <el-icon><Download /></el-icon>
           下载成绩单
-        </el-button>
+        </el-button> -->
       </div>
     </div>
   </div>
@@ -115,7 +126,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft, Download } from '@element-plus/icons-vue'
+import { ArrowLeft, Download, View } from '@element-plus/icons-vue'
 import { studentExamApi } from '@/api/admin'
 
 const route = useRoute()
@@ -250,9 +261,15 @@ const downloadResult = () => {
   ElMessage.info('成绩单下载功能开发中')
 }
 
+// 查看考试详情
+const viewExamDetails = () => {
+  const examId = route.params.id
+  router.push(`/user/exam/${examId}/review`)
+}
+
 // 返回上一页
 const goBack = () => {
-  router.go(-1)
+  router.push(`/user/exam/`)
 }
 
 onMounted(() => {
@@ -261,6 +278,20 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.exam-result-page {
+  --action-buttons-score-card-margin: 24px 0 0;
+  --action-buttons-score-card-display: flex;
+  --action-buttons-score-card-justify: center;
+  --action-buttons-score-card-gap: 12px;
+}
+
+.action-buttons-score-card {
+  margin: var(--action-buttons-score-card-margin);
+  display: var(--action-buttons-score-card-display);
+  justify-content: var(--action-buttons-score-card-justify);
+  gap: var(--action-buttons-score-card-gap);
+}
+
 .exam-result-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);

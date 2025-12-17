@@ -27,18 +27,20 @@ public class StudentExamController {
     private StudentExamService studentExamService;
 
     /**
+     * Author：李正阳，李子政
      * 获取学生的考试列表（按状态分类）
      */
     @Operation(summary = "获取学生考试列表", description = "获取学生的考试列表，按状态分类（未开始、进行中、已结束）")
     @ApiResponses(value = {
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功"),
-        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权")
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "获取成功"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "未授权")
     })
     @GetMapping
     @PreAuthorize("hasRole('USER')")
-    public ApiResponse<Map<String, Object>> getStudentExams(HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> getStudentExams(HttpServletRequest request,
+                                                            @RequestParam(required = false) Long courseId) {
         try {
-            Map<String, Object> response = studentExamService.getStudentExamsByStatus(request);
+            Map<String, Object> response = studentExamService.getStudentExamsByStatus(request,courseId);
             return ApiResponse.success("获取考试列表成功", response);
         } catch (Exception e) {
             return ApiResponse.error("获取考试列表失败: " + e.getMessage());
@@ -46,6 +48,7 @@ public class StudentExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 获取学生考试详情
      */
     @GetMapping("/{examId}")
@@ -61,6 +64,7 @@ public class StudentExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 开始考试
      */
     @PostMapping("/{examId}/start")
@@ -76,6 +80,7 @@ public class StudentExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 提交考试答案
      */
     @PostMapping("/{examId}/submit")
@@ -91,6 +96,7 @@ public class StudentExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 保存答卷草稿（不提交）
      */
     @PostMapping("/{examId}/save")
@@ -106,6 +112,7 @@ public class StudentExamController {
     }
 
     /**
+     * Author：李正阳，李子政
      * 获取学生考试统计
      */
     @GetMapping("/stats")

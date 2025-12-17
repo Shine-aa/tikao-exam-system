@@ -2,6 +2,7 @@ package com.example.manger.service;
 
 import com.example.manger.dto.PageResponse;
 import com.example.manger.dto.PaperGenerationRequest;
+import com.example.manger.dto.PaperManualCreateRequest;
 import com.example.manger.dto.PaperResponse;
 import com.example.manger.entity.*;
 import com.example.manger.exception.BusinessException;
@@ -32,7 +33,115 @@ public class PaperGenerationService {
     private final ClassRepository classRepository;
     private final CourseRepository courseRepository;
     private final UserRepository userRepository;
-    
+
+    /**
+     * 手动创建试卷（核心方法）
+     */
+    @Transactional
+    public PaperResponse createPaperManual(PaperManualCreateRequest request, Long teacherId) {
+        // 1. 基础校验
+        // 验证课程是否存在
+        Course course = courseRepository.findById(request.getCourseId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.COURSE_NOT_FOUND, "课程不存在"));
+
+        // 验证班级（如果传入）
+        if (request.getClassId() != null) {
+            classRepository.findById(request.getClassId())
+                    .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
+        }
+
+        // 验证题目列表非空且顺序唯一
+        List<PaperManualCreateRequest.PaperManualQuestion> manualQuestions = request.getQuestions();
+        if (manualQuestions.isEmpty()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "请至少选择一道题目");
+        }
+
+        // 验证题目顺序唯一性
+        Set<Integer> orderSet = new HashSet<>();
+        for (PaperManualCreateRequest.PaperManualQuestion manualQ : manualQuestions) {
+            if (!orderSet.add(manualQ.getQuestionOrder())) {
+                throw new BusinessException(ErrorCode.PARAM_ERROR, "题目顺序不能重复");
+            }
+        }
+
+        // 验证总分与题目分值总和一致
+        int sumPoints = manualQuestions.stream()
+                .mapToInt(PaperManualCreateRequest.PaperManualQuestion::getPoints)
+                .sum();
+        if (sumPoints != request.getTotalPoints()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR, "题目分值总和与总分不一致（当前总和：" + sumPoints + "，设置总分：" + request.getTotalPoints() + "）");
+        }
+
+        // 2. 验证所有题目存在且属于当前课程、状态有效
+        List<Long> questionIds = manualQuestions.stream()
+                .map(PaperManualCreateRequest.PaperManualQuestion::getQuestionId)
+                .collect(Collectors.toList());
+
+        List<Question> dbQuestions = questionRepository.findAllById(questionIds);
+        if (dbQuestions.size() != questionIds.size()) {
+            throw new BusinessException(ErrorCode.QUESTION_NOT_FOUND, "部分题目不存在或已被删除");
+        }
+
+        // 验证题目所属课程和状态
+        //for (Question question : dbQuestions) {
+        //    if (!question.getCourseId().equals(request.getCourseId())) {
+        //        throw new BusinessException(ErrorCode.PARAM_ERROR, "题目[" + question.getTitle() + "]不属于当前课程");
+        //    }
+        //    if (!question.getIsActive()) {
+        //        throw new BusinessException(ErrorCode.PARAM_ERROR, "题目[" + question.getTitle() + "]已失效");
+        //    }
+        //}
+
+        // 3. 创建试卷主记录
+        Paper paper = new Paper();
+        paper.setPaperCode(generatePaperCode());
+        paper.setPaperName(request.getPaperName());
+        paper.setDescription(request.getDescription());
+        paper.setClassId(request.getClassId());
+        paper.setCourseId(request.getCourseId());
+        paper.setTeacherId(teacherId);
+        paper.setDurationMinutes(request.getDurationMinutes());
+        paper.setTotalQuestions(manualQuestions.size());
+        paper.setTotalPoints(request.getTotalPoints());
+
+        // 构建题型分布（自动统计）
+        Map<String, Integer> typeDistribution = dbQuestions.stream()
+                .collect(Collectors.groupingBy(q -> q.getType().name(), Collectors.counting()))
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().intValue()));
+        paper.setQuestionTypeDistribution(convertMapToJson(typeDistribution));
+
+        // 构建难度分布（自动统计）
+        Map<String, Integer> difficultyDistribution = dbQuestions.stream()
+                .collect(Collectors.groupingBy(q -> q.getDifficulty().name(), Collectors.counting()))
+                .entrySet().stream()
+                .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().intValue()));
+        paper.setDifficultyDistribution(convertMapToJson(difficultyDistribution));
+
+        paper.setIsActive(true);
+        paper.setCreatedAt(LocalDateTime.now());
+
+        Paper savedPaper = paperRepository.save(paper);
+
+        // 4. 保存试卷-题目关联关系（复用现有逻辑，存储到paper.questions字段）
+        List<Map<String, Object>> questionList = manualQuestions.stream()
+                .map(manualQ -> {
+                    Map<String, Object> questionData = new HashMap<>();
+                    questionData.put("questionId", manualQ.getQuestionId());
+                    questionData.put("questionOrder", manualQ.getQuestionOrder());
+                    questionData.put("points", manualQ.getPoints());
+                    return questionData;
+                })
+                .collect(Collectors.toList());
+
+        savedPaper.setQuestions(questionList);
+        paperRepository.save(savedPaper);
+
+        // 5. 返回结果
+        return convertToResponse(savedPaper);
+    }
+
+
     /**
      * 生成试卷
      */
@@ -82,11 +191,24 @@ public class PaperGenerationService {
      * 智能选题算法 - 按题型顺序组织试卷
      */
     private List<Question> selectQuestions(PaperGenerationRequest request) {
+        // 新增：提前校验总可用题目数
+        List<Question> allValidQuestions = questionRepository.findByCourseIdAndIsActiveTrue(request.getCourseId());
+        // 先过滤难度（不限制数量），得到该课程下所有符合难度的题目
+        List<Question> difficultyValidQuestions = filterByDifficulty(allValidQuestions, request.getDifficultyDistribution());
+        int totalValidCount = difficultyValidQuestions.size();
+
+        if (totalValidCount < request.getTotalQuestions()) {
+            throw new BusinessException(ErrorCode.PARAM_ERROR,
+                    String.format("当前课程下符合难度要求的题目仅%d道，无法生成%d道题的试卷",
+                            totalValidCount, request.getTotalQuestions()));
+        }
+
+
         System.out.println("Starting question selection for courseId: " + request.getCourseId());
         System.out.println("Total questions requested: " + request.getTotalQuestions());
-        
+
         List<Question> selectedQuestions = new ArrayList<>();
-        
+
         // 定义题型顺序：单选题 → 多选题 → 判断题 → 填空题 → 主观题 → 程序题
         String[] questionTypeOrder = {
             "SINGLE_CHOICE",    // 单选题
@@ -96,11 +218,11 @@ public class PaperGenerationService {
             "SUBJECTIVE",       // 主观题
             "PROGRAMMING"       // 程序题
         };
-        
+
         // 根据题型分布选题，按照固定顺序
         Map<String, Integer> typeDistribution = request.getQuestionTypeDistribution();
         System.out.println("Question type distribution: " + typeDistribution);
-        
+
         if (typeDistribution != null && !typeDistribution.isEmpty()) {
             // 按照预定义的顺序选题
             for (String questionType : questionTypeOrder) {
@@ -117,24 +239,24 @@ public class PaperGenerationService {
             System.out.println("No type distribution specified, selecting random questions");
             selectedQuestions = selectRandomQuestions(request);
         }
-        
+
         System.out.println("After type-based selection: " + selectedQuestions.size() + " questions");
-        
+
         // 如果题目数量不足，补充随机题目
         if (selectedQuestions.size() < request.getTotalQuestions()) {
             int needMore = request.getTotalQuestions() - selectedQuestions.size();
             System.out.println("Need " + needMore + " more questions, selecting random ones");
-            List<Question> additionalQuestions = selectRandomQuestions(request, needMore);
+            List<Question> additionalQuestions = selectRandomQuestions(request, needMore, selectedQuestions);
             selectedQuestions.addAll(additionalQuestions);
         }
-        
+
         // 注意：这里不再随机打乱题目顺序，保持题型顺序
         // 每个题型内部的题目顺序可以随机，但题型之间的顺序保持固定
-        
+
         List<Question> result = selectedQuestions.stream()
                 .limit(request.getTotalQuestions())
                 .collect(Collectors.toList());
-        
+
         System.out.println("Final selected questions: " + result.size());
         return result;
     }
@@ -182,7 +304,25 @@ public class PaperGenerationService {
     private List<Question> selectRandomQuestions(PaperGenerationRequest request) {
         return selectRandomQuestions(request, request.getTotalQuestions());
     }
-    
+
+    // 新增重载方法：排除已选题目
+    private List<Question> selectRandomQuestions(PaperGenerationRequest request, Integer count, List<Question> excludeQuestions) {
+        Set<Long> excludeIds = excludeQuestions.stream().map(Question::getId).collect(Collectors.toSet());
+        List<Question> questions = questionRepository.findByCourseIdAndIsActiveTrue(request.getCourseId())
+                .stream()
+                .filter(q -> !excludeIds.contains(q.getId())) // 排除已选
+                .collect(Collectors.toList());
+
+        if (request.getDifficultyDistribution() != null && !request.getDifficultyDistribution().isEmpty()) {
+            questions = filterByDifficulty(questions, request.getDifficultyDistribution());
+        }
+
+        Collections.shuffle(questions);
+        return questions.stream()
+                .limit(count)
+                .collect(Collectors.toList());
+    }
+
     private List<Question> selectRandomQuestions(PaperGenerationRequest request, Integer count) {
         List<Question> questions = questionRepository.findByCourseIdAndIsActiveTrue(request.getCourseId());
         
@@ -201,29 +341,51 @@ public class PaperGenerationService {
      * 根据难度分布筛选题目
      */
     private List<Question> filterByDifficulty(List<Question> questions, Map<String, Integer> difficultyDistribution) {
+        // 1. 计算难度分布的总需求数
+        int totalDifficultyCount = difficultyDistribution.values().stream().mapToInt(Integer::intValue).sum();
+        if (totalDifficultyCount == 0 || questions.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 2. 分组统计各难度的可用题目
+        Map<Question.DifficultyLevel, List<Question>> difficultyGroup = questions.stream()
+                .collect(Collectors.groupingBy(Question::getDifficulty));
+
+        // 3. 按需求比例分配题目（核心修复）
         List<Question> filteredQuestions = new ArrayList<>();
-        
+        // 记录各难度实际选中数
+        Map<Question.DifficultyLevel, Integer> actualSelected = new HashMap<>();
+
+        // 第一步：优先满足各难度的最小需求
         for (Map.Entry<String, Integer> entry : difficultyDistribution.entrySet()) {
-            String difficulty = entry.getKey();
-            Integer count = entry.getValue();
-            
-            if (count > 0) {
-                try {
-                    Question.DifficultyLevel difficultyLevel = Question.DifficultyLevel.valueOf(difficulty);
-                    List<Question> difficultyQuestions = questions.stream()
-                            .filter(q -> q.getDifficulty() == difficultyLevel)
-                            .limit(count)
-                            .collect(Collectors.toList());
-                    filteredQuestions.addAll(difficultyQuestions);
-                } catch (IllegalArgumentException e) {
-                    System.err.println("Invalid difficulty level: " + difficulty);
-                }
+            String difficultyStr = entry.getKey();
+            int requiredCount = entry.getValue();
+            try {
+                Question.DifficultyLevel level = Question.DifficultyLevel.valueOf(difficultyStr);
+                List<Question> levelQuestions = difficultyGroup.getOrDefault(level, new ArrayList<>());
+                // 取该难度下可用的数量（最多取需求数）
+                int selectCount = Math.min(requiredCount, levelQuestions.size());
+                filteredQuestions.addAll(levelQuestions.subList(0, selectCount));
+                actualSelected.put(level, selectCount);
+            } catch (IllegalArgumentException e) {
+                System.err.println("无效难度类型: " + difficultyStr);
             }
         }
-        
+
+        // 4. 若总数不足，用剩余可用题目补充（降级策略）
+        int remainingNeed = totalDifficultyCount - filteredQuestions.size();
+        if (remainingNeed > 0) {
+            // 收集所有未被选中的题目（跨难度补充）
+            Set<Long> selectedIds = filteredQuestions.stream().map(Question::getId).collect(Collectors.toSet());
+            List<Question> remainingQuestions = questions.stream()
+                    .filter(q -> !selectedIds.contains(q.getId()))
+                    .limit(remainingNeed)
+                    .collect(Collectors.toList());
+            filteredQuestions.addAll(remainingQuestions);
+        }
+
         return filteredQuestions;
     }
-    
     /**
      * 保存试卷题目关联 - 新版本：存储到Paper的questions字段
      */

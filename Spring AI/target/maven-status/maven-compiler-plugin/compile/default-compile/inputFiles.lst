@@ -1,0 +1,14 @@
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\config\AIConfig.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\config\WebClientConfig.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\config\WebConfig.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\controller\InMemoryController.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\controller\SmartExamController.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\dto\PaperGenerationRequest.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\dto\RankedQuestion.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\dto\StudentAnalysisReport.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\service\AIAnalysisService.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\service\AIRankingService.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\service\SmartExamService.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\service\TaiKaoApiService.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\SpringAiServerApplication.java
+F:\TaiKao-main (2)\TaiKao-main\Spring AI\src\main\java\com\example\springai\tool\SmartExamTool.java

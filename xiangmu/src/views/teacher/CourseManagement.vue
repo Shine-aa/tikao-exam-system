@@ -72,14 +72,18 @@
             {{ formatDate(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="260" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <el-button type="success" size="small" @click="handleManageQuestions(row)">
-              <el-icon><Collection /></el-icon>
-              题库
-            </el-button>
-            <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button type="danger" size="small" @click="handleDelete(row)">删除</el-button>
+            <el-icon><Collection /></el-icon>
+            题库
+          </el-button>
+          <el-button v-if="row.teacherId === currentTeacherId" type="primary" size="small" @click="handleManageTeachers(row)">
+            <el-icon><User /></el-icon>
+            教师
+          </el-button>
+          <el-button type="primary" size="small" @click="handleEdit(row)">编辑</el-button>
+          <el-button v-if="row.teacherId === currentTeacherId" type="danger" size="small" @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -143,6 +147,56 @@
       </template>
     </el-dialog>
 
+    <!-- 管理教师对话框 -->
+    <el-dialog
+      v-model="manageTeachersDialogVisible"
+      title="管理课程教师"
+      width="600px"
+      @close="handleManageTeachersClose"
+    >
+      <div class="teacher-management">
+        <el-select
+          v-model="selectedTeachers"
+          multiple
+          filterable
+          clearable
+          placeholder="选择要授权的教师（已授权教师默认选中）"
+          style="width: 100%"
+          :loading="loadingTeachers"
+          :disabled="loadingTeachers"
+          value-key="id"
+        >
+          <el-option
+            v-for="teacher in allTeachers"
+            :key="teacher.id"
+            :label="teacher.name"
+            :value="teacher"
+          />
+        </el-select>
+        <div class="teacher-info" v-if="!loadingTeachers && allTeachers.length > 0">
+          <div class="info-label">已授权教师：</div>
+          <div class="authorized-teachers-list">
+            <el-tag
+              v-for="teacher in authorizedTeachers"
+              :key="teacher.id"
+              type="success"
+              closable
+              :disable-transitions="false"
+              @close="handleRemoveAuthorizedTeacher(teacher)"
+            >
+              {{ teacher.name }}
+            </el-tag>
+            <span v-if="authorizedTeachers.length === 0" class="no-authorized">暂无授权教师</span>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="manageTeachersDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleAuthorizeTeachers" :loading="submitting">
+          授权教师
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -150,19 +204,31 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh } from '@element-plus/icons-vue'
+import { Plus, Refresh, User } from '@element-plus/icons-vue'
 import { courseApi } from '@/api/admin'
+import { getAuthorizedTeachers } from '@/api/admin'
+import { authorizeTeachers } from '@/api/admin'
+import { getUserInfo } from '@/api/user'
 
 const router = useRouter()
 
 // 响应式数据
 const loading = ref(false)
 const submitting = ref(false)
+const currentTeacherId = ref(null)
 const courseList = ref([])
 const selectedCourses = ref([])
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const formRef = ref()
+
+// 教师管理相关
+const manageTeachersDialogVisible = ref(false)
+const loadingTeachers = ref(false)
+const allTeachers = ref([])
+const authorizedTeachers = ref([])
+const selectedTeachers = ref([])
+const currentCourse = ref(null)
 
 
 // 搜索表单
@@ -183,7 +249,7 @@ const form = reactive({
   courseCode: '',
   courseName: '',
   description: '',
-  teacherId: 1, // 当前教师ID
+  teacherId: null, // 将在获取用户信息后设置
   semester: '',
   academicYear: '',
   isActive: true
@@ -328,7 +394,7 @@ const resetForm = () => {
     courseCode: '',
     courseName: '',
     description: '',
-    teacherId: 1,
+    teacherId: currentTeacherId.value || null,
     semester: '',
     academicYear: '',
     isActive: true
@@ -356,20 +422,109 @@ const formatDate = (dateString) => {
 }
 
 // 生命周期
-onMounted(() => {
-  loadCourseList()
+onMounted(async () => {
+  try {
+    // 先获取用户信息
+    const userResponse = await getUserInfo()
+    if (userResponse.code === 200 && userResponse.data) {
+      currentTeacherId.value = userResponse.data.id
+      // 设置表单默认教师ID
+      form.teacherId = currentTeacherId.value
+    } else {
+      ElMessage.error('获取用户信息失败')
+    }
+  } catch (error) {
+    console.error('Get user info error:', error)
+    ElMessage.error('获取用户信息失败')
+  } finally {
+    // 无论是否获取到用户信息，都加载课程列表
+    loadCourseList()
+  }
 })
 
 // 题目管理相关方法
 const handleManageQuestions = (row) => {
-  // 跳转到课程题库管理页面
+  // 跳转到题库管理页面
   router.push({
-    name: 'CourseQuestionBank',
+    path: '/teacher/question-bank',
     query: {
       courseId: row.id,
       courseName: row.courseName
     }
   })
+}
+
+// 教师管理相关方法
+const handleManageTeachers = (row) => {
+  currentCourse.value = row
+  manageTeachersDialogVisible.value = true
+  loadAvailableTeachers()
+}
+
+const loadAvailableTeachers = async () => {
+  try {
+    loadingTeachers.value = true
+    // 调用获取课程教师授权信息的API
+    const response = await getAuthorizedTeachers(currentCourse.value.id)
+    if (response.code === 200 && response.data) {
+      // 保存已授权的教师列表和所有教师列表
+      authorizedTeachers.value = response.data.authorizedTeachers || []
+      allTeachers.value = response.data.allTeachers || []
+      
+      // 默认选中已授权的教师
+      selectedTeachers.value = [...authorizedTeachers.value]
+    } else {
+      ElMessage.error(response.message || '获取教师授权信息失败')
+    }
+  } catch (error) {
+    console.error('Load teachers authorization info error:', error)
+    ElMessage.error('获取教师授权信息失败')
+  } finally {
+    loadingTeachers.value = false
+  }
+}
+
+const handleAuthorizeTeachers = async () => {
+  try {
+    if (selectedTeachers.value.length === 0) {
+      ElMessage.warning('请至少选择一名教师')
+      return
+    }
+    
+    submitting.value = true
+    const teacherIds = selectedTeachers.value.map(teacher => teacher.id)
+    
+    // 调用授权教师的API
+    const response = await authorizeTeachers(currentCourse.value.id, teacherIds)
+    if (response.code === 200) {
+      ElMessage.success('授权成功')
+      manageTeachersDialogVisible.value = false
+    } else {
+      ElMessage.error(response.message || '授权失败')
+    }
+  } catch (error) {
+    console.error('Authorize teachers error:', error)
+    ElMessage.error('授权失败')
+  } finally {
+    submitting.value = false
+  }
+}
+
+const handleManageTeachersClose = () => {
+  selectedTeachers.value = []
+  authorizedTeachers.value = []
+  allTeachers.value = []
+  currentCourse.value = null
+}
+
+const handleRemoveAuthorizedTeacher = (teacher) => {
+  // 从选中的教师列表中移除该教师
+  const index = selectedTeachers.value.findIndex(t => t.id === teacher.id)
+  if (index > -1) {
+    selectedTeachers.value.splice(index, 1)
+  }
+  
+  ElMessage.info(`已取消选择教师 ${teacher.name}`)
 }
 
 </script>
@@ -444,6 +599,33 @@ const handleManageQuestions = (row) => {
   .search-form .el-form-item {
     margin-bottom: 10px;
   }
+}
+
+/* 教师管理样式 */
+.teacher-management {
+  margin-bottom: 20px;
+}
+
+.teacher-info {
+  margin-top: 15px;
+}
+
+.info-label {
+  font-weight: bold;
+  color: #606266;
+  margin-bottom: 8px;
+}
+
+.authorized-teachers-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.no-authorized {
+  color: #909399;
+  font-size: 14px;
+  font-style: italic;
 }
 
 .question-stats {

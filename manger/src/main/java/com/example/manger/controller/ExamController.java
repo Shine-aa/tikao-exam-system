@@ -1,8 +1,10 @@
 package com.example.manger.controller;
 
 import com.example.manger.common.ApiResponse;
+import com.example.manger.context.BaseContext;
 import com.example.manger.dto.ExamRequest;
 import com.example.manger.dto.ExamResponse;
+import com.example.manger.dto.ExamUpdateRequest;
 import com.example.manger.dto.PageResponse;
 import com.example.manger.service.ExamService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -31,6 +34,7 @@ public class ExamController {
     private ExamService examService;
     
     /**
+     * Author：李正阳，李子政
      * 创建考试
      */
     @Operation(summary = "创建考试", description = "老师或管理员创建新的考试")
@@ -42,19 +46,19 @@ public class ExamController {
     })
     @PostMapping
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ApiResponse<ExamResponse> createExam(
+    public ApiResponse<String> createExam(
             @Parameter(description = "考试创建请求", required = true) 
-            @Valid @RequestBody ExamRequest request, 
-            HttpServletRequest httpRequest) {
+            @Valid @RequestBody ExamRequest request) {
         try {
-            ExamResponse exam = examService.createExam(request, httpRequest);
-            return ApiResponse.success("考试创建成功", exam);
+            examService.createExam(request);
+            return ApiResponse.success("考试创建成功");
         } catch (Exception e) {
             return ApiResponse.error("考试创建失败: " + e.getMessage());
         }
     }
     
     /**
+     * Author：李正阳，李子政
      * 分页查询考试列表
      */
     @Operation(summary = "分页查询考试列表", description = "获取考试列表，支持分页和关键词搜索")
@@ -67,9 +71,11 @@ public class ExamController {
             @RequestParam(defaultValue = "10") int size,
             @Parameter(description = "搜索关键词") 
             @RequestParam(required = false) String keyword,
+            @Parameter(description = "考试状态")
+            @RequestParam(required = false) String status,
             HttpServletRequest httpRequest) {
         try {
-            PageResponse<ExamResponse> exams = examService.getExamsWithPagination(page, size, keyword, httpRequest);
+            PageResponse<ExamResponse> exams = examService.getExamsWithPagination(page, size, keyword,status, httpRequest);
             return ApiResponse.success("获取考试列表成功", exams);
         } catch (Exception e) {
             return ApiResponse.error("获取考试列表失败: " + e.getMessage());
@@ -77,6 +83,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 根据ID获取考试详情
      */
     @GetMapping("/{id}")
@@ -92,12 +99,13 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 更新考试
      */
     @PutMapping("/{id}")
     @Operation(summary = "更新考试", description = "更新指定考试的信息")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ApiResponse<ExamResponse> updateExam(@PathVariable Long id, @Valid @RequestBody ExamRequest request) {
+    public ApiResponse<ExamResponse> updateExam(@PathVariable Long id, @Valid @RequestBody ExamUpdateRequest request) {
         try {
             ExamResponse exam = examService.updateExam(id, request);
             return ApiResponse.success("考试更新成功", exam);
@@ -105,8 +113,24 @@ public class ExamController {
             return ApiResponse.error("考试更新失败: " + e.getMessage());
         }
     }
-    
+
     /**
+     * Author：李子政
+     * 修改 答完是否可查看答案字段
+     */
+    @PutMapping("/{id}/allow-review")
+    public ApiResponse<String> updateAnswerViewable(@PathVariable Long id, @RequestBody Map<String, Object> request) {
+        try {
+            examService.updateAnswerViewable(id, (Boolean) request.get("allowReview"));
+            return ApiResponse.success("更新成功", null);
+        } catch (Exception e) {
+            return ApiResponse.error("更新失败: " + e.getMessage());
+        }
+    }
+
+
+    /**
+     * Author：李正阳
      * 删除考试
      */
     @DeleteMapping("/{id}")
@@ -122,6 +146,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 开始考试
      */
     @PostMapping("/{id}/start")
@@ -137,6 +162,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 结束考试
      */
     @PostMapping("/{id}/end")
@@ -152,6 +178,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳
      * 获取考试学生列表
      */
     @GetMapping("/{id}/students")
@@ -167,6 +194,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李子政
      * 获取判卷考试列表
      */
     @Operation(summary = "获取判卷考试列表", description = "获取需要判卷的考试列表")
@@ -188,6 +216,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李子政，李正阳
      * 获取考试学生列表（用于判卷）
      */
     @GetMapping("/{id}/students/grading")
@@ -210,6 +239,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李子政，李正阳
      * 获取学生答案
      */
     @GetMapping("/{examId}/students/{studentId}/answers")
@@ -224,8 +254,27 @@ public class ExamController {
             return ApiResponse.error("获取学生答案失败: " + e.getMessage());
         }
     }
+
+    /**
+     * Author：李正阳，李子政
+     * 获取学生获取自己答案
+     */
+    @GetMapping("/{examId}/students/answers")
+    @Operation(summary = "获取学生答案", description = "获取指定学生在指定考试中的答案，包含题目、学生答案和参考答案")
+    @Tag(name = "学生查看自己答案")
+    @PreAuthorize("hasRole('USER')")
+    public ApiResponse<Map<String, Object>> getOwnAnswers(@PathVariable Long examId, HttpServletRequest request) {
+        long studentId = BaseContext.getCurrentId();
+        try {
+            Map<String, Object> answers = examService.getStudentAnswers(examId, studentId, request);
+            return ApiResponse.success("获取学生答案成功", answers);
+        } catch (Exception e) {
+            return ApiResponse.error("获取学生答案失败: " + e.getMessage());
+        }
+    }
     
     /**
+     * Author：李正阳，李子政
      * 保存判卷结果
      */
     @PostMapping("/grading/save")
@@ -242,6 +291,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 提交判卷结果
      */
     @PostMapping("/grading/submit")
@@ -258,6 +308,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳，李子政
      * 获取学生考试结果（仅显示分数，不显示题目内容）
      */
     @Operation(summary = "获取学生考试结果", description = "学生查看考试结果，仅显示分数不显示题目内容")
@@ -269,7 +320,7 @@ public class ExamController {
             @PathVariable Long examId, 
             HttpServletRequest request) {
         try {
-            Map<String, Object> result = examService.getStudentExamResult(examId, request);
+            Map<String, Object> result = examService.getStudentExamResult(examId);
             return ApiResponse.success("获取考试结果成功", result);
         } catch (Exception e) {
             return ApiResponse.error("获取考试结果失败: " + e.getMessage());
@@ -277,15 +328,16 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取老师端仪表盘统计数据
      */
     @GetMapping("/dashboard/stats")
     @Operation(summary = "获取老师端仪表盘统计数据", description = "获取老师端仪表盘的各种统计数据（题库数量、考试数量、学生数量等）")
     @Tag(name = "仪表盘")
     @PreAuthorize("hasRole('TEACHER') or hasRole('ADMIN')")
-    public ApiResponse<Map<String, Object>> getDashboardStats(HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> getDashboardStats() {
         try {
-            Map<String, Object> stats = examService.getDashboardStats(request);
+            Map<String, Object> stats = examService.getDashboardStats();
             return ApiResponse.success("获取仪表盘统计数据成功", stats);
         } catch (Exception e) {
             return ApiResponse.error("获取仪表盘统计数据失败: " + e.getMessage());
@@ -293,6 +345,7 @@ public class ExamController {
     }
     
     /**
+     * Author：李正阳，郭依林
      * 获取老师端最近活动
      */
     @GetMapping("/dashboard/activities")

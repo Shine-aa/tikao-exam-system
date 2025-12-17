@@ -1,16 +1,34 @@
 package com.example.manger.service;
 
+import com.alibaba.excel.EasyExcel;
+import com.alibaba.excel.context.AnalysisContext;
+import com.alibaba.excel.metadata.data.ReadCellData;
+import com.alibaba.excel.read.listener.ReadListener;
 import com.example.manger.dto.*;
 import com.example.manger.entity.Class;
+import com.example.manger.entity.Course;
+import com.example.manger.entity.Exam;
+import com.example.manger.entity.Paper;
+import com.example.manger.entity.Question;
 import com.example.manger.entity.Role;
 import com.example.manger.entity.StudentClass;
+import com.example.manger.entity.StudentExam;
+import com.example.manger.entity.TeacherCourse;
 import com.example.manger.entity.User;
 import com.example.manger.exception.BusinessException;
 import com.example.manger.exception.ErrorCode;
+import com.example.manger.repository.ClassCourseRepository;
 import com.example.manger.repository.ClassRepository;
+import com.example.manger.repository.CourseRepository;
+import com.example.manger.repository.ExamRepository;
 import com.example.manger.repository.MajorRepository;
+import com.example.manger.repository.PaperRepository;
+import com.example.manger.repository.QuestionCourseRepository;
+import com.example.manger.repository.QuestionRepository;
 import com.example.manger.repository.RoleRepository;
 import com.example.manger.repository.StudentClassRepository;
+import com.example.manger.repository.StudentExamRepository;
+import com.example.manger.repository.TeacherCourseRepository;
 import com.example.manger.repository.UserRepository;
 import com.example.manger.util.PasswordUtil;
 import lombok.RequiredArgsConstructor;
@@ -18,15 +36,16 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.criteria.Predicate;
+import org.springframework.web.multipart.MultipartFile;
+
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -36,8 +55,16 @@ public class UserManagementService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final ClassRepository classRepository;
+    private final ClassCourseRepository classCourseRepository;
+    private final CourseRepository courseRepository;
+    private final ExamRepository examRepository;
+    private final PaperRepository paperRepository;
+    private final QuestionRepository questionRepository;
+    private final QuestionCourseRepository questionCourseRepository;
     private final MajorRepository majorRepository;
     private final StudentClassRepository studentClassRepository;
+    private final StudentExamRepository studentExamRepository;
+    private final TeacherCourseRepository teacherCourseRepository;
     private final PasswordUtil passwordUtil;
     
     /**
@@ -56,6 +83,7 @@ public class UserManagementService {
         }
         
         User user = new User();
+        user.setName(request.getName());
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
         
@@ -96,7 +124,10 @@ public class UserManagementService {
             userRepository.existsByEmailAndIdNot(request.getEmail(), userId)) {
             throw new RuntimeException("邮箱已被其他用户使用");
         }
-        
+        // 更新基本信息
+        if (request.getName() != null) {
+            user.setName(request.getName());
+        }
         // 更新基本信息
         if (request.getUsername() != null) {
             user.setUsername(request.getUsername());
@@ -106,14 +137,6 @@ public class UserManagementService {
         }
         if (request.getIsActive() != null) {
             user.setIsActive(request.getIsActive());
-        }
-        
-        // 更新密码
-        if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
-            String salt = passwordUtil.generateSalt();
-            String hashedPassword = passwordUtil.hashPassword(request.getPassword(), salt);
-            user.setPassword(hashedPassword);
-            user.setSalt(salt);
         }
         
         // 更新角色
@@ -203,7 +226,7 @@ public class UserManagementService {
      * 分页查询用户
      */
     @Transactional(readOnly = true)
-    public PageResponse<UserResponse> getUsersWithPagination(String username, String email, Boolean isActive, 
+    public PageResponse<UserResponse> getUsersWithPagination(String name,String username, String email, Boolean isActive,
                                                            Integer page, Integer size, String sortBy, String sortOrder) {
         // 构建查询条件
         Pageable pageable = PageRequest.of(page - 1, size);
@@ -219,6 +242,7 @@ public class UserManagementService {
         
         // 应用搜索过滤条件
         List<UserResponse> filteredUsers = userPage.getContent().stream()
+                .filter(user -> name == null || user.getName().contains(name))
                 .filter(user -> username == null || user.getUsername().contains(username))
                 .filter(user -> email == null || user.getEmail().contains(email))
                 .filter(user -> isActive == null || user.getIsActive().equals(isActive))
@@ -305,6 +329,7 @@ public class UserManagementService {
     private UserResponse convertToResponse(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
+        response.setName(user.getName());
         response.setUsername(user.getUsername());
         response.setEmail(user.getEmail());
         response.setIsActive(user.getIsActive());
@@ -568,4 +593,153 @@ public class UserManagementService {
         response.setUpdateTime(role.getUpdateTime());
         return response;
     }
+
+    /**
+     * 从 Excel 导入用户
+     */
+    @Transactional
+    public Map<String, Object> importUsersFromExcel(MultipartFile file) {
+
+        List<ExcelUserRow> rows;
+        try {
+            rows = EasyExcel.read(file.getInputStream(), ExcelUserRow.class, null)
+                    .sheet()
+                    .headRowNumber(1)
+                    .doReadSync();
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "Excel 文件读取失败: " + e.getMessage());
+        }
+
+        int success = 0;
+        List<Map<String, Object>> failedRecords = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            ExcelUserRow row = rows.get(i);
+            int rowIndex = i + 2; // Excel 第二行开始
+            try {
+                // 基础校验
+                if (row.getName() == null || row.getName().isBlank()) {
+                    throw new BusinessException(ErrorCode.INVALID_OPERATION, "用户姓名不能为空");
+                }
+                if (row.getUsername() == null || row.getUsername().isBlank()) {
+                    throw new BusinessException(ErrorCode.INVALID_OPERATION, "用户名不能为空");
+                }
+                if (userRepository.existsByUsername(row.getUsername())) {
+                    throw new BusinessException(ErrorCode.USERNAME_EXISTS, "用户名已存在");
+                }
+                if (row.getPassword() == null || row.getPassword().isBlank()) {
+                    throw new BusinessException(ErrorCode.PASSWORD_BLANK, "密码不能为空");
+                }
+                if (row.getEmail() != null && userRepository.existsByEmail(row.getEmail())) {
+                    throw new BusinessException(ErrorCode.EMAIL_EXISTS, "邮箱已存在");
+                }
+                if (row.getPhone() != null && userRepository.existsByPhone(row.getPhone())) {
+                    throw new BusinessException(ErrorCode.PHONE_EXISTS, "手机号已存在");
+                }
+                if (row.getRoleName() == null || row.getRoleName().isBlank()) {
+                    throw new BusinessException(ErrorCode.ROLE_BLANK, "用户角色不能为空");
+                }
+
+                // 创建用户
+                User user = new User();
+                user.setName(row.getName());
+                user.setUsername(row.getUsername());
+                // 邮箱不能为空，如果Excel中为空，使用用户名+时间戳+默认域名确保唯一性
+                if (row.getEmail() == null || row.getEmail().isBlank()) {
+                    String username = row.getUsername();
+                    String defaultEmail = username + "_" + System.currentTimeMillis() + "@example.com";
+                    // 检查默认邮箱是否已存在，如果存在则继续添加随机数
+                    int attempt = 0;
+                    while (userRepository.existsByEmail(defaultEmail) && attempt < 100) {
+                        defaultEmail = username + "_" + System.currentTimeMillis() + "_" + attempt + "@example.com";
+                        attempt++;
+                    }
+                    user.setEmail(defaultEmail);
+                } else {
+                    user.setEmail(row.getEmail());
+                }
+                user.setPhone(row.getPhone());
+                user.setIsActive(true);
+                user.setCreateTime(LocalDateTime.now());
+                user.setUpdateTime(LocalDateTime.now());
+                String password = row.getPassword();
+                // 密码加盐加密
+                String salt = passwordUtil.generateSalt();
+                user.setSalt(salt);
+                user.setPassword(passwordUtil.hashPassword(password, salt));
+
+                // 班级处理
+                if (row.getClassId() != null) {
+                    classRepository.findById(row.getClassId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
+                    user.setClassId(row.getClassId());
+                }
+
+                // 获取角色
+                String roleNameInput = row.getRoleName();
+                if (roleNameInput == null || roleNameInput.isBlank()) {
+                    throw new BusinessException(ErrorCode.ROLE_BLANK, "用户角色不能为空");
+                }
+                // 去除前后空格
+                final String roleName = roleNameInput.trim();
+                Role defaultRole = roleRepository.findByRoleName(roleName)
+                        .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND, 
+                                "角色不存在，角色名称: \"" + roleName + "\"。请使用：\"超级管理员\"、\"教师\"或\"普通用户\""));
+
+
+                // 分配角色
+                user.setRoles(Set.of(defaultRole));
+
+                // 保存用户
+                userRepository.save(user);
+                
+                // 如果用户是学生且有班级ID，创建学生班级关联
+                if (row.getClassId() != null && "USER".equals(defaultRole.getRoleCode())) {
+                    // 验证班级是否存在（之前已验证，这里再次确认）
+                    Class classEntity = classRepository.findById(row.getClassId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
+                    
+                    // 检查是否已存在关联（防止重复）
+                    if (!studentClassRepository.existsByClassIdAndStudentId(row.getClassId(), user.getId())) {
+                        // 创建学生班级关联记录
+                        StudentClass studentClass = new StudentClass();
+                        studentClass.setStudentId(user.getId());
+                        studentClass.setClassId(row.getClassId());
+                        studentClass.setIsActive(true);
+                        studentClass.setEnrolledAt(LocalDateTime.now());
+                        studentClass.setCreatedAt(LocalDateTime.now());
+                        studentClassRepository.save(studentClass);
+                        
+                        // 更新班级的学生人数
+                        classEntity.setCurrentStudents(
+                                classEntity.getCurrentStudents() != null ? 
+                                classEntity.getCurrentStudents() + 1 : 1
+                        );
+                        classRepository.save(classEntity);
+                    }
+                }
+                
+                success++;
+
+            } catch (Exception e) {
+                // 收集失败记录
+                Map<String, Object> failedRecord = new HashMap<>();
+                failedRecord.put("row", rowIndex);
+                failedRecord.put("name", row.getName());
+                failedRecord.put("username", row.getUsername());
+                failedRecord.put("email", row.getEmail());
+                failedRecord.put("phone", row.getPhone());
+                failedRecord.put("classId", row.getClassId());
+                failedRecord.put("roleName", row.getRoleName());
+                failedRecord.put("error", e.getMessage());
+                failedRecords.add(failedRecord);
+            }
+        }
+
+        return Map.of(
+                "success", success,
+                "fail", failedRecords.size(),
+                "failedRecords", failedRecords
+        );
+    }
+
 }

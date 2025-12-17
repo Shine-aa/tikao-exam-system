@@ -137,7 +137,7 @@ const canStartExam = computed(() => {
   }
   
   // 考试状态必须是SCHEDULED或ONGOING，且在考试时间范围内
-  return (status === 'SCHEDULED' || status === 'ONGOING') &&
+  return (status === 'SCHEDULED' || status === 'ONGOING') ||
          now >= startTime && now <= endTime
 })
 
@@ -212,7 +212,10 @@ const startExam = async () => {
     
     ElMessage.success('考试已开始')
     // 跳转到整卷预览模式
-    router.push(`/user/exam/${examId}/preview`)
+    await router.push({
+      name: 'ExamPreview',
+      params: { id: examId }
+    })
   } catch (error) {
     console.error('Start exam error:', error)
     ElMessage.error('开始考试失败')
@@ -275,7 +278,12 @@ const getButtonText = () => {
 // 查看成绩
 const viewResults = () => {
   const examId = route.params.id
-  router.push(`/user/exam/${examId}/result`)
+  // 优化：使用命名路由跳转（依赖路由配置中的 name: 'ExamResult'）
+  router.push({
+    name: 'ExamResult',
+    params: { id: examId }
+  })
+
 }
 
 onMounted(async () => {
