@@ -6,15 +6,29 @@ import com.alibaba.excel.metadata.data.ReadCellData;
 import com.alibaba.excel.read.listener.ReadListener;
 import com.example.manger.dto.*;
 import com.example.manger.entity.Class;
+import com.example.manger.entity.Course;
+import com.example.manger.entity.Exam;
+import com.example.manger.entity.Paper;
+import com.example.manger.entity.Question;
 import com.example.manger.entity.Role;
 import com.example.manger.entity.StudentClass;
+import com.example.manger.entity.StudentExam;
+import com.example.manger.entity.TeacherCourse;
 import com.example.manger.entity.User;
 import com.example.manger.exception.BusinessException;
 import com.example.manger.exception.ErrorCode;
+import com.example.manger.repository.ClassCourseRepository;
 import com.example.manger.repository.ClassRepository;
+import com.example.manger.repository.CourseRepository;
+import com.example.manger.repository.ExamRepository;
 import com.example.manger.repository.MajorRepository;
+import com.example.manger.repository.PaperRepository;
+import com.example.manger.repository.QuestionCourseRepository;
+import com.example.manger.repository.QuestionRepository;
 import com.example.manger.repository.RoleRepository;
 import com.example.manger.repository.StudentClassRepository;
+import com.example.manger.repository.StudentExamRepository;
+import com.example.manger.repository.TeacherCourseRepository;
 import com.example.manger.repository.UserRepository;
 import com.example.manger.util.PasswordUtil;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +36,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,8 +55,16 @@ public class UserManagementService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final ClassRepository classRepository;
+    private final ClassCourseRepository classCourseRepository;
+    private final CourseRepository courseRepository;
+    private final ExamRepository examRepository;
+    private final PaperRepository paperRepository;
+    private final QuestionRepository questionRepository;
+    private final QuestionCourseRepository questionCourseRepository;
     private final MajorRepository majorRepository;
     private final StudentClassRepository studentClassRepository;
+    private final StudentExamRepository studentExamRepository;
+    private final TeacherCourseRepository teacherCourseRepository;
     private final PasswordUtil passwordUtil;
     
     /**
@@ -620,7 +643,20 @@ public class UserManagementService {
                 User user = new User();
                 user.setName(row.getName());
                 user.setUsername(row.getUsername());
-                user.setEmail(row.getEmail());
+                // 邮箱不能为空，如果Excel中为空，使用用户名+时间戳+默认域名确保唯一性
+                if (row.getEmail() == null || row.getEmail().isBlank()) {
+                    String username = row.getUsername();
+                    String defaultEmail = username + "_" + System.currentTimeMillis() + "@example.com";
+                    // 检查默认邮箱是否已存在，如果存在则继续添加随机数
+                    int attempt = 0;
+                    while (userRepository.existsByEmail(defaultEmail) && attempt < 100) {
+                        defaultEmail = username + "_" + System.currentTimeMillis() + "_" + attempt + "@example.com";
+                        attempt++;
+                    }
+                    user.setEmail(defaultEmail);
+                } else {
+                    user.setEmail(row.getEmail());
+                }
                 user.setPhone(row.getPhone());
                 user.setIsActive(true);
                 user.setCreateTime(LocalDateTime.now());
@@ -638,12 +674,16 @@ public class UserManagementService {
                     user.setClassId(row.getClassId());
                 }
 
-                // 获取默认角色
-                //Role defaultRole = roleRepository.findById(6L)
-                //        .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND, "默认角色不存在，ID=6"));
-                String roleName = row.getRoleName();
+                // 获取角色
+                String roleNameInput = row.getRoleName();
+                if (roleNameInput == null || roleNameInput.isBlank()) {
+                    throw new BusinessException(ErrorCode.ROLE_BLANK, "用户角色不能为空");
+                }
+                // 去除前后空格
+                final String roleName = roleNameInput.trim();
                 Role defaultRole = roleRepository.findByRoleName(roleName)
-                        .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND, "默认角色不存在，ID=6"));
+                        .orElseThrow(() -> new BusinessException(ErrorCode.ROLE_NOT_FOUND, 
+                                "角色不存在，角色名称: \"" + roleName + "\"。请使用：\"超级管理员\"、\"教师\"或\"普通用户\""));
 
 
                 // 分配角色
@@ -651,6 +691,33 @@ public class UserManagementService {
 
                 // 保存用户
                 userRepository.save(user);
+                
+                // 如果用户是学生且有班级ID，创建学生班级关联
+                if (row.getClassId() != null && "USER".equals(defaultRole.getRoleCode())) {
+                    // 验证班级是否存在（之前已验证，这里再次确认）
+                    Class classEntity = classRepository.findById(row.getClassId())
+                            .orElseThrow(() -> new BusinessException(ErrorCode.CLASS_NOT_FOUND, "班级不存在"));
+                    
+                    // 检查是否已存在关联（防止重复）
+                    if (!studentClassRepository.existsByClassIdAndStudentId(row.getClassId(), user.getId())) {
+                        // 创建学生班级关联记录
+                        StudentClass studentClass = new StudentClass();
+                        studentClass.setStudentId(user.getId());
+                        studentClass.setClassId(row.getClassId());
+                        studentClass.setIsActive(true);
+                        studentClass.setEnrolledAt(LocalDateTime.now());
+                        studentClass.setCreatedAt(LocalDateTime.now());
+                        studentClassRepository.save(studentClass);
+                        
+                        // 更新班级的学生人数
+                        classEntity.setCurrentStudents(
+                                classEntity.getCurrentStudents() != null ? 
+                                classEntity.getCurrentStudents() + 1 : 1
+                        );
+                        classRepository.save(classEntity);
+                    }
+                }
+                
                 success++;
 
             } catch (Exception e) {

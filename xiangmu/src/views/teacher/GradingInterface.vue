@@ -1406,6 +1406,7 @@ onMounted(() => {
   line-height: 1.6;
   margin-bottom: 20px;
   color: #303133;
+  white-space: pre-line; /* 保留换行符，合并多余空格 */
 }
 
 /* 新的选项和答案布局 */

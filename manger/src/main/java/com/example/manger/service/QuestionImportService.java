@@ -211,15 +211,22 @@ public class QuestionImportService {
         String explanation = getCellValueAsString(row, 12);
         question.setExplanation(explanation);
         
-        // 检查Excel列数以确定是否有编程语言列（向后兼容）
+        // 检查Excel列数以确定格式（向后兼容）
         int lastCellNum = row.getLastCellNum();
         boolean hasProgrammingLanguageColumn = lastCellNum > 14; // 新格式有15列（索引0-14）
+        boolean hasTestCaseColumn = lastCellNum > 15; // 最新格式有16列（索引0-15），包含测试用例列
         
         // 编程语言 (可选，仅程序题使用)
         String programmingLanguage = null;
         String images = null;
+        String testCasesStr = null;
         
-        if (hasProgrammingLanguageColumn) {
+        if (hasTestCaseColumn) {
+            // 最新格式：编程语言在第13列，图片路径在第14列，测试用例在第15列
+            programmingLanguage = getCellValueAsString(row, 13);
+            images = getCellValueAsString(row, 14);
+            testCasesStr = getCellValueAsString(row, 15);
+        } else if (hasProgrammingLanguageColumn) {
             // 新格式：编程语言在第13列，图片路径在第14列
             programmingLanguage = getCellValueAsString(row, 13);
             images = getCellValueAsString(row, 14);
@@ -235,9 +242,20 @@ public class QuestionImportService {
                 programmingLanguage = "JAVA"; // 默认值
             }
             question.setProgrammingLanguage(programmingLanguage.trim().toUpperCase());
+            
+            // 处理测试用例（仅程序题）
+            // 格式：输入|输出;输入|输出 或 JSON格式：[{"input":"...","output":"..."}]
+            if (testCasesStr != null && !testCasesStr.trim().isEmpty()) {
+                List<Map<String, Object>> testCases = parseTestCases(testCasesStr.trim());
+                question.setTestCases(testCases);
+            } else {
+                // 如果没有提供测试用例，设置为空列表
+                question.setTestCases(new ArrayList<>());
+            }
         } else {
-            // 非程序题：清空编程语言字段
+            // 非程序题：清空编程语言和测试用例字段
             question.setProgrammingLanguage(null);
+            question.setTestCases(null);
         }
         
         // 图片路径 (可选)
@@ -247,6 +265,93 @@ public class QuestionImportService {
         question.setIsActive(true);
         
         return question;
+    }
+    
+    /**
+     * 解析测试用例字符串
+     * 支持两种格式：
+     * 1. 简化格式：输入|输出;输入|输出 (用|分隔输入输出，用;分隔多个测试用例)
+     * 2. JSON格式：[{"input":"...","output":"..."}]
+     * 
+     * @param testCasesStr 测试用例字符串
+     * @return 测试用例列表
+     */
+    private List<Map<String, Object>> parseTestCases(String testCasesStr) throws Exception {
+        List<Map<String, Object>> testCases = new ArrayList<>();
+        
+        if (testCasesStr == null || testCasesStr.trim().isEmpty()) {
+            return testCases;
+        }
+        
+        String trimmed = testCasesStr.trim();
+        
+        // 尝试解析JSON格式
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            try {
+                // 简单的JSON解析（如果格式复杂，可以使用Jackson等库）
+                // 这里使用简单的字符串解析
+                String jsonContent = trimmed.substring(1, trimmed.length() - 1).trim();
+                if (jsonContent.isEmpty()) {
+                    return testCases;
+                }
+                
+                // 分割JSON对象
+                String[] objects = jsonContent.split("\\},\\s*\\{");
+                for (String obj : objects) {
+                    obj = obj.replaceAll("^\\{", "").replaceAll("\\}$", "").trim();
+                    Map<String, Object> testCase = new HashMap<>();
+                    
+                    // 解析input和output
+                    String[] pairs = obj.split(",\\s*");
+                    for (String pair : pairs) {
+                        String[] kv = pair.split(":\\s*", 2);
+                        if (kv.length == 2) {
+                            String key = kv[0].trim().replaceAll("\"", "");
+                            String value = kv[1].trim().replaceAll("\"", "").replaceAll("\\\\n", "\n");
+                            if ("input".equals(key)) {
+                                testCase.put("input", value);
+                            } else if ("output".equals(key)) {
+                                testCase.put("output", value);
+                            }
+                        }
+                    }
+                    
+                    if (testCase.containsKey("input") && testCase.containsKey("output")) {
+                        testCases.add(testCase);
+                    }
+                }
+                
+                if (!testCases.isEmpty()) {
+                    return testCases;
+                }
+            } catch (Exception e) {
+                // JSON解析失败，尝试简化格式
+            }
+        }
+        
+        // 解析简化格式：输入|输出;输入|输出
+        String[] testCaseStrings = trimmed.split(";");
+        for (String testCaseStr : testCaseStrings) {
+            testCaseStr = testCaseStr.trim();
+            if (testCaseStr.isEmpty()) {
+                continue;
+            }
+            
+            String[] parts = testCaseStr.split("\\|", 2);
+            if (parts.length != 2) {
+                throw new Exception("测试用例格式错误，应为：输入|输出，实际：" + testCaseStr);
+            }
+            
+            String input = parts[0].trim().replace("\\n", "\n");
+            String output = parts[1].trim().replace("\\n", "\n");
+            
+            Map<String, Object> testCase = new HashMap<>();
+            testCase.put("input", input);
+            testCase.put("output", output);
+            testCases.add(testCase);
+        }
+        
+        return testCases;
     }
     
     /**

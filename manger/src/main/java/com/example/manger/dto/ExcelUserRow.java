@@ -23,6 +23,7 @@ public class ExcelUserRow {
     @ExcelProperty("班级ID")
     private Long classId;
 
-    @ExcelProperty("用户角色（“超级管理员”、“教师”、“普通用户”）")
+    // 角色列固定在第7列（索引6）
+    @ExcelProperty(value = "用户角色（\"超级管理员\"、\"教师\"、\"普通用户\"）", index = 6)
     private String roleName;
 }

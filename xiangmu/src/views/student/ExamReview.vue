@@ -817,6 +817,7 @@ const getChoiceStudentAnswerText = (questionIndex) => {
   line-height: 1.6;
   color: #303133;
   margin-bottom: 20px;
+  white-space: pre-line; /* 保留换行符，合并多余空格 */
 }
 
 .question-options {
