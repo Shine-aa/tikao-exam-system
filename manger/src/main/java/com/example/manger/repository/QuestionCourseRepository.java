@@ -23,12 +23,22 @@ public interface QuestionCourseRepository extends JpaRepository<QuestionCourse, 
     List<QuestionCourse> findByCourseIdInAndIsActiveTrue(List<Long> courseIds);
     
     /**
-     * 根据题目ID查找关联的课程
+     * 根据题目ID查找关联的课程列表
+     * 修改bug:当一个题目关联到多个活跃课程时就会抛出"Query did not return a unique result"异常。
      */
     @Query("SELECT qc.courseId FROM QuestionCourse qc " +
            "WHERE qc.questionId = :questionId " +
            "AND qc.isActive = true")
-    Long findByQuestionIdAndIsActiveTrue(Long questionId);
+    List<Long> findCourseIdsByQuestionIdAndIsActiveTrue(Long questionId);
+    
+    /**
+     * 根据题目ID查找关联的第一个活跃课程
+     */
+    @Query("SELECT qc.courseId FROM QuestionCourse qc " +
+           "WHERE qc.questionId = :questionId " +
+           "AND qc.isActive = true " +
+           "ORDER BY qc.id ASC")
+    Long findFirstCourseIdByQuestionIdAndIsActiveTrue(Long questionId);
     
     /**
      * 根据课程ID查找所有关联的题目
@@ -78,4 +88,3 @@ public interface QuestionCourseRepository extends JpaRepository<QuestionCourse, 
     @Query("SELECT COUNT(qc) FROM QuestionCourse qc WHERE qc.courseId = :courseId AND qc.isActive = true")
     long countByCourseId(@Param("courseId") Long courseId);
 }
-
