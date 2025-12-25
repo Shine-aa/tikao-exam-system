@@ -96,9 +96,31 @@ public class QuestionService {
         }
         
         // 保存更新后的question
+        // 获取题目关联的所有活跃课程
+        List<Long> existingCourseIds = questionCourseRepository.findCourseIdsByQuestionIdAndIsActiveTrue(question.getId());
         question = questionRepository.save(question);
+        
+        // 如果课程发生变化，删除旧的关联
+        if(!existingCourseIds.isEmpty() && !existingCourseIds.contains(request.getCourseId())) {
+            for(Long existingCourseId : existingCourseIds) {
+                questionCourseRepository.deleteByQuestionIdAndCourseId(question.getId(), existingCourseId);
+            }
+        }
 
-        QuestionCourse questionCourse = new QuestionCourse();
+        // 检查新的课程关联是否存在
+        QuestionCourse questionCourse = questionCourseRepository.findByQuestionIdAndCourseId(question.getId(), request.getCourseId());
+        if(questionCourse == null) {
+            // 创建新的关联
+            questionCourse = new QuestionCourse();
+            questionCourse.setQuestionId(question.getId());
+            questionCourse.setCourseId(request.getCourseId());
+            questionCourse.setIsActive(true);
+            questionCourseRepository.save(questionCourse);
+        } else if(!questionCourse.getIsActive()) {
+            // 如果关联存在但已失效，重新激活
+            questionCourse.setIsActive(true);
+            questionCourseRepository.save(questionCourse);
+        }
         questionCourse.setQuestionId(questionId);
         questionCourse.setCourseId(request.getCourseId());
         questionCourseRepository.save(questionCourse);
@@ -190,10 +212,15 @@ public class QuestionService {
         
         question = questionRepository.save(question);
 
-        // 保存更新后的question
-        Long courseId = questionCourseRepository.findByQuestionIdAndIsActiveTrue(question.getId());
-        question = questionRepository.save(question);
-        if(!(courseId==request.getCourseId())) questionCourseRepository.deleteByQuestionIdAndCourseId(question.getId(), courseId);
+        // 保存更新后的question 
+    // 获取题目关联的所有活跃课程
+    List<Long> existingCourseIds = questionCourseRepository.findCourseIdsByQuestionIdAndIsActiveTrue(question.getId());
+    question = questionRepository.save(question);
+    if(!existingCourseIds.isEmpty() && !existingCourseIds.contains(request.getCourseId())) {
+        for(Long existingCourseId : existingCourseIds) {
+            questionCourseRepository.deleteByQuestionIdAndCourseId(question.getId(), existingCourseId);
+        }
+    }
 
 
         QuestionCourse questionCourse = questionCourseRepository.findByQuestionIdAndCourseId(question.getId(), request.getCourseId());
@@ -229,8 +256,11 @@ public class QuestionService {
     public QuestionResponse getQuestionById(Long id) {
         Question question = questionRepository.findById(id)
             .orElseThrow(() -> new BusinessException(ErrorCode.QUESTION_NOT_FOUND, "题目不存在"));
-        Long courseId = questionCourseRepository.findByQuestionIdAndIsActiveTrue(id);
-        return convertToResponse(question,courseId);
+        // 获取题目关联的所有活跃课程
+        List<Long> courseIds = questionCourseRepository.findCourseIdsByQuestionIdAndIsActiveTrue(id);
+        // 选择第一个课程ID（如果有），否则返回null
+        Long courseId = courseIds.isEmpty() ? null : courseIds.get(0);
+        return convertToResponse(question, courseId);
     }
 
 
@@ -289,7 +319,7 @@ public class QuestionService {
 
         // 4. 转换为响应DTO
         List<QuestionResponse> responses = currentPageQuestions.stream()
-                .map(question -> convertToResponse(question, questionCourseRepository.findByQuestionIdAndIsActiveTrue(question.getId())))
+                .map(question -> convertToResponse(question, courseId == -1 ? questionCourseRepository.findFirstCourseIdByQuestionIdAndIsActiveTrue(question.getId()) : courseId))
                 .collect(Collectors.toList());
 
         // 5. 构建分页响应（基于真实总数和总页数）
@@ -373,7 +403,7 @@ public class QuestionService {
 
         // 5. 转换为响应DTO（复用原有逻辑）
         List<QuestionResponse> responses = questionPage.getContent().stream()
-                .map(question -> convertToResponse(question, questionCourseRepository.findByQuestionIdAndIsActiveTrue(question.getId())))
+                .map(question -> convertToResponse(question, courseId == -1 ? questionCourseRepository.findFirstCourseIdByQuestionIdAndIsActiveTrue(question.getId()) : courseId))
                 .collect(Collectors.toList());
 
         // 6. 构建分页响应

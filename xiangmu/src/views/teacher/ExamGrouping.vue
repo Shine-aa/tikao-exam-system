@@ -194,6 +194,13 @@
               <h4>按题型顺序配置题目数量（试卷将按此顺序组织）</h4>
               <div class="type-order-info">
                 <el-tag type="info" size="small">单选题 → 多选题 → 判断题 → 填空题 → 主观题 → 程序题</el-tag>
+                <el-tag 
+                  :type="isQuestionCountMatch ? 'success' : 'warning'" 
+                  size="small"
+                  style="margin-left: 10px;"
+                >
+                  题型分布总和：{{ calculateTypeDistributionTotal }} / 总题目数：{{ createForm.totalQuestions }}
+                </el-tag>
               </div>
             </div>
             <div
@@ -487,7 +494,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, ArrowDown, Delete, List } from '@element-plus/icons-vue'
@@ -630,6 +637,16 @@ const difficulties = {
   'HARD': { label: '困难' }
 }
 
+// 计算题型分布的总和
+const calculateTypeDistributionTotal = computed(() => {
+  return Object.values(createForm.questionTypeDistribution).reduce((sum, count) => sum + count, 0)
+})
+
+// 判断题型分布总和是否与总题目数一致
+const isQuestionCountMatch = computed(() => {
+  return createForm.totalQuestions === calculateTypeDistributionTotal.value
+})
+
 // 方法
 const loadPaperList = async () => {
   try {
@@ -686,6 +703,12 @@ const handleCreatePaper = () => {
 
 
 const handleConfirmCreate = async () => {
+  // 验证总题目数和题型分布是否一致
+  if (!isQuestionCountMatch.value) {
+    ElMessage.warning(`总题目数(${createForm.totalQuestions})与题型分布总和(${calculateTypeDistributionTotal.value})不一致，请调整题型分布或总题目数`)
+    return
+  }
+  
   try {
     submitting.value = true
     const response = await paperApi.generatePaper(createForm)
