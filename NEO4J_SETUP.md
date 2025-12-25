@@ -18,13 +18,13 @@ https://neo4j.com/download/
 1. 打开 Neo4j Browser：`http://localhost:7474`
 2. 登录（用户名：`neo4j`，密码：您设置的密码）
 3. 依次执行以下文件：
-   - 复制 `TaiKao/manger/neo4j.cypher` 的内容，粘贴到查询框并运行
+   - 复制 `TaiKao/neo4j.cypher` 的内容，粘贴到查询框并运行
 
 ### 方法 2：使用命令行
 
 ```bash
 # 导入数据
-cypher-shell -u neo4j -p your_password < TaiKao/manger/neo4j.cypher
+cypher-shell -u neo4j -p your_password < TaiKao/neo4j.cypher
 ```
 
 ## 配置 Spring AI 连接
