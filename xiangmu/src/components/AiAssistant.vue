@@ -5,6 +5,7 @@
       class="ai-assistant-float-btn" 
       v-if="!visible" 
       @click="visible = true"
+      @mousedown="handleFloatBtnDragStart"
       :style="floatButtonStyle"
     >
       <img src="/src/assets/vue.svg" alt="AI助手" class="ai-logo" />
@@ -17,7 +18,7 @@
         v-if="visible"
         :style="dialogStyle"
       >
-        <div class="ai-header">
+        <div class="ai-header" @mousedown="handleDialogDragStart">
           <img src="/src/assets/vue.svg" alt="logo" class="ai-logo" />
           <span class="ai-title">你好，我是钛考 AI 助理</span>
           <button class="ai-close" @click="visible = false">×</button>
@@ -54,18 +55,88 @@ const messages = ref([])
 const chatBody = ref(null)
 const scrollTop = ref(0)
 
+// 拖拽相关状态
+const isDragging = ref(false)
+const dragOffset = ref({ x: 0, y: 0 })
+const isDraggingFloatBtn = ref(false)
+
+// 悬浮按钮位置（相对于视口右下角的偏移量）
+const floatBtnPosition = ref({ right: 32, bottom: 32 })
+
 // 计算悬浮按钮和对话框的位置样式
 const floatButtonStyle = computed(() => ({
+  right: `${floatBtnPosition.value.right}px`,
+  bottom: `${floatBtnPosition.value.bottom}px`,
   transform: `translateY(${scrollTop.value}px)`
 }))
 
 const dialogStyle = computed(() => ({
+  right: `${floatBtnPosition.value.right}px`,
+  bottom: `${floatBtnPosition.value.bottom}px`,
   transform: `translateY(${scrollTop.value}px)`
 }))
 
 // 处理滚动事件
 const handleScroll = () => {
   scrollTop.value = window.scrollY || document.documentElement.scrollTop
+}
+
+// 悬浮按钮拖拽开始
+const handleFloatBtnDragStart = (e) => {
+  isDragging.value = true
+  isDraggingFloatBtn.value = true
+  // 计算鼠标相对于悬浮按钮右上角的偏移量
+  const btnRect = e.target.closest('.ai-assistant-float-btn').getBoundingClientRect()
+  dragOffset.value = {
+    x: btnRect.right - e.clientX,
+    y: btnRect.bottom - e.clientY
+  }
+  // 添加鼠标移动和释放事件监听
+  document.addEventListener('mousemove', handleDragMove)
+  document.addEventListener('mouseup', handleDragEnd)
+  e.preventDefault() // 防止拖动时选中文本
+}
+
+// 对话框拖拽开始
+const handleDialogDragStart = (e) => {
+  if (e.target.closest('.ai-header')) {
+    isDragging.value = true
+    isDraggingFloatBtn.value = false
+    // 计算鼠标相对于对话框右上角的偏移量
+    const dialogRect = e.target.closest('.ai-assistant-dialog').getBoundingClientRect()
+    dragOffset.value = {
+      x: dialogRect.right - e.clientX,
+      y: dialogRect.bottom - e.clientY
+    }
+    // 添加鼠标移动和释放事件监听
+    document.addEventListener('mousemove', handleDragMove)
+    document.addEventListener('mouseup', handleDragEnd)
+    e.preventDefault() // 防止拖动时选中文本
+  }
+}
+
+// 拖拽移动
+const handleDragMove = (e) => {
+  if (isDragging.value) {
+    // 更新悬浮按钮位置（相对于视口右下角的偏移量）
+    floatBtnPosition.value = {
+      right: e.clientX + dragOffset.value.x > window.innerWidth ? 32 : window.innerWidth - e.clientX - dragOffset.value.x,
+      bottom: e.clientY + dragOffset.value.y > window.innerHeight ? 32 : window.innerHeight - e.clientY - dragOffset.value.y
+    }
+    
+    // 限制位置在合理范围内
+    floatBtnPosition.value.right = Math.max(20, Math.min(floatBtnPosition.value.right, window.innerWidth - 100))
+    floatBtnPosition.value.bottom = Math.max(20, Math.min(floatBtnPosition.value.bottom, window.innerHeight - 100))
+  }
+}
+
+// 拖拽结束
+const handleDragEnd = () => {
+  isDragging.value = false
+  isDraggingFloatBtn.value = false
+  // 移除鼠标事件监听
+  document.removeEventListener('mousemove', handleDragMove)
+  document.removeEventListener('mouseup', handleDragEnd)
 }
 
 // 发送消息
@@ -98,9 +169,11 @@ onMounted(() => {
   handleScroll()
 })
 
-// 组件卸载时移除滚动监听
+// 组件卸载时移除事件监听
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll)
+  document.removeEventListener('mousemove', handleDragMove)
+  document.removeEventListener('mouseup', handleDragEnd)
 })
 </script>
 
@@ -115,10 +188,13 @@ onUnmounted(() => {
   padding: 8px 16px;
   display: flex;
   align-items: center;
-  cursor: pointer;
+  cursor: move;
   z-index: 9999;
   transition: box-shadow 0.2s;
   will-change: transform;
+}
+.ai-assistant-float-btn:active {
+  cursor: grabbing;
 }
 .ai-assistant-float-btn:hover {
   box-shadow: 0 4px 16px rgba(0,0,0,0.18);

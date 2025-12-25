@@ -46,18 +46,6 @@
 
           <el-row :gutter="20">
             <el-col :span="12">
-              <el-form-item label="班级" prop="classId">
-                <el-select v-model="createFormManual.classId" placeholder="请选择班级" clearable>
-                  <el-option
-                    v-for="classItem in classList"
-                    :key="classItem.id"
-                    :label="classItem.className"
-                    :value="classItem.id"
-                  />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
               <el-form-item label="考试时长" prop="durationMinutes">
                 <el-input-number
                   v-model="createFormManual.durationMinutes"
@@ -67,9 +55,6 @@
                 />
               </el-form-item>
             </el-col>
-          </el-row>
-
-          <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="总分" prop="totalPoints">
                 <el-input-number
@@ -98,8 +83,14 @@
             <!-- 左侧筛选栏 -->
             <div class="filter-panel">
               <div class="filter-section">
-                <h4>题型</h4>
-                <el-checkbox-group v-model="filterForm.batchTypes">
+                <div class="filter-header">
+                  <el-checkbox 
+                    v-model="checkAllTypes" 
+                    @change="handleTypeCheckAll"
+                  />
+                  <h4>题型</h4>
+                </div>
+                <el-checkbox-group v-model="filterForm.batchTypes" @change="handleTypeChange">
                   <el-checkbox 
                     v-for="(label, key) in questionTypes" 
                     :key="key" 
@@ -111,8 +102,14 @@
               </div>
               
               <div class="filter-section">
-                <h4>难度</h4>
-                <el-checkbox-group v-model="filterForm.batchDifficulties">
+                <div class="filter-header">
+                  <el-checkbox 
+                    v-model="checkAllDifficulties" 
+                    @change="handleDifficultyCheckAll"
+                  />
+                  <h4>难度</h4>
+                </div>
+                <el-checkbox-group v-model="filterForm.batchDifficulties" @change="handleDifficultyChange">
                   <el-checkbox 
                     v-for="(label, key) in difficulties" 
                     :key="key" 
@@ -282,7 +279,6 @@ import { getQuestionsForManual } from '@/api/admin'
 const router = useRouter()
 
 // 响应式数据
-const classList = ref([])
 const courseList = ref([])
 
 // 手动组卷加载状态
@@ -304,6 +300,10 @@ const filterForm = reactive({
   batchDifficulties: ['EASY', 'MEDIUM', 'HARD'],
   keyword: ''
 })
+
+// 全选状态
+const checkAllTypes = ref(true)
+const checkAllDifficulties = ref(true)
 
 // 可选题目列表相关
 const optionalQuestions = ref([])
@@ -368,16 +368,7 @@ const difficulties = {
 }
 
 // 方法
-const loadClassList = async () => {
-  try {
-    const response = await classApi.getClassesWithPagination(1, 1000, '', null, null, '')
-    if (response.code === 200) {
-      classList.value = response.data.content || []
-    }
-  } catch (error) {
-    console.error('Load class list error:', error)
-  }
-}
+// 不再需要加载班级列表，班级选择已移除
 
 const loadCourseList = async () => {
   try {
@@ -460,7 +451,11 @@ const loadOptionalQuestions = async () => {
     const response = await getQuestionsForManual(params)
     
     if (response.code === 200) {
-      optionalQuestions.value = response.data.content || []
+      // 将后端返回的type字段转换为前端需要的questionType字段
+      optionalQuestions.value = (response.data.content || []).map(question => ({
+        ...question,
+        questionType: question.type  // 映射字段名
+      }))
       optionalPagination.total = response.data.total || 0
     } else {
       ElMessage.error(response.message || '获取题目列表失败')
@@ -489,8 +484,31 @@ const handleResetFilter = () => {
   filterForm.batchTypes = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'TRUE_FALSE', 'FILL_BLANK', 'SUBJECTIVE', 'PROGRAMMING']
   filterForm.batchDifficulties = ['EASY', 'MEDIUM', 'HARD']
   filterForm.keyword = ''
+  // 重置全选状态
+  checkAllTypes.value = true
+  checkAllDifficulties.value = true
   optionalPagination.page = 1
   loadOptionalQuestions()
+}
+
+// 题型全选处理
+const handleTypeCheckAll = (val) => {
+  filterForm.batchTypes = val ? Object.keys(questionTypes) : []
+}
+
+// 题型变化时检查是否全选
+const handleTypeChange = (values) => {
+  checkAllTypes.value = values.length === Object.keys(questionTypes).length
+}
+
+// 难度全选处理
+const handleDifficultyCheckAll = (val) => {
+  filterForm.batchDifficulties = val ? Object.keys(difficulties) : []
+}
+
+// 难度变化时检查是否全选
+const handleDifficultyChange = (values) => {
+  checkAllDifficulties.value = values.length === Object.keys(difficulties).length
 }
 
 const handleOptionalSizeChange = (size) => {
@@ -514,7 +532,7 @@ const addToSelected = (question) => {
   const newQuestion = {
     id: question.id,
     title: question.title,
-    questionType: question.questionType,
+    questionType: question.questionType || question.type, // 兼容后端返回的type字段
     difficulty: question.difficulty,
     points: 5, // 默认分值
     order: selectedQuestions.value.length + 1 // 默认顺序
@@ -657,7 +675,6 @@ const tableRowClassName = ({ row }) => {
 
 // 生命周期
 onMounted(() => {
-  loadClassList()
   loadCourseList()
   resetManualCreateForm()
 })
@@ -729,8 +746,15 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.filter-section h4 {
-  margin: 0 0 10px 0;
+.filter-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.filter-header h4 {
+  margin: 0;
   color: #303133;
   font-size: 14px;
   font-weight: 600;

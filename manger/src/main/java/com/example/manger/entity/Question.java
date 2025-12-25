@@ -50,7 +50,7 @@ public class Question {
     private List<Map<String, Object>> options;
     
     // 正确答案
-    @Column(name = "correct_answer", length = 1000)
+    @Column(name = "correct_answer", columnDefinition = "TEXT")
     private String correctAnswer;
     
     // 编程语言（仅程序题使用）：JAVA, PYTHON, CPP, C
