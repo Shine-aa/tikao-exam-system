@@ -1,15 +1,17 @@
-使用说明：
 前端文件夹-xiangmu
 后端文件夹-manger
 
 导入数据库：
 下载安装mysql
 下载安装navicat
-导入TaiKao/data.sql文件
-导入完毕后再次导入TaiKao/exams表结构修改.sql
+导入TaiKao/user_auth_db.sql文件
 
 智能体组卷数据库：
-详细请看TaiKao/NEO4J_SETUP.md
+neo4j部署请看TaiKao/NEO4J_SETUP.md
+之后安装sqlite
+导入TaiKao/Spring AI/target/classes/chat-memory.db
+进入Spring AI目录
+控制台输入mvn spring-boot:run并运行
 
 启动后端：
 打开控制台
