@@ -11,10 +11,6 @@
           <p class="page-subtitle">管理已创建的考试，监控考试状态和进度</p>
         </div>
         <div class="header-actions">
-          <el-button type="success" @click="handleSmartExam">
-            <el-icon><MagicStick /></el-icon>
-            智能组卷
-          </el-button>
           <el-button type="primary" @click="loadExamList">
             <el-icon><Refresh /></el-icon>
             刷新数据
@@ -415,159 +411,6 @@
       </div>
     </el-dialog>
 
-    <!-- 智能组卷对话框 -->
-    <el-dialog
-      v-model="smartExamDialogVisible"
-      title="AI 智能组卷"
-      width="500px"
-    >
-      <el-form :model="smartExamForm" label-width="100px">
-        <el-form-item label="试卷名称" required>
-          <el-input v-model="smartExamForm.paperName" placeholder="请输入试卷名称" />
-        </el-form-item>
-        <el-form-item label="课程" required>
-          <el-select v-model="smartExamForm.courseId" placeholder="请选择课程" style="width: 100%">
-            <el-option label="Java程序设计" :value="1" />
-            <el-option label="数据结构与算法" :value="2" />
-            <el-option label="数据库原理" :value="3" />
-            <el-option label="计算机网络" :value="4" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="学生ID">
-          <el-input-number v-model="smartExamForm.studentId" :min="1" />
-          <div class="form-tip">基于该学生的薄弱点智能推荐题目</div>
-        </el-form-item>
-        <el-form-item label="题目数量">
-          <el-input-number v-model="smartExamForm.count" :min="5" :max="50" />
-        </el-form-item>
-        <el-form-item label="考试时长">
-          <el-input-number v-model="smartExamForm.durationMinutes" :min="30" :max="300" />
-          <span style="margin-left: 10px">分钟</span>
-        </el-form-item>
-        <el-form-item label="总分">
-          <el-input-number v-model="smartExamForm.totalPoints" :min="10" :max="1000" />
-          <span style="margin-left: 10px">分</span>
-        </el-form-item>
-        <el-form-item label="AI 增强">
-          <el-switch v-model="smartExamForm.useAI" />
-          <span class="form-tip" style="margin-left: 10px">使用 AI 深度分析学生薄弱点并优化推荐（响应时间约 3-5 秒）</span>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="smartExamDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="smartExamLoading" @click="executeSmartExam">
-          <el-icon><MagicStick /></el-icon> 开始生成
-        </el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 组卷结果对话框 -->
-    <el-dialog
-      v-model="resultDialogVisible"
-      title="智能组卷结果"
-      width="800px"
-    >
-      <el-table :data="generatedQuestions" border stripe>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="content" label="题目内容" show-overflow-tooltip />
-        <el-table-column prop="difficulty" label="难度" width="100">
-          <template #default="{ row }">
-            <el-tag :type="row.difficulty === 'HARD' ? 'danger' : (row.difficulty === 'MEDIUM' ? 'warning' : 'success')">
-              {{ row.difficulty }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="reason" label="推荐理由 (知识点)" width="180" />
-      </el-table>
-      <template #footer>
-        <el-button type="primary" @click="resultDialogVisible = false">确定</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- AI 分析报告对话框 -->
-    <el-dialog
-      v-model="aiReportDialogVisible"
-      title="AI 智能分析报告"
-      width="900px"
-    >
-      <div v-if="aiReportData" class="ai-report">
-        <!-- 1. 学生薄弱点分析 -->
-        <el-card class="box-card mb-4">
-          <template #header>
-            <div class="card-header">
-              <el-icon><TrendCharts /></el-icon>
-              <span>学生薄弱点分析</span>
-            </div>
-          </template>
-          
-          <div class="analysis-section">
-            <div class="section-item">
-              <div class="label">薄弱知识点：</div>
-              <div class="tags">
-                <el-tag 
-                  v-for="point in aiReportData.studentAnalysis.weakPoints" 
-                  :key="point" 
-                  type="danger" 
-                  effect="light"
-                >
-                  {{ point }}
-                </el-tag>
-              </div>
-            </div>
-            
-            <el-alert
-              :title="aiReportData.studentAnalysis.summary"
-              type="warning"
-              :closable="false"
-              show-icon
-              class="mt-2"
-            />
-            
-            <div class="section-item mt-2">
-              <div class="label">AI 建议：</div>
-              <ul class="recommendations-list">
-                <li v-for="(rec, index) in aiReportData.studentAnalysis.recommendations" :key="index">
-                  {{ rec }}
-                </li>
-              </ul>
-            </div>
-          </div>
-        </el-card>
-
-        <!-- 2. AI 推荐题目 -->
-        <el-card class="box-card">
-          <template #header>
-            <div class="card-header">
-              <el-icon><MagicStick /></el-icon>
-              <span>AI 推荐题目 (Top 10)</span>
-            </div>
-          </template>
-          
-          <el-table :data="aiReportData.rankedQuestions.slice(0, 10)" stripe border>
-            <el-table-column prop="rank" label="优先级" width="80" align="center" />
-            <el-table-column prop="content" label="题目内容" show-overflow-tooltip />
-            <el-table-column prop="difficulty" label="难度" width="100" align="center">
-              <template #default="{ row }">
-                <el-tag :type="getDifficultyType(row.difficulty)">
-                  {{ row.difficulty }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="priority" label="重要性" width="100" align="center">
-              <template #default="{ row }">
-                <el-tag :type="getPriorityType(row.priority)">
-                  {{ row.priority }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="reason" label="AI 推荐理由" width="250" show-overflow-tooltip />
-          </el-table>
-        </el-card>
-      </div>
-      <template #footer>
-        <el-button type="primary" @click="aiReportDialogVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -576,7 +419,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Refresh, ArrowDown, Delete, VideoPlay, VideoPause, User, 
-  Document, Search, RefreshLeft, View, Edit, Check, Clock, MoreFilled, MagicStick, TrendCharts 
+  Document, Search, RefreshLeft, View, Edit, Check, Clock, MoreFilled 
 } from '@element-plus/icons-vue'
 import { examApi } from '@/api/admin'
 
@@ -590,25 +433,6 @@ const editLoading = ref(false)
 const currentExam = ref(null)
 const studentList = ref([])
 const editFormRef = ref(null)
-
-// 智能组卷相关
-const smartExamDialogVisible = ref(false)
-const resultDialogVisible = ref(false)
-const smartExamLoading = ref(false)
-const generatedQuestions = ref([])
-// AI 报告相关
-const aiReportDialogVisible = ref(false)
-const aiReportData = ref(null)
-
-const smartExamForm = ref({
-  paperName: 'AI智能组卷',
-  courseId: 1,
-  studentId: 2,
-  count: 20,
-  durationMinutes: 120,
-  totalPoints: 100,
-  useAI: true
-})
 
 // 搜索表单
 const searchForm = reactive({
@@ -1018,85 +842,6 @@ const getPriorityType = (priority) => {
   }
   return typeMap[priority] || 'info'
 }
-
-// 智能组卷方法
-const handleSmartExam = () => {
-  smartExamDialogVisible.value = true
-}
-
-const executeSmartExam = async () => {
-  // 验证必填字段
-  if (!smartExamForm.value.paperName || !smartExamForm.value.courseId) {
-    ElMessage.error('请填写试卷名称和选择课程')
-    return
-  }
-  
-  smartExamLoading.value = true
-  try {
-    // 获取 token
-    const token = localStorage.getItem('token')
-    
-    // 构造请求参数
-    const params = new URLSearchParams({
-      studentId: smartExamForm.value.studentId,
-      count: smartExamForm.value.count,
-      paperName: smartExamForm.value.paperName,
-      courseId: smartExamForm.value.courseId,
-      durationMinutes: smartExamForm.value.durationMinutes,
-      totalPoints: smartExamForm.value.totalPoints
-    })
-    
-    // 根据 AI 开关选择端点
-    const endpoint = smartExamForm.value.useAI 
-      ? '/generate-ai-enhanced' 
-      : '/generate'
-
-    // 调用 Spring AI 服务
-    const response = await fetch(
-      `http://localhost:18080/api/smart-exam${endpoint}?${params}`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      }
-    )
-    
-    if (response.ok) {
-      const data = await response.json()
-      
-      // 检查是否有错误
-      if (data.error) {
-        ElMessage.error('生成失败：' + data.error)
-        return
-      }
-      
-      // 成功：关闭组卷对话框
-      smartExamDialogVisible.value = false
-      ElMessage.success('智能组卷成功！试卷已保存到数据库')
-      
-      // 如果使用 AI，显示分析报告
-      if (smartExamForm.value.useAI && data.aiEnhanced) {
-        aiReportData.value = data
-        aiReportDialogVisible.value = true
-      } else {
-        // 普通组卷，显示简单的结果或不做额外操作
-        // 这里可以保留原来的 resultDialogVisible 逻辑，或者直接刷新列表
-      }
-      
-      // 刷新考试列表
-      await loadExamList()
-    } else {
-      ElMessage.error('生成失败：服务响应错误')
-    }
-  } catch (error) {
-    console.error('Smart exam error:', error)
-    ElMessage.error('调用智能组卷服务失败，请确保 Spring AI 服务已启动 (端口 18080)')
-  } finally {
-    smartExamLoading.value = false
-  }
-}
-
 
 const getStudentStatusLabel = (status) => {
   const statusMap = {

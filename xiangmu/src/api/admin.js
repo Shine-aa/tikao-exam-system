@@ -100,6 +100,18 @@ export function assignUserRoles(id, data) {
   })
 }
 
+// 管理员更新用户人脸照片
+export function adminUpdateUserFace(userId, formData) {
+  return request({
+    url: `/api/admin/users/${userId}/face-photo`,
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}
+
 // ==================== 角色管理 API ====================
 
 // 获取角色列表
@@ -1164,6 +1176,15 @@ export function getStudentExamPaper(examId) {
   })
 }
 
+// 考前人脸验证
+export function verifyFace(data) {
+  return request({
+    url: '/api/student/exams/verify-face',
+    method: 'post',
+    data
+  })
+}
+
 export const studentExamApi = {
   getStudentExams,
   getStudentExamDetail,
@@ -1172,7 +1193,8 @@ export const studentExamApi = {
   saveStudentExamDraft,
   getStudentExamStats,
   getStudentExamPaper,
-  getStudentExamResult
+  getStudentExamResult,
+  verifyFace
 }
 
 // ==================== 题库API对象 ====================

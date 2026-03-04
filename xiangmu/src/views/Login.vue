@@ -67,22 +67,6 @@
               show-password
             />
           </el-form-item>
-          
-          <el-form-item prop="captcha">
-            <div class="captcha-container">
-              <el-input
-                v-model="loginForm.captcha"
-                placeholder="请输入验证码"
-                prefix-icon="Key"
-                size="large"
-                class="captcha-input"
-              />
-              <div class="captcha-image" @click="refreshCaptcha">
-                <img v-if="captchaUrl" :src="captchaUrl" alt="验证码" />
-                <span v-else>点击获取验证码</span>
-              </div>
-            </div>
-          </el-form-item>
         </template>
         
         <!-- 短信登录 -->
@@ -147,19 +131,17 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { login, getCaptcha } from '../api/user'
+import { login } from '../api/user'
 
 const router = useRouter()
 const loginFormRef = ref()
 const loading = ref(false)
-const captchaUrl = ref('')
 const loginType = ref('password') // password 或 sms
 const smsCountdown = ref(0)
 
 const loginForm = reactive({
   username: '',
   password: '',
-  captcha: '',
   phone: '',
   smsCode: '',
   rememberMe: false
@@ -179,10 +161,6 @@ const loginRules = computed(() => {
     password: [
       { required: true, message: '请输入密码', trigger: 'blur' }
     ],
-    captcha: [
-      { required: true, message: '请输入验证码', trigger: 'blur' },
-      { min: 4, max: 6, message: '验证码长度在 4 到 6 个字符', trigger: 'blur' }
-    ],
     phone: [
       { required: true, message: '请输入手机号', trigger: 'blur' },
       { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
@@ -197,8 +175,7 @@ const loginRules = computed(() => {
   if (loginType.value === 'password') {
     return {
       username: rules.username,
-      password: rules.password,
-      captcha: rules.captcha
+      password: rules.password
     }
   } else {
     return {
@@ -258,18 +235,6 @@ const startCountdown = () => {
   }, 1000)
 }
 
-// 获取验证码
-const refreshCaptcha = async () => {
-  try {
-    const response = await getCaptcha()
-    captchaUrl.value = `data:image/png;base64,${response.data.image}`
-    // 存储验证码ID用于后端验证
-    localStorage.setItem('captchaId', response.data.captchaId)
-  } catch (error) {
-    ElMessage.error('获取验证码失败')
-  }
-}
-
 // 登录处理
 const handleLogin = async () => {
   if (!loginFormRef.value) return
@@ -282,14 +247,11 @@ const handleLogin = async () => {
     
     if (loginType.value === 'password') {
       // 密码登录
-      const { username, password, captcha, rememberMe } = loginForm
-      const captchaId = localStorage.getItem('captchaId')
+      const { username, password, rememberMe } = loginForm
       
       response = await login({ 
         username, 
         password, 
-        captcha, 
-        captchaId,
         rememberMe 
       })
     } else {
@@ -318,8 +280,6 @@ const handleLogin = async () => {
       response = await login({ 
         username: phone, // 使用手机号作为用户名
         password: '', // 短信登录不需要密码
-        captcha: '', // 短信登录不需要图形验证码
-        captchaId: '',
         rememberMe,
         loginType: 'sms' // 标识为短信登录
       })
@@ -336,10 +296,6 @@ const handleLogin = async () => {
   } catch (error) {
     console.error('登录失败:', error)
     ElMessage.error(error.message || '登录失败')
-    // 密码登录失败时刷新验证码
-    if (loginType.value === 'password') {
-      refreshCaptcha()
-    }
   } finally {
     loading.value = false
   }
@@ -369,7 +325,6 @@ const openSwagger = () => {
 
 // 页面加载时获取验证码和检查登录状态
 onMounted(() => {
-  refreshCaptcha()
   checkSavedLoginInfo()
 })
 </script>
@@ -446,51 +401,6 @@ onMounted(() => {
 
 .login-form {
   margin-top: 20px;
-}
-
-.captcha-container {
-  display: flex;
-  gap: 12px;
-}
-
-.captcha-input {
-  flex: 1;
-}
-
-.captcha-image {
-  width: 130px;
-  height: 45px;
-  border: 2px solid #dcdfe6;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  background: #ffffff;
-  transition: all 0.3s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.captcha-image:hover {
-  border-color: #409eff;
-  background: #f8f9ff;
-  box-shadow: 0 4px 8px rgba(64, 158, 255, 0.2);
-  transform: translateY(-1px);
-}
-
-.captcha-image img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  border-radius: 4px;
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
-  image-rendering: pixelated;
-}
-
-.captcha-image span {
-  color: #909399;
-  font-size: 12px;
 }
 
 .login-btn {

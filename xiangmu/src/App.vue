@@ -1,12 +1,10 @@
 <script setup>
-import AiAssistant from './components/AiAssistant.vue'
 // 组件逻辑
 </script>
 
 <template>
   <div id="app">
     <router-view />
-    <AiAssistant />
   </div>
 </template>
 

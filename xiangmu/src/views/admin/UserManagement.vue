@@ -59,6 +59,13 @@
       <el-table :data="users" style="width: 100%" v-loading="loading" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column label="人脸照片" width="100">
+          <template #default="scope">
+            <el-avatar :size="40" :src="scope.row.facePhoto">
+              <el-icon><UserIcon /></el-icon>
+            </el-avatar>
+          </template>
+        </el-table-column>
         <el-table-column prop="name" label="用户姓名" />
         <el-table-column prop="username" label="用户名" />
         <el-table-column prop="email" label="邮箱" width="180" />
@@ -77,10 +84,11 @@
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="350" fixed="right">
           <template #default="scope">
             <el-button size="small" @click="editUser(scope.row)">编辑</el-button>
-            <el-button size="small" type="primary" @click="showChangePassword(scope.row)">修改密码</el-button>
+            <el-button size="small" type="primary" @click="showFaceDialog(scope.row)">人脸管理</el-button>
+            <el-button size="small" type="info" @click="showChangePassword(scope.row)">密码</el-button>
             <el-button size="small" :type="scope.row.isActive ? 'warning' : 'success'"
                        @click="toggleUserStatus(scope.row)">
               {{ scope.row.isActive ? '禁用' : '启用' }}
@@ -177,13 +185,56 @@
         <el-button type="primary" @click="submitChangePassword">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 管理员管理用户人脸照片对话框 -->
+    <el-dialog v-model="showFaceManageDialog" title="人脸照片管理" width="450px" center>
+      <div class="admin-face-manage">
+        <div class="current-face">
+          <p>当前人脸照片：</p>
+          <div class="face-preview-box">
+            <el-image v-if="selectedUserForFace?.facePhoto" :src="selectedUserForFace.facePhoto" fit="cover" class="preview-img">
+              <template #error>
+                <div class="image-error">
+                  <el-icon><Picture /></el-icon>
+                  <span>暂无照片</span>
+                </div>
+              </template>
+            </el-image>
+            <div v-else class="image-error">
+              <el-icon><Picture /></el-icon>
+              <span>暂无照片</span>
+            </div>
+          </div>
+        </div>
+
+        <el-divider>更新照片</el-divider>
+
+        <div class="upload-section">
+          <el-upload
+            class="admin-face-uploader"
+            action="#"
+            :show-file-list="false"
+            :http-request="handleAdminFaceUpload"
+            :loading="faceUploading"
+          >
+            <el-button type="primary">
+              <el-icon><Camera /></el-icon>选择并上传新照片
+            </el-button>
+          </el-upload>
+          <p class="upload-tip">支持 JPG/PNG，大小不超过 2MB</p>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="showFaceManageDialog = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Refresh, Delete, Upload } from '@element-plus/icons-vue'
+import { Plus, Search, Refresh, Delete, Upload, User as UserIcon, Camera, Picture } from '@element-plus/icons-vue'
 import {
   getUserListWithPagination,
   createUser,
@@ -192,7 +243,8 @@ import {
   batchDeleteUsers as batchDeleteUsersAPI,
   toggleUserStatus as toggleUserStatusAPI,
   importUsers,
-  changeUserPassword
+  changeUserPassword,
+  adminUpdateUserFace
 } from '@/api/admin'
 import { getRoleList } from '@/api/admin'
 
@@ -214,6 +266,12 @@ const importErrors = ref([])
 // 修改密码相关
 const showChangePasswordDialog = ref(false)
 const selectedUserForPasswordChange = ref(null)
+
+// 人脸管理相关
+const showFaceManageDialog = ref(false)
+const selectedUserForFace = ref(null)
+const faceUploading = ref(false)
+
 const passwordFormRef = ref()
 const passwordForm = reactive({
   newPassword: '',
@@ -456,6 +514,53 @@ const showChangePassword = (user) => {
   showChangePasswordDialog.value = true
 }
 
+// 显示人脸管理对话框
+const showFaceDialog = (user) => {
+  selectedUserForFace.value = user
+  showFaceManageDialog.value = true
+}
+
+// 管理员上传人脸照片处理
+const handleAdminFaceUpload = async (options) => {
+  const { file } = options
+  
+  // 校验文件类型
+  const isJPG = file.type === 'image/jpeg' || file.type === 'image/png'
+  if (!isJPG) {
+    ElMessage.error('上传照片只能是 JPG 或 PNG 格式!')
+    return false
+  }
+  
+  // 校验文件大小 (限制 2MB)
+  const isLt2M = file.size / 1024 / 1024 < 2
+  if (!isLt2M) {
+    ElMessage.error('上传照片大小不能超过 2MB!')
+    return false
+  }
+
+  try {
+    faceUploading.value = true
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await adminUpdateUserFace(selectedUserForFace.value.id, formData)
+    if (response.code === 200) {
+      selectedUserForFace.value.facePhoto = response.data
+      ElMessage.success('用户人脸照片更新成功')
+      
+      // 刷新表格中的数据
+      loadUsers()
+    } else {
+      ElMessage.error(response.message || '上传失败')
+    }
+  } catch (error) {
+    console.error('上传人脸照片出错:', error)
+    ElMessage.error('上传人脸照片出错')
+  } finally {
+    faceUploading.value = false
+  }
+}
+
 const submitChangePassword = async () => {
   try {
     if (!selectedUserForPasswordChange.value) return
@@ -633,5 +738,53 @@ onMounted(() => {
   margin-bottom: 20px;
   display: flex;
   align-items: center;
+}
+
+/* 人脸管理对话框样式 */
+.admin-face-manage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.face-preview-box {
+  width: 180px;
+  height: 180px;
+  border-radius: 8px;
+  border: 1px solid #ebeef5;
+  background: #f5f7fa;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.preview-img {
+  width: 100%;
+  height: 100%;
+}
+
+.image-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #909399;
+  gap: 8px;
+}
+
+.image-error .el-icon {
+  font-size: 32px;
+}
+
+.upload-section {
+  text-align: center;
+}
+
+.upload-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 8px;
 }
 </style>

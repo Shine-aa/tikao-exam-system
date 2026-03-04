@@ -27,6 +27,34 @@
         label-width="100px"
         class="profile-form"
       >
+        <!-- 人脸照片录入区域 -->
+        <el-row :gutter="20">
+          <el-col :span="24">
+            <el-form-item label="人脸录入">
+              <div class="face-upload-container">
+                <el-upload
+                  class="face-uploader"
+                  action="#"
+                  :show-file-list="false"
+                  :http-request="handleFaceUpload"
+                >
+                  <img v-if="profileForm.facePhoto" :src="profileForm.facePhoto" class="face-image" />
+                  <el-icon v-else class="face-uploader-icon"><Camera /></el-icon>
+                  <div class="face-uploader-mask" v-if="profileForm.facePhoto">
+                    <el-icon><Edit /></el-icon>
+                    <span>更新照片</span>
+                  </div>
+                </el-upload>
+                <div class="face-tips">
+                  <p>1. 请上传考生的正脸近照，确保光线充足，五官清晰。</p>
+                  <p>2. 该照片将作为考前人脸识别的基准对比照片。</p>
+                  <p>3. 支持 JPG/PNG 格式，大小不超过 2MB。</p>
+                </div>
+              </div>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="用户名" prop="username">
@@ -168,12 +196,13 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Edit } from '@element-plus/icons-vue'
-import { getUserInfo, updateProfile, changePassword as changePasswordApi } from '../../api/user'
+import { Edit, Plus, Camera } from '@element-plus/icons-vue'
+import { getUserInfo, updateProfile, changePassword as changePasswordApi, uploadFace } from '../../api/user'
 
 // 响应式数据
 const isEditing = ref(false)
 const saving = ref(false)
+const faceLoading = ref(false)
 const passwordLoading = ref(false)
 const profileFormRef = ref()
 const passwordFormRef = ref()
@@ -186,9 +215,53 @@ const profileForm = reactive({
   phone: '',
   role: '',
   isActive: true,
+  facePhoto: '',
   createTime: null,
   lastLoginTime: null
 })
+
+// 人脸照片上传处理
+const handleFaceUpload = async (options) => {
+  const { file } = options
+  
+  // 校验文件类型
+  const isJPG = file.type === 'image/jpeg' || file.type === 'image/png'
+  if (!isJPG) {
+    ElMessage.error('上传人脸照片只能是 JPG 或 PNG 格式!')
+    return false
+  }
+  
+  // 校验文件大小 (限制 2MB)
+  const isLt2M = file.size / 1024 / 1024 < 2
+  if (!isLt2M) {
+    ElMessage.error('上传人脸照片大小不能超过 2MB!')
+    return false
+  }
+
+  try {
+    faceLoading.value = true
+    const formData = new FormData()
+    formData.append('file', file)
+    
+    const response = await uploadFace(formData)
+    if (response.code === 200) {
+      profileForm.facePhoto = response.data
+      ElMessage.success('人脸照片上传成功')
+      
+      // 同步更新本地存储
+      const userInfo = JSON.parse(localStorage.getItem('userInfo') || '{}')
+      userInfo.facePhoto = response.data
+      localStorage.setItem('userInfo', JSON.stringify(userInfo))
+    } else {
+      ElMessage.error(response.message || '上传失败')
+    }
+  } catch (error) {
+    console.error('上传人脸照片出错:', error)
+    ElMessage.error('上传人脸照片出错')
+  } finally {
+    faceLoading.value = false
+  }
+}
 
 // 密码修改表单
 const passwordForm = reactive({
@@ -390,5 +463,76 @@ onMounted(() => {
 
 .el-divider {
   margin: 30px 0 20px 0;
+}
+
+/* 人脸照片上传样式 */
+.face-upload-container {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.face-uploader {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 8px;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+
+.face-uploader:hover {
+  border-color: #409eff;
+}
+
+.face-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+  width: 140px;
+  height: 140px;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.face-image {
+  width: 140px;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+
+.face-uploader-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 12px;
+}
+
+.face-uploader:hover .face-uploader-mask {
+  opacity: 1;
+}
+
+.face-tips {
+  color: #909399;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.face-tips p {
+  margin: 0;
 }
 </style>

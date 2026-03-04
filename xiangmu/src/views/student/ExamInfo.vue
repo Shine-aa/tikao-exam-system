@@ -103,14 +103,47 @@
         </el-button>
       </div>
     </div>
+
+    <!-- 人脸识别验证弹窗 -->
+    <el-dialog
+      v-model="faceDialogVisible"
+      title="考前人脸身份核验"
+      width="500px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="!verifying"
+      @closed="handleDialogClosed"
+    >
+      <div class="face-verify-container">
+        <div class="camera-box">
+          <video ref="videoRef" autoplay playsinline class="video-feed"></video>
+          <canvas ref="canvasRef" style="display: none;"></canvas>
+          <div v-if="verifying" class="verify-mask">
+            <el-icon class="is-loading"><Loading /></el-icon>
+            <span>正在核验身份...</span>
+          </div>
+        </div>
+        <div class="verify-tips">
+          <p><el-icon><InfoFilled /></el-icon> 请确保正对摄像头，光线充足，不要佩戴口罩或墨镜。</p>
+        </div>
+      </div>
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="faceDialogVisible = false" :disabled="verifying">取消</el-button>
+          <el-button type="primary" @click="captureAndVerify" :loading="verifying">
+            立即核验
+          </el-button>
+        </span>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Warning, ArrowLeft, VideoPlay, View, Clock } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Warning, ArrowLeft, VideoPlay, View, Clock, Loading, InfoFilled } from '@element-plus/icons-vue'
 import { studentExamApi } from '@/api/admin'
 import serverTimeSync from '@/utils/serverTime'
 
@@ -120,6 +153,75 @@ const router = useRouter()
 const examInfo = ref({})
 const agreedToTerms = ref(false)
 const loading = ref(false)
+
+// 人脸识别相关
+const faceDialogVisible = ref(false)
+const verifying = ref(false)
+const videoRef = ref(null)
+const canvasRef = ref(null)
+let stream = null
+
+// 打开人脸识别弹窗
+const openFaceDialog = async () => {
+  faceDialogVisible.value = true
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { width: 1280, height: 720 } 
+    })
+    if (videoRef.value) {
+      videoRef.value.srcObject = stream
+    }
+  } catch (err) {
+    console.error('无法访问摄像头:', err)
+    ElMessage.error('无法访问摄像头，请检查权限设置')
+    faceDialogVisible.value = false
+  }
+}
+
+// 关闭并清理摄像头
+const handleDialogClosed = () => {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop())
+    stream = null
+  }
+}
+
+// 拍照并验证
+const captureAndVerify = async () => {
+  if (!videoRef.value || !canvasRef.value) return
+
+  const canvas = canvasRef.value
+  const video = videoRef.value
+  canvas.width = video.videoWidth
+  canvas.height = video.videoHeight
+  
+  const context = canvas.getContext('2d')
+  context.drawImage(video, 0, 0, canvas.width, canvas.height)
+  
+  // 转换为 base64
+  const imageBase64 = canvas.toDataURL('image/jpeg', 0.8)
+
+  try {
+    verifying.value = true
+    const response = await studentExamApi.verifyFace({
+      image_base64: imageBase64
+    })
+
+    if (response.code === 200) {
+      ElMessage.success('人脸核验通过，欢迎参加考试')
+      faceDialogVisible.value = false
+      // 核验通过后，执行原有的开始考试逻辑
+      await doStartExam()
+    } else {
+      ElMessage.error(response.message || '核验失败，请重试')
+    }
+  } catch (error) {
+    console.error('Face verify error:', error)
+    ElMessage.error('人脸核验出错，请检查网络或 AI 服务状态')
+  } finally {
+    verifying.value = false
+  }
+}
 
 // 计算是否可以开始考试（使用服务器时间）
 const canStartExam = computed(() => {
@@ -185,11 +287,12 @@ const handleButtonClick = async () => {
   
   // 根据学生考试状态优先判断
   if (studentStatus === 'IN_PROGRESS') {
-    await startExam()
+    await doStartExam()
   } else if (studentStatus === 'SUBMITTED' || studentStatus === 'GRADED') {
     viewResults()
   } else if (canStartExam.value) {
-    await startExam()
+    // 考前核验身份
+    await openFaceDialog()
   } else if (status === 'COMPLETED') {
     viewResults()
   } else {
@@ -198,8 +301,8 @@ const handleButtonClick = async () => {
   }
 }
 
-// 开始考试
-const startExam = async () => {
+// 实际开始考试
+const doStartExam = async () => {
   if (!agreedToTerms.value) {
     ElMessage.warning('请先同意考试注意事项')
     return
@@ -218,7 +321,7 @@ const startExam = async () => {
     })
   } catch (error) {
     console.error('Start exam error:', error)
-    ElMessage.error('开始考试失败')
+    // request.js 会自动显示具体的错误信息，此处无需再次弹出通用的“开始考试失败”
   } finally {
     loading.value = false
   }
@@ -449,5 +552,63 @@ onMounted(async () => {
   .action-buttons .el-button {
     width: 100%;
   }
+}
+
+/* 人脸识别样式 */
+.face-verify-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.camera-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.video-feed {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.verify-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: #fff;
+  gap: 12px;
+}
+
+.verify-mask .el-icon {
+  font-size: 32px;
+}
+
+.verify-tips {
+  width: 100%;
+  padding: 12px;
+  background: #f0f9eb;
+  border-radius: 4px;
+  color: #67c23a;
+  font-size: 13px;
+}
+
+.verify-tips p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 </style>

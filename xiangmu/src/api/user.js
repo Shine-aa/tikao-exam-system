@@ -18,14 +18,6 @@ export function login(data) {
   })
 }
 
-// 获取验证码
-export function getCaptcha() {
-  return request({
-    url: '/api/auth/captcha',
-    method: 'get'
-  })
-}
-
 // 获取用户信息
 export function getUserInfo() {
   return request({
@@ -57,6 +49,18 @@ export function changePassword(data) {
     url: '/api/user/change-password',
     method: 'post',
     data
+  })
+}
+
+// 上传人脸照片
+export function uploadFace(formData) {
+  return request({
+    url: '/api/user/upload-face',
+    method: 'post',
+    data: formData,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
   })
 }
 
