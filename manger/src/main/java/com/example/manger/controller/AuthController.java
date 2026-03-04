@@ -4,7 +4,6 @@ import com.example.manger.common.ApiResponse;
 import com.example.manger.dto.AuthResponse;
 import com.example.manger.dto.LoginRequest;
 import com.example.manger.dto.RegisterRequest;
-import com.example.manger.service.CaptchaService;
 import com.example.manger.service.SmsService;
 import com.example.manger.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,7 +24,6 @@ import java.util.Map;
 public class AuthController {
     
     private final UserService userService;
-    private final CaptchaService captchaService;
     private final SmsService smsService;
     
     /**
@@ -62,21 +60,6 @@ public class AuthController {
         
         AuthResponse response = userService.login(request, ipAddress, userAgent);
         return ApiResponse.success("登录成功", response);
-    }
-    
-    /**
-     * Author：李正阳，郭依林
-     * 获取验证码
-     */
-    @GetMapping("/captcha")
-    @Operation(summary = "获取验证码", description = "获取图形验证码，用于注册和登录验证")
-    public ApiResponse<CaptchaService.CaptchaResult> getCaptcha() {
-        try {
-            CaptchaService.CaptchaResult captcha = captchaService.generateCaptcha();
-            return ApiResponse.success(captcha);
-        } catch (Exception e) {
-            return ApiResponse.error("生成验证码失败");
-        }
     }
     
     /**

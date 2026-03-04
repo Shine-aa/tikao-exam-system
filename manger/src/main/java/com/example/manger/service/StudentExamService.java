@@ -74,40 +74,18 @@ public class StudentExamService {
                 .map(StudentClass::getClassId)
                 .collect(Collectors.toList());
 
-        // 步骤3：获取学生可访问的课程ID列表（通过班级-课程关联表，确保数据安全）
-        List<ClassCourse> studentClassCourses = classCourseRepository.findByClassIdInAndIsActiveTrue(studentClassIds);
-        Set<Long> accessibleCourseIds = studentClassCourses.stream()
-                .map(ClassCourse::getCourseId)
-                .collect(Collectors.toSet());
-
-        // 步骤4：验证筛选的 courseId 是否合法（学生必须有权访问该课程）
-        Long targetCourseId = null;
-        if (!ObjectUtils.isEmpty(courseId)) {
-            if (accessibleCourseIds.contains(courseId)) {
-                targetCourseId = courseId;
-            } else {
-                // 无权限，返回空结果
-                return Map.of(
-                        "ongoing", new ArrayList<>(),
-                        "upcoming", new ArrayList<>(),
-                        "completed", new ArrayList<>()
-                );
-            }
-        }
-
-        // 步骤5：核心查询（直接按「班级ID + 课程ID」筛选，精准高效）
+        // 步骤3：核心查询（直接按「班级ID」筛选，辅以可选的「课程ID」过滤）
         List<Exam> filteredExams;
-        if (ObjectUtils.isEmpty(targetCourseId)) {
-            // 场景1：无课程筛选 → 查询学生所有班级下的所有可访问课程考试
-            filteredExams = examRepository.findByClassIdInAndCourseIdInAndIsActiveTrueOrderByStartTimeDesc(
-                    studentClassIds, accessibleCourseIds);
+        if (ObjectUtils.isEmpty(courseId)) {
+            // 场景1：无课程筛选 → 查询学生所有班级下的所有考试
+            filteredExams = examRepository.findByClassIdInAndIsActiveTrueOrderByStartTimeDesc(studentClassIds);
         } else {
             // 场景2：有课程筛选 → 仅查询「学生班级 + 目标课程」的考试
             filteredExams = examRepository.findByClassIdInAndCourseIdAndIsActiveTrueOrderByStartTimeDesc(
-                    studentClassIds, targetCourseId);
+                    studentClassIds, courseId);
         }
 
-        // 步骤6：获取学生的考试记录（匹配成绩和个人考试状态）
+        // 步骤4：获取学生的考试记录（匹配成绩和个人考试状态）
         List<StudentExam> studentExams = studentExamRepository.findByStudentIdAndIsActiveTrueOrderByCreatedAtDesc(studentId);
         Map<Long, StudentExam> studentExamMap = studentExams.stream()
                 .collect(Collectors.toMap(StudentExam::getExamId, se -> se, (existing, replacement) -> existing));
@@ -218,7 +196,22 @@ public class StudentExamService {
 
         // 获取或创建学生考试记录
         StudentExam studentExam = studentExamRepository.findByExamIdAndStudentIdAndIsActiveTrue(examId, studentId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.STUDENT_EXAM_NOT_FOUND, "学生考试记录不存在"));
+                .orElseGet(() -> {
+                    // 如果记录不存在，检查学生是否在该考试对应的班级中
+                    boolean isInClass = studentClassRepository.existsByStudentIdAndClassIdAndIsActiveTrue(studentId, exam.getClassId());
+                    if (!isInClass) {
+                        throw new BusinessException(ErrorCode.ACCESS_DENIED, "您不在该考试指定的班级中，无法参加考试");
+                    }
+                    
+                    // 自动创建考试记录
+                    StudentExam newRecord = new StudentExam();
+                    newRecord.setExamId(examId);
+                    newRecord.setStudentId(studentId);
+                    newRecord.setAttemptNumber(1);
+                    newRecord.setStatus(StudentExam.StudentExamStatus.NOT_STARTED);
+                    newRecord.setIsActive(true);
+                    return studentExamRepository.save(newRecord);
+                });
 
         // 如果考试已提交，不允许重新开始
         if (studentExam.getStatus() == StudentExam.StudentExamStatus.SUBMITTED) {

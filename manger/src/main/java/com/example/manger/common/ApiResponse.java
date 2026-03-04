@@ -33,7 +33,15 @@ public class ApiResponse<T> {
         response.setMessage(message);
         return response;
     }
-    
+
+    public static <T> ApiResponse<T> error(String message, T data) {
+        ApiResponse<T> response = new ApiResponse<>();
+        response.setCode(500);
+        response.setMessage(message);
+        response.setData(data);
+        return response;
+    }
+
     public static <T> ApiResponse<T> error(Integer code, String message) {
         ApiResponse<T> response = new ApiResponse<>();
         response.setCode(code);

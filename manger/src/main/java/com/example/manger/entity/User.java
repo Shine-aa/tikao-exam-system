@@ -52,6 +52,9 @@ public class User {
     @Column(name = "class_id")
     private Long classId;
 
+    @Column(name = "face_photo", length = 255)
+    private String facePhoto;
+
     // 直接在字段上配置序列化格式，无需依赖全局 ObjectMapper
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     @CreationTimestamp

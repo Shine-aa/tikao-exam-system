@@ -1,14 +1,17 @@
 package com.example.manger.controller;
 
 import com.example.manger.common.ApiResponse;
+import com.example.manger.context.BaseContext;
 import com.example.manger.dto.ExamResponse;
+import com.example.manger.entity.User;
+import com.example.manger.repository.UserRepository;
+import com.example.manger.service.FaceRecognitionService;
 import com.example.manger.service.StudentExamService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,12 +22,51 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/student/exams")
+@RequiredArgsConstructor
 @CrossOrigin
 @Tag(name = "学生考试", description = "学生端考试相关接口，包括获取考试列表、开始考试、提交答案等")
 public class StudentExamController {
 
-    @Autowired
-    private StudentExamService studentExamService;
+    private final StudentExamService studentExamService;
+    private final FaceRecognitionService faceRecognitionService;
+    private final UserRepository userRepository;
+
+    /**
+     * 人脸验证接口
+     */
+    @PostMapping("/verify-face")
+    @Operation(summary = "考前人脸验证", description = "学生在进入考试前抓拍照片与基准照进行比对")
+    @PreAuthorize("hasRole('USER')")
+    public ApiResponse verifyFace(@RequestBody Map<String, String> requestData) {
+        try {
+            String capturedBase64 = requestData.get("image_base64");
+            if (capturedBase64 == null || capturedBase64.isEmpty()) {
+                return ApiResponse.error("抓拍照片不能为空");
+            }
+
+            // 1. 获取当前登录用户的基准照片 URL
+            Long userId = BaseContext.getCurrentId();
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("用户不存在"));
+            
+            String referenceUrl = user.getFacePhoto();
+            if (referenceUrl == null || referenceUrl.isEmpty()) {
+                return ApiResponse.error("未录入人脸基准照片，请在个人资料中录入后再参加考试");
+            }
+
+            // 2. 调用 Python AI 服务进行验证
+            FaceRecognitionService.FaceVerifyResponse response = faceRecognitionService.verifyFace(capturedBase64, referenceUrl);
+            
+            if (response != null && response.isSuccess()) {
+                return ApiResponse.success("人脸验证通过", response);
+            } else {
+                String msg = response != null ? response.getMessage() : "人脸验证失败";
+                return ApiResponse.error(msg, response);
+            }
+        } catch (Exception e) {
+            return ApiResponse.error("人脸验证过程出错: " + e.getMessage());
+        }
+    }
 
     /**
      * Author：李正阳，李子政

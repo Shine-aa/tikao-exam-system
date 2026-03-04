@@ -94,19 +94,6 @@ public class UserService {
     public AuthResponse login(LoginRequest request, String ipAddress, String userAgent) {
         // 选择过期时间
         long ttlSeconds = Boolean.TRUE.equals(request.getRememberMe()) ? jwtUtil.getRememberExpiration() : jwtUtil.getExpiration();
-
-        // 验证验证码（只有在提供验证码时才验证）
-        if (request.getCaptcha() != null && !request.getCaptcha().isEmpty()) {
-            String captchaKey = "captcha:" + request.getCaptchaId();
-            String storedCaptcha = redisTemplate.opsForValue().get(captchaKey);
-            
-            if (storedCaptcha == null || !storedCaptcha.equalsIgnoreCase(request.getCaptcha())) {
-                throw new BusinessException(1004, "验证码错误或已过期");
-            }
-            
-            // 删除验证码
-            redisTemplate.delete(captchaKey);
-        }
         
         // 查找用户（支持用户名和手机号登录）
         User user = null;
@@ -185,6 +172,17 @@ public class UserService {
         response.setUserInfo(userInfo);
         
         return response;
+    }
+    
+    /**
+     * 更新用户人脸照片
+     */
+    @Transactional
+    public void updateFacePhoto(Long userId, String facePhotoUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(1004, "用户不存在"));
+        user.setFacePhoto(facePhotoUrl);
+        userRepository.save(user);
     }
     
     /**

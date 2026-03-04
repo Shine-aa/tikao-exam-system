@@ -3,6 +3,7 @@ package com.example.manger.controller;
 import com.example.manger.common.ApiResponse;
 import com.example.manger.dto.*;
 import com.example.manger.entity.User;
+import com.example.manger.service.AliOssService;
 import com.example.manger.service.UserManagementService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,11 +29,34 @@ import java.util.stream.Collectors;
 public class UserManagementController {
     
     private final UserManagementService userManagementService;
+    private final AliOssService aliOssService;
     
     /**
      * Author：李正阳
-     * 创建用户
+     * 管理员为任意用户上传/更新人脸照片
      */
+    @PostMapping("/{userId}/face-photo")
+    @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
+    @Operation(summary = "管理员更新人脸照片", description = "管理员上传或更新任意用户的人脸照片")
+    public ApiResponse<String> updateUserFacePhoto(@PathVariable Long userId,
+                                                  @RequestPart("file") MultipartFile file) {
+        try {
+            if (file == null || file.isEmpty()) {
+                return ApiResponse.error("上传文件不能为空");
+            }
+            
+            // 1. 上传到阿里云 OSS
+            String facePhotoUrl = aliOssService.uploadFile(file);
+            
+            // 2. 更新数据库
+            userManagementService.updateUserFacePhoto(userId, facePhotoUrl);
+            
+            return ApiResponse.success("人脸照片更新成功", facePhotoUrl);
+        } catch (Exception e) {
+            return ApiResponse.error("更新人脸照片失败: " + e.getMessage());
+        }
+    }
+
     @PostMapping
     @PreAuthorize("hasRole('SUPER_ADMIN') or hasRole('TEACHER')")
     public ApiResponse<UserResponse> createUser(@Valid @RequestBody CreateUserRequest request) {

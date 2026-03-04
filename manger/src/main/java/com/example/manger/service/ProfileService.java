@@ -70,6 +70,17 @@ public class ProfileService {
     }
     
     /**
+     * 更新用户人脸照片
+     */
+    @Transactional
+    public void updateFacePhoto(Long userId, String facePhotoUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(1007, "用户不存在"));
+        user.setFacePhoto(facePhotoUrl);
+        userRepository.save(user);
+    }
+    
+    /**
      * 修改密码
      */
     @Transactional
@@ -102,6 +113,7 @@ public class ProfileService {
         response.setUsername(user.getUsername());
         response.setEmail(user.getEmail());
         response.setPhone(user.getPhone());
+        response.setFacePhoto(user.getFacePhoto());
         response.setIsActive(user.getIsActive());
         response.setCreateTime(user.getCreateTime());
         response.setLastLoginTime(user.getLastLoginTime());

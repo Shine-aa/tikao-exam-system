@@ -22,7 +22,6 @@
         <java.version>17</java.version>
         <lombok.version>1.18.38</lombok.version>
         <jwt.version>0.12.3</jwt.version>
-        <kaptcha.version>2.3.2</kaptcha.version>
         <poi.version>5.2.3</poi.version>
         <easyexcel.version>3.3.2</easyexcel.version>
         <xmlbeans.version>5.1.1</xmlbeans.version>
@@ -49,11 +48,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
-<!-- 解决冲突 -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-neo4j</artifactId>
         </dependency>
 
         <!-- MySQL -->
@@ -95,13 +89,6 @@
             <artifactId>jjwt</artifactId>
             <version>${jwt.version}</version>
             <scope>runtime</scope>
-        </dependency>
-
-        <!-- Kaptcha -->
-        <dependency>
-            <groupId>com.github.penggle</groupId>
-            <artifactId>kaptcha</artifactId>
-            <version>${kaptcha.version}</version>
         </dependency>
 
         <!-- Swagger -->
@@ -174,6 +161,13 @@
             <groupId>com.github.docker-java</groupId>
             <artifactId>docker-java-transport-httpclient5</artifactId>
             <version>3.3.6</version>
+        </dependency>
+
+        <!-- Aliyun OSS -->
+        <dependency>
+            <groupId>com.aliyun.oss</groupId>
+            <artifactId>aliyun-sdk-oss</artifactId>
+            <version>3.17.4</version>
         </dependency>
 
         <!-- Test -->

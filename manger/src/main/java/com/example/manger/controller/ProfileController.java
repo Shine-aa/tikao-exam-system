@@ -5,6 +5,7 @@ import com.example.manger.context.BaseContext;
 import com.example.manger.dto.ChangePasswordRequest;
 import com.example.manger.dto.UpdateProfileRequest;
 import com.example.manger.dto.UserResponse;
+import com.example.manger.service.AliOssService;
 import com.example.manger.service.ProfileService;
 import com.example.manger.util.JwtUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -17,6 +18,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/user")
@@ -26,6 +28,7 @@ import org.springframework.web.bind.annotation.*;
 public class ProfileController {
     
     private final ProfileService profileService;
+    private final AliOssService aliOssService;
     
     /**
      * Author：李子政，郭依林
@@ -42,6 +45,32 @@ public class ProfileController {
         Long userId = getCurrentUserId();
         UserResponse userInfo = profileService.getUserInfo(userId);
         return ApiResponse.success(userInfo);
+    }
+
+    /**
+     * 上传人脸照片
+     */
+    @PostMapping("/upload-face")
+    @Operation(summary = "上传人脸照片", description = "上传考生的照片到阿里云 OSS 并保存到数据库")
+    public ApiResponse<String> uploadFace(@RequestPart("file") MultipartFile file) {
+        try {
+            if (file == null || file.isEmpty()) {
+                return ApiResponse.error("上传文件不能为空");
+            }
+            
+            // 1. 获取当前用户 ID
+            Long userId = getCurrentUserId();
+            
+            // 2. 上传到阿里云 OSS
+            String facePhotoUrl = aliOssService.uploadFile(file);
+            
+            // 3. 更新数据库
+            profileService.updateFacePhoto(userId, facePhotoUrl);
+            
+            return ApiResponse.success("人脸照片上传成功", facePhotoUrl);
+        } catch (Exception e) {
+            return ApiResponse.error("上传人脸照片失败: " + e.getMessage());
+        }
     }
     
     /**

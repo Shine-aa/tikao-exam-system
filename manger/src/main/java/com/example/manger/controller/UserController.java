@@ -94,6 +94,7 @@ public class UserController {
             userInfo.put("username", user.getUsername());
             userInfo.put("email", user.getEmail());
             userInfo.put("phone", user.getPhone());
+            userInfo.put("facePhoto", user.getFacePhoto());
             userInfo.put("isActive", user.getIsActive());
             userInfo.put("classId", user.getClassId());
             userInfo.put("createTime", user.getCreateTime());

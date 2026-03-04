@@ -324,6 +324,17 @@ public class UserManagementService {
     }
     
     /**
+     * 更新用户人脸照片 (管理员使用)
+     */
+    @Transactional
+    public void updateUserFacePhoto(Long userId, String facePhotoUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND, "用户不存在"));
+        user.setFacePhoto(facePhotoUrl);
+        userRepository.save(user);
+    }
+
+    /**
      * 转换为响应DTO
      */
     private UserResponse convertToResponse(User user) {
@@ -332,6 +343,8 @@ public class UserManagementService {
         response.setName(user.getName());
         response.setUsername(user.getUsername());
         response.setEmail(user.getEmail());
+        response.setPhone(user.getPhone());
+        response.setFacePhoto(user.getFacePhoto());
         response.setIsActive(user.getIsActive());
         response.setLastLoginTime(user.getLastLoginTime());
         response.setCreateTime(user.getCreateTime());
@@ -532,9 +545,11 @@ public class UserManagementService {
     private UserResponse convertUserToResponse(User user) {
         UserResponse response = new UserResponse();
         response.setId(user.getId());
+        response.setName(user.getName());
         response.setUsername(user.getUsername());
         response.setEmail(user.getEmail());
         response.setPhone(user.getPhone());
+        response.setFacePhoto(user.getFacePhoto());
         response.setIsActive(user.getIsActive());
         response.setLastLoginTime(user.getLastLoginTime());
         response.setCreateTime(user.getCreateTime());
